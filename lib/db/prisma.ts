@@ -29,7 +29,8 @@ function getDatabaseUrl(hyperdrive?: HyperdriveBinding): string {
   if (hyperdrive) {
     const { host, user, password, database, port } = hyperdrive;
     const encodedPassword = encodeURIComponent(password);
-    return `mariadb://${user}:${encodedPassword}@${host}:${port}/${database}`;
+    // Use mysql:// protocol - mariadb adapter works with MySQL databases
+    return `mysql://${user}:${encodedPassword}@${host}:${port}/${database}`;
   }
   
   // Try to access Hyperdrive from Cloudflare context (if available)
@@ -38,7 +39,7 @@ function getDatabaseUrl(hyperdrive?: HyperdriveBinding): string {
   if (cloudflareContext?.env?.HYPERDRIVE) {
     const hd = cloudflareContext.env.HYPERDRIVE;
     const encodedPassword = encodeURIComponent(hd.password);
-    return `mariadb://${hd.user}:${encodedPassword}@${hd.host}:${hd.port}/${hd.database}`;
+    return `mysql://${hd.user}:${encodedPassword}@${hd.host}:${hd.port}/${hd.database}`;
   }
   
   // Fallback to DATABASE_URL environment variable
@@ -46,8 +47,7 @@ function getDatabaseUrl(hyperdrive?: HyperdriveBinding): string {
   if (!dbUrl) {
     throw new Error("DATABASE_URL environment variable is not set and Hyperdrive binding is not available");
   }
-  // Convert mysql:// to mariadb:// if needed
-  return dbUrl.replace(/^mysql:\/\//, "mariadb://");
+  return dbUrl;
 }
 
 // Factory function to create Prisma client with adapter (required for Cloudflare Workers)
