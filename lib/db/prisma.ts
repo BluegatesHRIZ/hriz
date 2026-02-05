@@ -6,7 +6,7 @@ if (process.env.NODE_ENV !== "production" && typeof process.env.DATABASE_URL ===
     // dotenv not available, continue without it
   }
 }
-import { PrismaClient } from "@prisma/client"
+import { PrismaClient } from "../../src/generated/prisma/client"
 import { PrismaMariaDb } from "@prisma/adapter-mariadb"
 
 const globalForPrisma = globalThis as unknown as {
