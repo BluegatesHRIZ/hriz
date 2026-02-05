@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "main": ".open-next/worker.js",
-  "name": "hriz",
+  "name": "hriz-preview",
   "compatibility_date": "2026-02-04",
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
