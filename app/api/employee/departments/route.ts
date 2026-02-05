@@ -1,0 +1,43 @@
+import { NextRequest, NextResponse } from "next/server"
+import { verifyToken } from "@/lib/auth/jwt"
+import { prisma } from "@/lib/db/prisma"
+
+/**
+ * GET /api/employee/departments
+ * Get list of departments
+ */
+export async function GET(request: NextRequest) {
+  try {
+    const authHeader = request.headers.get("authorization")
+    if (!authHeader?.startsWith("Bearer ")) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 })
+    }
+
+    try {
+      verifyToken(authHeader.substring(7))
+    } catch {
+      return NextResponse.json({ message: "Invalid token" }, { status: 401 })
+    }
+
+    const departments = await prisma.department.findMany({
+      where: {
+        dep_status: 1, // Only active departments
+      },
+      select: {
+        dep_id: true,
+        dep_desc: true,
+      },
+      orderBy: {
+        dep_desc: "asc",
+      },
+    })
+
+    return NextResponse.json(departments)
+  } catch (error) {
+    console.error("Get departments error:", error)
+    return NextResponse.json(
+      { message: "Internal server error", error: error instanceof Error ? error.message : "Unknown error" },
+      { status: 500 }
+    )
+  }
+}

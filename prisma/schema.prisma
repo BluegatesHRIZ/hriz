@@ -1,0 +1,1007 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model accpermission {
+  per_id    String  @id @db.VarChar(10)
+  per_name  String? @db.VarChar(45)
+  per_desc  String? @db.VarChar(100)
+  per_value BigInt?
+}
+
+model accrole {
+  rol_id   String  @id @db.VarChar(10)
+  rol_name String? @db.VarChar(45)
+  rol_desc String? @db.VarChar(45)
+}
+
+model accrolepermission {
+  arp_id  Int     @id @default(autoincrement())
+  arp_rol String? @db.VarChar(10)
+  arp_per String? @db.VarChar(10)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model announce {
+  an_id        Int       @id @default(autoincrement())
+  an_startdate DateTime? @db.Date
+  an_enddate   DateTime? @db.Date
+  an_headline  String?   @db.VarChar(50)
+  an_message   String?   @db.VarChar(200)
+  an_repeat    Int?
+  an_status    Int?      @default(0)
+  an_type      String?   @default("regular") @db.VarChar(45)
+  an_by        String?   @db.VarChar(6)
+  an_modified  DateTime? @db.DateTime(0)
+  an_logdate   DateTime? @default(now()) @db.DateTime(0)
+}
+
+model approvallevels {
+  al_id        String    @id @db.VarChar(20)
+  al_appvr     String?   @db.VarChar(6)
+  al_emp       String?   @db.VarChar(6)
+  al_menu      String?   @db.VarChar(5)
+  al_level     Int?      @default(1)
+  al_stat      Int?      @default(1)
+  al_timestamp DateTime? @default(now()) @db.DateTime(0)
+}
+
+model attendance {
+  att_date        DateTime  @db.Date
+  att_emp         String    @db.VarChar(6)
+  att_schin       DateTime? @db.DateTime(0)
+  att_schout      DateTime? @db.DateTime(0)
+  att_schbin      DateTime? @db.DateTime(0)
+  att_schbout     DateTime? @db.DateTime(0)
+  att_schhrs      DateTime? @db.Time(0)
+  att_schshift    String?   @db.VarChar(2)
+  att_schbreak    DateTime? @db.Time(0)
+  att_restday     String?   @db.VarChar(2)
+  att_holiday     String?   @default("N") @db.VarChar(2)
+  att_local       String?   @db.VarChar(5)
+  att_bioin       DateTime? @db.DateTime(0)
+  att_bioout      DateTime? @db.DateTime(0)
+  att_brkin       DateTime? @db.DateTime(0)
+  att_brkout      DateTime? @db.DateTime(0)
+  att_coain       DateTime? @db.DateTime(0)
+  att_coaout      DateTime? @db.DateTime(0)
+  att_otmin       DateTime? @db.DateTime(0)
+  att_otmout      DateTime? @db.DateTime(0)
+  att_utmin       DateTime? @db.DateTime(0)
+  att_utmout      DateTime? @db.DateTime(0)
+  att_ltype       String?   @db.VarChar(2)
+  att_lhalf       String?   @db.VarChar(2)
+  att_reqschin    DateTime? @db.DateTime(0)
+  att_reqschout   DateTime? @db.DateTime(0)
+  att_reqschbin   DateTime? @db.DateTime(0)
+  att_reqschbout  DateTime? @db.DateTime(0)
+  att_reqschhrs   DateTime? @db.Time(0)
+  att_reqschshift String?   @db.VarChar(2)
+  att_reqschbreak DateTime? @db.Time(0)
+  att_reqrestday  String?   @db.VarChar(2)
+  att_fin         DateTime? @db.DateTime(0)
+  att_fout        DateTime? @db.DateTime(0)
+  att_tothrs      DateTime? @db.Time(0)
+  att_tothrsdec   Float?
+  att_wrkhrs      DateTime? @db.Time(0)
+  att_wrkhrsdec   Float?
+  att_late        DateTime? @db.Time(0)
+  att_undertime   DateTime? @db.Time(0)
+  att_overtime    DateTime? @db.Time(0)
+  att_paycode     String?   @db.VarChar(20)
+  att_excess      DateTime? @default(dbgenerated("'00:00:00'")) @db.Time(0)
+  att_ot          DateTime? @default(dbgenerated("'00:00:00'")) @db.Time(0)
+  att_nd          DateTime? @default(dbgenerated("'00:00:00'")) @db.Time(0)
+  att_ndot        DateTime? @default(dbgenerated("'00:00:00'")) @db.Time(0)
+  att_rd          DateTime? @default(dbgenerated("'00:00:00'")) @db.Time(0)
+  att_rdot        DateTime? @default(dbgenerated("'00:00:00'")) @db.Time(0)
+  att_rdnd        DateTime? @default(dbgenerated("'00:00:00'")) @db.Time(0)
+  att_rdndot      DateTime? @default(dbgenerated("'00:00:00'")) @db.Time(0)
+  att_sh          DateTime? @default(dbgenerated("'00:00:00'")) @db.Time(0)
+  att_shot        DateTime? @default(dbgenerated("'00:00:00'")) @db.Time(0)
+  att_shnd        DateTime? @default(dbgenerated("'00:00:00'")) @db.Time(0)
+  att_shndot      DateTime? @default(dbgenerated("'00:00:00'")) @db.Time(0)
+  att_shrd        DateTime? @default(dbgenerated("'00:00:00'")) @db.Time(0)
+  att_shrdot      DateTime? @default(dbgenerated("'00:00:00'")) @db.Time(0)
+  att_shrdnd      DateTime? @default(dbgenerated("'00:00:00'")) @db.Time(0)
+  att_shrdndot    DateTime? @default(dbgenerated("'00:00:00'")) @db.Time(0)
+  att_lh          DateTime? @default(dbgenerated("'00:00:00'")) @db.Time(0)
+  att_lhot        DateTime? @default(dbgenerated("'00:00:00'")) @db.Time(0)
+  att_lhnd        DateTime? @default(dbgenerated("'00:00:00'")) @db.Time(0)
+  att_lhndot      DateTime? @default(dbgenerated("'00:00:00'")) @db.Time(0)
+  att_lhrd        DateTime? @default(dbgenerated("'00:00:00'")) @db.Time(0)
+  att_lhrdot      DateTime? @default(dbgenerated("'00:00:00'")) @db.Time(0)
+  att_lhrdnd      DateTime? @default(dbgenerated("'00:00:00'")) @db.Time(0)
+  att_lhrdndot    DateTime? @default(dbgenerated("'00:00:00'")) @db.Time(0)
+  att_dh          DateTime? @default(dbgenerated("'00:00:00'")) @db.Time(0)
+  att_dhot        DateTime? @default(dbgenerated("'00:00:00'")) @db.Time(0)
+  att_dhnd        DateTime? @default(dbgenerated("'00:00:00'")) @db.Time(0)
+  att_dhndot      DateTime? @default(dbgenerated("'00:00:00'")) @db.Time(0)
+  att_dhrd        DateTime? @default(dbgenerated("'00:00:00'")) @db.Time(0)
+  att_dhrdot      DateTime? @default(dbgenerated("'00:00:00'")) @db.Time(0)
+  att_dhrdnd      DateTime? @default(dbgenerated("'00:00:00'")) @db.Time(0)
+  att_dhrdndot    DateTime? @default(dbgenerated("'00:00:00'")) @db.Time(0)
+  att_logdate     DateTime? @default(now()) @db.DateTime(0)
+
+  @@id([att_date, att_emp])
+}
+
+model audit_logs {
+  aul_id      Int       @id @default(autoincrement())
+  aul_desc    String?   @db.VarChar(255)
+  aul_emp     String?   @db.VarChar(45)
+  aul_created DateTime? @default(now()) @db.DateTime(0)
+  aul_path    String?   @db.VarChar(255)
+}
+
+model biologs {
+  bio_id      String    @id @db.VarChar(20)
+  bio_emp     String?   @db.VarChar(6)
+  bio_date    DateTime? @db.Date
+  bio_type    String?   @db.VarChar(2)
+  bio_time    DateTime? @db.Time(0)
+  bio_logdate DateTime? @default(now()) @db.DateTime(0)
+  bio_loc     String?   @db.VarChar(200)
+  bio_ip      String?   @db.VarChar(200)
+  bio_local   String?   @default("L1") @db.VarChar(5)
+
+  @@index([bio_logdate, bio_emp], map: "index2")
+}
+
+model bugs {
+  bug_id      Int       @id @default(autoincrement())
+  bug_report  String    @db.LongText
+  bug_status  Int       @default(0)
+  bug_path    String?   @db.VarChar(100)
+  bug_logdate DateTime? @default(now()) @db.DateTime(0)
+}
+
+model coa_detail {
+  coa_did   String    @id @db.VarChar(25)
+  coa_dpk   String    @db.VarChar(20)
+  coa_dctr  Int
+  coa_dtype String?   @db.VarChar(2)
+  coa_ddate DateTime? @db.Date
+  coa_dtime DateTime? @db.Time(0)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model coa_summary {
+  coa_sid           String    @id @db.VarChar(20)
+  coa_sctr          Int?
+  coa_stype         String?   @db.VarChar(5)
+  coa_stypedetail   String?   @db.VarChar(100)
+  coa_sreason       String?   @db.VarChar(200)
+  coa_semp          String?   @db.VarChar(6)
+  coa_sapplieddate  DateTime? @db.Date
+  coa_sstatus       Int?
+  coa_sapprovedby   String?   @db.VarChar(6)
+  coa_sapproveddate DateTime? @db.DateTime(0)
+  coa_logdate       DateTime? @default(now()) @db.DateTime(0)
+}
+
+model coa_type {
+  coa_tid   String  @id @db.VarChar(5)
+  coa_tdesc String? @db.VarChar(100)
+  coa_ttag  Int?    @default(0)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model comded {
+  cd_code    String    @id @db.VarChar(10)
+  cd_ord     Int?
+  cd_desc    String?   @db.VarChar(45)
+  cd_type    String?   @db.VarChar(2)
+  cd_tax     Int?
+  cd_slip    String?   @db.VarChar(2)
+  cd_logdate DateTime? @default(now()) @db.DateTime(0)
+  cd_temp    Int?      @default(0)
+}
+
+model company {
+  com_id        String    @id @db.VarChar(5)
+  com_name      String?   @db.VarChar(100)
+  com_address   String?   @db.VarChar(200)
+  com_datestart DateTime? @default(now()) @db.DateTime(0)
+  com_dateend   DateTime? @db.DateTime(0)
+  com_cntter    Int?
+  com_cntmob    Int?
+  com_logopath  String?   @db.VarChar(45)
+  com_email     String?   @db.VarChar(45)
+}
+
+model department {
+  dep_id          String    @id @db.VarChar(5)
+  dep_desc        String?   @db.VarChar(100)
+  dep_createdby   String?   @db.VarChar(6)
+  dep_datecreated DateTime? @default(now()) @db.DateTime(0)
+  dep_status      Int?      @default(1)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model empadvance {
+  emp_id            String    @db.VarChar(6)
+  emp_adid          String    @id @db.VarChar(20)
+  emp_adtype        String?   @db.VarChar(50)
+  emp_addate        DateTime? @db.Date
+  emp_adamt         Float?    @default(0)
+  emp_adaddedamt    Float?    @default(0)
+  emp_adpaypermonth Int?
+  emp_adpaycutoff   Int?
+  emp_adstart       DateTime? @db.Date
+  emp_adend         DateTime? @db.Date
+  emp_adamtperpay   Float?    @default(0)
+  emp_adpaid        Float?    @default(0)
+  emp_adlogdate     DateTime? @default(now()) @db.DateTime(0)
+  emp_adstatus      Int?      @default(1)
+}
+
+model empasset {
+  emp_id        Int
+  emp_asid      String    @id @db.VarChar(6)
+  emp_asitem    String?   @db.VarChar(100)
+  emp_assn      String?   @db.VarChar(100)
+  emp_asissue   DateTime? @db.Date
+  emp_asreturn  DateTime? @db.Date
+  emp_ascond    String?   @db.VarChar(200)
+  emp_aslogdate DateTime? @default(now()) @db.DateTime(0)
+}
+
+model empbenefit {
+  emb_code    String    @id @db.VarChar(20)
+  emb_id      String?   @db.VarChar(10)
+  emb_bcode   String?   @db.VarChar(10)
+  emb_ctr     Int?
+  emb_desc    String?   @db.VarChar(50)
+  emb_amt     Float?    @default(0)
+  emb_logdate DateTime? @default(now()) @db.DateTime(0)
+}
+
+model empdependent {
+  emp_id          String    @db.VarChar(6)
+  emp_depid       String    @id @db.VarChar(20)
+  emp_depname     String?   @db.VarChar(100)
+  emp_deprelation String?   @db.VarChar(50)
+  emp_depbdate    DateTime? @db.Date
+  emp_depnotes    String?   @db.VarChar(200)
+  emp_deplogdate  DateTime? @default(now()) @db.DateTime(0)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model emphist {
+  emp_id        String    @db.VarChar(6)
+  emp_htid      String    @id @db.VarChar(20)
+  emp_htdfrom   DateTime? @db.Date
+  emp_htdto     DateTime? @db.Date
+  emp_htcomp    String?   @db.VarChar(100)
+  emp_htindus   String?   @db.VarChar(50)
+  emp_htpos     String?   @db.VarChar(50)
+  emp_htlogdate DateTime? @default(now()) @db.DateTime(0)
+}
+
+model emphmo {
+  emp_id        String    @db.VarChar(6)
+  emp_hmid      String    @id @db.VarChar(20)
+  emp_hmname    String?   @db.VarChar(50)
+  emp_hmplan    String?   @db.VarChar(50)
+  emp_hmnote    String?   @db.VarChar(200)
+  emp_hmpaymnt  String?   @db.VarChar(50)
+  emp_hmlogdate DateTime? @default(now()) @db.DateTime(0)
+}
+
+model empleave {
+  eml_id        String  @id @db.VarChar(45)
+  eml_emp       String? @db.VarChar(6)
+  eml_leave     String? @db.VarChar(5)
+  eml_leacredit Float?
+  eml_used      Float?
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model employee {
+  emp_id          String    @id @db.VarChar(6)
+  emp_last        String?   @db.VarChar(100)
+  emp_first       String?   @db.VarChar(100)
+  emp_mid         String?   @db.VarChar(100)
+  emp_role        String?   @db.VarChar(10)
+  emp_dept        String?   @default("00000") @db.VarChar(5)
+  emp_pos         String?   @default("00000") @db.VarChar(5)
+  emp_loc         String?   @default("00000") @db.VarChar(5)
+  emp_pswd        Bytes?    @db.VarBinary(100)
+  emp_createdby   String?   @db.VarChar(6)
+  emp_datecreated DateTime? @default(now()) @db.DateTime(0)
+  emp_status      Int?      @default(1)
+  emp_extid       String?   @db.VarChar(55)
+  emp_updatedate  DateTime? @db.DateTime(0)
+}
+
+model empmed {
+  emp_id         String    @db.VarChar(6)
+  emp_medid      String    @id @db.VarChar(20)
+  emp_meddate    DateTime? @db.Date
+  emp_medtype    String?   @db.VarChar(50)
+  emp_medrem     String?   @db.VarChar(200)
+  emp_remlogdate DateTime? @default(now()) @db.DateTime(0)
+}
+
+model empmedrec {
+  emp_id     String  @db.VarChar(6)
+  emp_mrid   String  @id @db.VarChar(20)
+  emp_mrfile String? @db.VarChar(100)
+  emp_mrrem  String? @db.VarChar(200)
+}
+
+model empmemo {
+  emp_id        String    @db.VarChar(6)
+  emp_mmid      String    @id @db.VarChar(20)
+  emp_mmlev     String?   @db.VarChar(45)
+  emp_mmcode    String?   @db.VarChar(45)
+  emp_mmtype    String?   @db.VarChar(45)
+  emp_mmnote    String?   @db.VarChar(200)
+  emp_mmlogdate DateTime? @default(now()) @db.DateTime(0)
+}
+
+model empmovement {
+  emp_id        String    @db.VarChar(6)
+  emp_mvid      String    @id @db.VarChar(20)
+  emp_mvdate    DateTime? @db.Date
+  emp_mvposfrm  String?   @db.VarChar(5)
+  emp_mvposto   String?   @db.VarChar(5)
+  emp_mvsvisor  String?   @db.VarChar(6)
+  emp_mvdept    String?   @db.VarChar(5)
+  emp_mvtype    String?   @db.VarChar(45)
+  emp_mvempstat String?   @db.VarChar(45)
+  emp_mvloc     String?   @db.VarChar(5)
+  emp_mvlogdate DateTime? @default(now()) @db.DateTime(0)
+}
+
+model emppersonal {
+  emp_id       String    @id @db.VarChar(6)
+  emp_address  String?   @db.VarChar(200)
+  emp_birthday DateTime? @db.Date
+  emp_mother   String?   @db.VarChar(100)
+  emp_father   String?   @db.VarChar(100)
+  emp_gender   String?   @db.VarChar(1)
+  emp_civil    String?   @db.VarChar(1)
+  emp_spouse   String?   @db.VarChar(100)
+  emp_contact1 String?   @db.VarChar(100)
+  emp_contact2 String?   @db.VarChar(100)
+  emp_email    String?   @db.VarChar(100)
+  emp_account  String?   @db.VarChar(45)
+}
+
+model empreq {
+  emp_id        String    @db.VarChar(6)
+  emp_rqid      String    @id @db.VarChar(20)
+  emp_rqname    String?   @db.VarChar(100)
+  emp_rqnote    String?   @db.VarChar(100)
+  emp_rqlogdate DateTime? @default(now()) @db.DateTime(0)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model empsalary {
+  emp_id             String    @db.VarChar(6)
+  emp_salid          String    @id @db.VarChar(20)
+  emp_salposition    String?   @db.VarChar(100)
+  emp_salpayrolltype String?   @db.VarChar(3)
+  emp_saldatefrom    DateTime? @db.Date
+  emp_saldateto      DateTime? @default(dbgenerated("'1900-01-01'")) @db.Date
+  emp_salamt         Float?    @default(0)
+  emp_saldeminis     Float?    @default(0)
+  emp_salallow       Float?    @default(0)
+  emp_salnote        String?   @db.VarChar(200)
+  emp_salalnote      String?   @db.VarChar(200)
+  emp_sallogdate     DateTime? @default(now()) @db.DateTime(0)
+  emp_salstatus      Int?      @default(0)
+}
+
+model emptoken {
+  tkn_emp         String    @id @db.VarChar(6)
+  tkn_jwt         String?   @db.LongText
+  tkn_refresh     String?   @db.VarChar(100)
+  tkn_datecreated DateTime? @db.DateTime(0)
+  tkn_dateexpires DateTime? @db.DateTime(0)
+  tkn_ipaddress   String?   @db.VarChar(100)
+  tkn_longitude   String?   @db.VarChar(100)
+  tkn_latitude    String?   @db.VarChar(100)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model emptraining {
+  emp_id        String    @db.VarChar(6)
+  emp_trid      String    @id @db.VarChar(20)
+  emp_trdate    DateTime? @db.Date
+  emp_trdesc    String?   @db.VarChar(100)
+  emp_tradd     String?   @db.VarChar(200)
+  emp_trspeak   String?   @db.VarChar(100)
+  emp_trtype    String?   @db.VarChar(45)
+  emp_trlogdate DateTime? @default(now()) @db.DateTime(0)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model empwork {
+  emp_id         String    @id @db.VarChar(6)
+  emp_code       String?   @db.VarChar(65)
+  emp_type       Int?
+  emp_datehired  DateTime? @db.Date
+  emp_dateexp    DateTime? @db.Date
+  emp_datereg    DateTime? @db.Date
+  emp_remarks    String?   @db.LongText
+  emp_supervisor String?   @db.VarChar(6)
+  emp_sss        String?   @db.VarChar(50)
+  emp_philhealth String?   @db.VarChar(50)
+  emp_pagibig    String?   @db.VarChar(50)
+  emp_tin        String?   @db.VarChar(50)
+  emp_taxstat    String?   @db.VarChar(3)
+  emp_rdo        String?   @db.VarChar(5)
+  emp_passport   String?   @db.VarChar(50)
+  emp_prc        String?   @db.VarChar(50)
+}
+
+model errlog {
+  errid       Int      @id @default(autoincrement())
+  errdesc     String?  @db.LongText
+  logdatetime DateTime @default(now()) @db.DateTime(0)
+  errstat     String   @default("0") @db.VarChar(1)
+}
+
+model fapreason {
+  fap_id       Int       @id @unique(map: "fap_id_UNIQUE") @default(autoincrement())
+  fap_taskid   String?   @db.VarChar(20)
+  fap_ctr      Int?
+  fap_type     String?   @db.VarChar(1)
+  fap_appvr    String?   @db.VarChar(6)
+  fap_reason   String?   @db.VarChar(200)
+  fap_datetime DateTime? @default(now()) @db.DateTime(0)
+}
+
+model files {
+  fil_id       Int       @id @default(autoincrement())
+  fil_fk       String    @db.VarChar(45)
+  fil_type     String?   @db.VarChar(45)
+  fil_path     String    @db.VarChar(45)
+  fil_name     String    @db.VarChar(200)
+  fil_status   Int?      @default(1)
+  fil_datetime DateTime? @default(now()) @db.DateTime(0)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model forapproval {
+  fa_id       Int       @id @unique(map: "fa_id_UNIQUE") @default(autoincrement())
+  fa_taskid   String?   @db.VarChar(20)
+  fa_emp      String?   @db.VarChar(6)
+  fa_appvr    String?   @db.VarChar(6)
+  fa_appstat  Int?      @default(0)
+  fa_menu     String?   @db.VarChar(5)
+  fa_level    Int?
+  fa_status   Int?      @default(0)
+  fa_datetime DateTime? @default(now()) @db.DateTime(0)
+}
+
+model govtpag {
+  gpg_code    String    @id @db.VarChar(10)
+  gpg_frm     Float?    @default(0)
+  gpg_to      Float?    @default(0)
+  gpg_emrate  Float?    @default(0)
+  gpg_pagem   Float?    @default(0)
+  gpg_errate  Float?    @default(0)
+  gpg_pager   Float?    @default(0)
+  gpg_logdate DateTime? @default(now()) @db.DateTime(0)
+}
+
+model govtph {
+  gph_code    String    @id @db.VarChar(10)
+  gph_fr      Float?    @default(0)
+  gph_to      Float?    @default(0)
+  gph_rate    Float?    @default(0)
+  gph_ems     Float?    @default(0)
+  gph_ees     Float?    @default(0)
+  gph_logdate DateTime? @default(now()) @db.DateTime(0)
+}
+
+model govtsss {
+  gss_code    String    @id @db.VarChar(10)
+  gss_fr      Float?    @default(0)
+  gss_to      Float?    @default(0)
+  gss_ec      Float?    @default(0)
+  gss_wisp    Float?    @default(0)
+  gss_msct    Float?    @default(0)
+  gss_rsser   Float?    @default(0)
+  gss_rssee   Float?    @default(0)
+  gss_rsst    Float?    @default(0)
+  gss_ecer    Float?    @default(0)
+  gss_ecee    Float?    @default(0)
+  gss_ect     Float?    @default(0)
+  gss_wisper  Float?    @default(0)
+  gss_wipee   Float?    @default(0)
+  gss_wispt   Float?    @default(0)
+  gss_ter     Float?    @default(0)
+  gss_tee     Float?    @default(0)
+  gss_tt      Float?    @default(0)
+  gss_logdate DateTime? @default(now()) @db.DateTime(0)
+  gss_stat    String?   @db.VarChar(1)
+}
+
+model govttax {
+  gtx_code     String    @id @db.VarChar(10)
+  gtx_rangefrm Float?    @default(0)
+  gtx_rangeto  Float?    @default(0)
+  gtx_rate     Float?    @default(0)
+  gtx_amt      Float?    @default(0)
+  gtx_logdate  DateTime? @default(now()) @db.DateTime(0)
+}
+
+model holiday {
+  hol_id       String    @id @db.VarChar(20)
+  hol_date     DateTime? @db.Date
+  hol_type     String?   @db.VarChar(45)
+  hol_name     String?   @db.VarChar(45)
+  hol_logdate  DateTime? @default(now()) @db.DateTime(0)
+  hol_status   Int?      @default(1)
+  hol_repeat   String?   @default("\"Yearly\"") @db.VarChar(45)
+  hol_location String?   @db.VarChar(5)
+}
+
+model holidaytype {
+  htp_id   String  @id @db.VarChar(5)
+  htp_desc String? @db.VarChar(45)
+}
+
+model inittmp {
+  F0 String @id @db.VarChar(10)
+  F1 Bytes? @db.VarBinary(100)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model leave {
+  lev_id          String    @id @db.VarChar(5)
+  lev_desc        String?   @db.VarChar(100)
+  lev_days        Float?
+  lev_createdby   String?   @db.VarChar(6)
+  lev_datecreated DateTime? @default(now()) @db.DateTime(0)
+  lev_status      Int?      @default(1)
+  lev_before      Int?      @default(0)
+  lev_lead        Int?      @default(0)
+  lev_after       Int?      @default(0)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model leave_adjustment {
+  lad_Id          String    @id @db.VarChar(20)
+  lad_leavetype   String?   @db.VarChar(4)
+  lad_value       Float?
+  lad_type        String?   @db.VarChar(20)
+  lad_reason      String?   @db.LongText
+  lad_emp         String?   @db.VarChar(6)
+  lad_createdby   String?   @db.VarChar(6)
+  lad_datecreated DateTime? @default(now()) @db.DateTime(0)
+  lad_status      Int?      @default(1)
+}
+
+model leave_detail {
+  lea_did   String    @id @db.VarChar(20)
+  lea_dpk   String    @db.VarChar(45)
+  lea_dctr  Int
+  lea_ddate DateTime? @db.Date
+  lea_dtype String?   @db.VarChar(5)
+  lea_dampm String?   @db.VarChar(5)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model leave_summary {
+  lea_sid           String    @id @db.VarChar(20)
+  lea_sctr          Int?
+  lea_stype         String?   @db.VarChar(5)
+  lea_sfrom         DateTime? @db.Date
+  lea_sto           DateTime? @db.Date
+  lea_sreason       String?   @db.VarChar(200)
+  lea_swithpay      Float?
+  lea_swithoutpay   Float?
+  lea_semp          String?   @db.VarChar(6)
+  lea_sapplieddate  DateTime? @db.DateTime(0)
+  lea_sstatus       Int?      @default(0)
+  lea_sapprovedby   String?   @db.VarChar(6)
+  lea_sapproveddate DateTime? @db.DateTime(0)
+  lea_logdate       DateTime? @default(now()) @db.DateTime(0)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model loan {
+  loa_id           String    @id @db.VarChar(20)
+  loa_ctr          Int?
+  loa_amt          Float?
+  loa_reason       String?   @db.VarChar(50)
+  loa_emp          String?   @db.VarChar(6)
+  loa_applieddate  DateTime? @db.Date
+  loa_approvedby   String?   @db.VarChar(6)
+  loa_approveddate DateTime? @db.DateTime(0)
+  loa_status       Int?      @default(0)
+  loa_logdate      DateTime? @default(now()) @db.DateTime(0)
+  loa_type         String?   @db.VarChar(45)
+  loa_exprelease   DateTime? @db.Date
+}
+
+model location {
+  loc_id          String    @id @db.VarChar(5)
+  loc_desc        String?   @db.VarChar(100)
+  loc_code        String?   @db.VarChar(4)
+  loc_geo         String?   @db.LongText
+  loc_createdby   String?   @db.VarChar(6)
+  loc_datecreated DateTime? @default(now()) @db.DateTime(0)
+  loc_status      Int?      @default(1)
+}
+
+model menu {
+  mnu_id     String  @id @db.VarChar(5)
+  mnu_desc   String? @db.VarChar(50)
+  mnu_status Int?    @default(0)
+  mnu_http   String? @db.VarChar(100)
+  mnu_ctr    Int?
+}
+
+model notification {
+  not_id        Int      @id @default(autoincrement())
+  not_emp       String   @db.VarChar(45)
+  not_title     String   @db.VarChar(45)
+  not_desc      String   @db.VarChar(150)
+  not_status    Int      @default(0)
+  not_createdby String   @db.VarChar(45)
+  not_logdate   DateTime @default(now()) @db.DateTime(0)
+}
+
+model numbers {
+  number Int @id
+}
+
+model otrates {
+  rts      String @id @db.VarChar(20)
+  ot       Float? @default(0)
+  nd       Float? @default(0)
+  ndot     Float? @default(0)
+  rd       Float? @default(0)
+  rdot     Float? @default(0)
+  rdnd     Float? @default(0)
+  rdndot   Float? @default(0)
+  sh       Float? @default(0)
+  shot     Float? @default(0)
+  shnd     Float? @default(0)
+  shndot   Float? @default(0)
+  shrd     Float? @default(0)
+  shrdot   Float? @default(0)
+  shrdnd   Float? @default(0)
+  shrdndot Float? @default(0)
+  lh       Float? @default(0)
+  lhot     Float? @default(0)
+  lhnd     Float? @default(0)
+  lhndot   Float? @default(0)
+  lhrd     Float? @default(0)
+  lhrdot   Float? @default(0)
+  lhrdnd   Float? @default(0)
+  lhrdndot Float? @default(0)
+  dh       Float? @default(0)
+  dhot     Float? @default(0)
+  dhnd     Float? @default(0)
+  dhndot   Float? @default(0)
+  dhrd     Float? @default(0)
+  dhrdot   Float? @default(0)
+  dhrdnd   Float? @default(0)
+  dhrdndot Float? @default(0)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model overtime {
+  otm_id           String    @id @db.VarChar(20)
+  otm_ctr          Int?
+  otm_date         DateTime? @db.Date
+  otm_type         String?   @db.VarChar(100)
+  otm_from         DateTime? @db.DateTime(0)
+  otm_to           DateTime? @db.DateTime(0)
+  otm_to_A         DateTime? @db.DateTime(0)
+  otm_reason       String?   @db.VarChar(200)
+  otm_emp          String?   @db.VarChar(6)
+  otm_applieddate  DateTime? @db.DateTime(0)
+  otm_status       Int?      @default(0)
+  otm_approvedby   String?   @db.VarChar(6)
+  otm_approveddate DateTime? @db.DateTime(0)
+  otm_logdate      DateTime? @default(now()) @db.DateTime(0)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model pay_adjust {
+  pad_pk   String  @db.VarChar(45)
+  pad_ctr  Int
+  pad_type String? @db.VarChar(1)
+  pad_desc String? @db.VarChar(50)
+  pad_amt  Float?  @default(0)
+  pad_tax  Int?    @default(0)
+
+  @@id([pad_pk, pad_ctr])
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model pay_amounts {
+  pya_code    String    @db.VarChar(50)
+  pya_ctr     Int
+  pya_def     String    @db.VarChar(45)
+  pya_desc    String?   @db.VarChar(100)
+  pya_cd      String?   @db.VarChar(1)
+  pya_amt     Float?    @default(0)
+  pya_eramt   Float?    @default(0)
+  pya_tax     Int?
+  pya_adj     Int?
+  pya_logdate DateTime? @default(now()) @db.DateTime(0)
+  pya_temp    Int?      @default(0)
+
+  @@id([pya_code, pya_ctr, pya_def])
+}
+
+model pay_annual {
+  pya_code    String    @id @db.VarChar(45)
+  pya_yr      String    @db.VarChar(45)
+  pya_emp     String?   @db.VarChar(45)
+  pya_basic   Float?    @default(0)
+  pya_ot      Float?    @default(0)
+  pya_dem     Float?    @default(0)
+  pya_allw    Float?    @default(0)
+  pya_abs     Float?    @default(0)
+  pya_late    Float?    @default(0)
+  pya_ut      Float?    @default(0)
+  pya_taxem   Float?    @default(0)
+  pya_sssem   Float?    @default(0)
+  pya_phlem   Float?    @default(0)
+  pya_pagem   Float?    @default(0)
+  pya_taxer   Float?    @default(0)
+  pya_ssser   Float?    @default(0)
+  pya_phler   Float?    @default(0)
+  pya_pager   Float?    @default(0)
+  pya_logdate DateTime? @default(now()) @db.DateTime(0)
+}
+
+model pay_details {
+  pyd_pk     String  @id @db.VarChar(45)
+  pyd_code   String  @db.VarChar(20)
+  pyd_emp    String? @db.VarChar(45)
+  pyd_salary Float?  @default(0)
+  pyd_comp   Float?
+  pyd_tadjc  Float?  @default(0)
+  pyd_deduct Float?
+  pyd_tloan  Float?  @default(0)
+  pyd_tax    Float?  @default(0)
+  pyd_sss    Float?  @default(0)
+  pyd_phic   Float?  @default(0)
+  pyd_hdmf   Float?  @default(0)
+  pyd_ssser  Float?  @default(0)
+  pyd_phicer Float?  @default(0)
+  pyd_hdmfer Float?  @default(0)
+  pyd_tadjd  Float?  @default(0)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model pay_header {
+  pyh_code       String    @id @db.VarChar(20)
+  pyh_month      Int?
+  pyh_year       Int?
+  pyh_per        Int?
+  pyh_from       DateTime? @db.Date
+  pyh_to         DateTime? @db.Date
+  pyh_type       String?   @db.VarChar(50)
+  pyh_desc       String?   @db.VarChar(100)
+  pyh_loan       String?   @default("1") @db.VarChar(1)
+  pyh_govt       String?   @default("1") @db.VarChar(1)
+  pyh_phl        String?   @default("1") @db.VarChar(1)
+  pyh_sss        String?   @default("1") @db.VarChar(1)
+  pyh_pag        String?   @default("1") @db.VarChar(1)
+  pyh_tax        String?   @default("1") @db.VarChar(1)
+  pyh_status     String?   @db.VarChar(1)
+  pyh_user       String?   @db.VarChar(10)
+  pyh_logdate    DateTime? @default(now()) @db.DateTime(0)
+  pyh_postedby   String?   @db.VarChar(10)
+  pyh_posteddate DateTime? @db.DateTime(0)
+}
+
+model pay_loan {
+  pyl_code  String @db.VarChar(20)
+  pyl_lcode String @db.VarChar(20)
+  pyl_amt   Float? @default(0)
+  pyl_bal   Float? @default(0)
+
+  @@id([pyl_code, pyl_lcode])
+}
+
+model pay_ytd {
+  pytd_year    Int
+  pytd_emp     String    @db.VarChar(20)
+  pytd_code    String    @db.VarChar(45)
+  pytd_amt     Float?    @default(0)
+  pytd_eramt   Float?    @default(0)
+  pytd_status  Int?      @default(0)
+  pytd_logdate DateTime? @default(now()) @db.DateTime(0)
+
+  @@id([pytd_year, pytd_emp, pytd_code])
+}
+
+model payrunsett {
+  pyr_code   String    @id @db.VarChar(10)
+  pyr_month  Int?
+  pyr_year   Int?
+  pry_period Int?
+  pyr_type   String?   @db.VarChar(45)
+  pyr_frm    DateTime? @db.Date
+  pry_to     DateTime? @db.Date
+  pry_loan   String?   @db.VarChar(2)
+  pyr_gov    String?   @db.VarChar(2)
+  pry_tax    String?   @db.VarChar(2)
+  pry_sss    String?   @db.VarChar(2)
+  pry_ph     String?   @db.VarChar(2)
+  pry_pag    String?   @db.VarChar(2)
+}
+
+model paytypes {
+  pyt_code String  @id @db.VarChar(10)
+  pyt_desc String? @db.VarChar(100)
+  pyt_stat String? @db.VarChar(5)
+}
+
+model period_types {
+  pyt_id    Int     @id
+  pyt_desc  String? @db.VarChar(45)
+  pyt_count Int?
+}
+
+model position {
+  pst_id          String    @id @db.VarChar(5)
+  pst_desc        String?   @db.VarChar(100)
+  pst_createdby   String?   @db.VarChar(6)
+  pst_datecreated DateTime? @default(now()) @db.DateTime(0)
+  pst_Status      Int?      @default(1)
+}
+
+model schedadjust_detail {
+  sca_did         String    @id @db.VarChar(40)
+  sca_dpk         String?   @db.VarChar(20)
+  sca_dctr        Int?
+  sca_ddate       DateTime? @db.Date
+  sca_dshiftstart DateTime? @db.Time(0)
+  sca_dbreakstart DateTime? @db.Time(0)
+  sca_dbreakend   DateTime? @db.Time(0)
+  sca_dshiftend   DateTime? @db.Time(0)
+  sca_drest       Int?
+  sca_dbreak      Int?
+  sca_dshift      String?   @db.VarChar(2)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model schedadjust_summary {
+  sca_sid           String    @id @db.VarChar(20)
+  sca_sctr          Int?
+  sca_sdatefrom     DateTime? @db.Date
+  sca_sdateto       DateTime? @db.Date
+  sca_semp          String?   @db.VarChar(6)
+  sca_sapplieddate  DateTime? @default(now()) @db.DateTime(0)
+  sca_sreason       String?   @db.VarChar(100)
+  sca_sstatus       Int?      @default(0)
+  sca_sapprovedby   String?   @db.VarChar(6)
+  sca_sapproveddate DateTime? @db.DateTime(0)
+  sca_logdate       DateTime? @default(now()) @db.DateTime(0)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model schedule {
+  sch_id      String    @id @db.VarChar(10)
+  sch_day     String?   @db.VarChar(45)
+  sch_in      DateTime? @db.Time(0)
+  sch_out     DateTime? @db.Time(0)
+  sch_bin     DateTime? @db.Time(0)
+  sch_bout    DateTime? @db.Time(0)
+  sch_hrs     Float?    @default(0)
+  sch_rest    Int?      @default(0)
+  sch_shift   String?   @default("R") @db.VarChar(2)
+  sch_emp     String?   @db.VarChar(6)
+  sch_logdate DateTime? @default(now()) @db.DateTime(0)
+  sch_break   Int?      @default(1) @db.TinyInt
+}
+
+model scheduletypes {
+  sct_id     String  @id @db.VarChar(10)
+  sct_desc   String? @db.VarChar(50)
+  sct_status Int?    @default(0)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model settings_tab {
+  set_id          String    @id @db.VarChar(20)
+  set_din         DateTime? @db.Time(0)
+  set_dbin        DateTime? @db.Time(0)
+  set_dbout       DateTime? @db.Time(0)
+  set_dout        DateTime? @db.Time(0)
+  set_timeout     DateTime? @db.Time(0)
+  set_graceperiod DateTime? @db.Time(0)
+  set_extid       String?   @default("0") @db.VarChar(1)
+  set_beta        String?   @db.VarChar(100)
+  set_user        Int?
+  set_terminal    Int?
+  set_device      Int?
+  set_timeoffset  DateTime? @db.Time(0)
+  set_coabefore   Int?      @default(0)
+  set_coaafter    Int?      @default(0)
+  set_utmlead     Int?      @default(0)
+  set_utmafter    Int?      @default(0)
+  set_otmbefore   Int?      @default(0)
+  set_otmafter    Int?      @default(0)
+  set_scabefore   Int?      @default(0)
+  set_scaafter    Int?      @default(0)
+  set_ndst        DateTime? @db.Time(0)
+  set_nden        DateTime? @db.Time(0)
+  set_yrdays      Int?
+  set_wkdays      Int?
+  set_halfmon     Int?
+  set_includes    Int?
+  set_flex        Int?      @default(0)
+  set_period      Int?      @default(2)
+  set_biobreak    Int?      @default(0) @db.TinyInt
+  set_minin       DateTime? @db.Time(0)
+}
+
+model taxtab {
+  tax_id   String? @db.VarChar(6)
+  tax_code String  @id @db.VarChar(6)
+  tax_desc String? @db.VarChar(200)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model terminal {
+  ter_code     String   @id @db.VarChar(11)
+  ter_id       String?  @db.VarChar(100)
+  ter_loc      String?  @db.VarChar(5)
+  ter_ip       String?  @db.VarChar(45)
+  ter_status   Int?     @default(1)
+  ter_logdate  DateTime @default(now()) @db.DateTime(0)
+  ter_biopass  String?  @db.VarChar(45)
+  ter_type     Int?
+  ter_device   String?  @db.VarChar(100)
+  ter_biokey   String?  @default("") @db.VarChar(45)
+  ter_clocking Int?     @default(1)
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model tmptimesheet {
+  c0     String  @db.VarChar(200)
+  c1     String? @db.Text
+  c2     String? @db.Text
+  c3     String? @db.Text
+  c4     String? @db.Text
+  c5     String? @db.Text
+  c0code String? @db.VarChar(50)
+
+  @@ignore
+}
+
+model ufclogs {
+  ufc_id      String   @id @db.VarChar(21)
+  ufc_emp     String   @db.VarChar(45)
+  ufc_date    DateTime @db.Date
+  ufc_type    String   @db.VarChar(1)
+  ufc_time    DateTime @db.Time(0)
+  ufc_logdate DateTime @default(now()) @db.DateTime(0)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model undertime {
+  utm_id           String    @id @db.VarChar(20)
+  utm_ctr          Int?
+  utm_date         DateTime? @db.Date
+  utm_from         DateTime? @db.Time(0)
+  utm_to           DateTime? @db.Time(0)
+  utm_reason       String?   @db.VarChar(200)
+  utm_emp          String?   @db.VarChar(6)
+  utm_applieddate  DateTime? @db.DateTime(0)
+  utm_status       Int?
+  utm_approvedby   String?   @db.VarChar(6)
+  utm_approveddate DateTime? @db.DateTime(0)
+  utm_logdate      DateTime? @default(now()) @db.DateTime(0)
+}
