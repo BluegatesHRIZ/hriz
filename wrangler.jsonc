@@ -8,23 +8,32 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS",
   },
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "ccd526fd3097469a8df756ca48d088b1",
+    },
+  ],
   // Environment variables should be configured in Cloudflare Dashboard:
   // Workers & Pages > Your Project > Settings > Environment Variables
   // Required variables:
   // - JWT_SALT: Secret key for JWT token signing
-  // - HYPERDRIVE_CONNECTION_STRING: Hyperdrive connection string (for production)
-  //   OR DATABASE_URL: Direct MySQL connection string (fallback)
+  // - DATABASE_URL: Direct MySQL connection string (for local dev and fallback)
   // - SUPABASE_URL: (if using Supabase)
   // - SUPABASE_KEY: (if using Supabase)
   //
   // Hyperdrive Setup Instructions:
-  // 1. Go to Cloudflare Dashboard > Workers & Pages > Hyperdrive
-  // 2. Click "Create a Hyperdrive config"
-  // 3. Name it (e.g., "hriz-mysql")
-  // 4. Select MySQL as database type
-  // 5. Enter your MySQL connection string:
-  //    mysql://root:B1u3g@t35_bluegates@124.6.190.183:3306/bgc_ofc_hris
-  // 6. After creating, click on the config to view details
-  // 7. Copy the "Connection String" (it will look like: postgresql://...)
-  // 8. Add it as HYPERDRIVE_CONNECTION_STRING in your project's Environment Variables
+  // 1. Create Hyperdrive config via CLI:
+  //    npx wrangler hyperdrive create hriz-mysql --connection-string="mysql://root:B1u3g@t35_bluegates@124.6.190.183:3306/bgc_ofc_hris"
+  //
+  // 2. OR via Dashboard:
+  //    - Go to Cloudflare Dashboard > Workers & Pages > Hyperdrive
+  //    - Click "Create a Hyperdrive config"
+  //    - Name: "hriz-mysql"
+  //    - Database: MySQL
+  //    - Connection string: mysql://root:B1u3g@t35_bluegates@124.6.190.183:3306/bgc_ofc_hris
+  //
+  // 3. After creating, copy the Hyperdrive ID (shown after creation)
+  //
+  // 4. Replace YOUR_HYPERDRIVE_ID_HERE above with the actual ID
 }
