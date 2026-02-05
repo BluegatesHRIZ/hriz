@@ -12,7 +12,19 @@
   // Workers & Pages > Your Project > Settings > Environment Variables
   // Required variables:
   // - JWT_SALT: Secret key for JWT token signing
-  // - DATABASE_URL: MySQL connection string
+  // - HYPERDRIVE_CONNECTION_STRING: Hyperdrive connection string (for production)
+  //   OR DATABASE_URL: Direct MySQL connection string (fallback)
   // - SUPABASE_URL: (if using Supabase)
   // - SUPABASE_KEY: (if using Supabase)
+  //
+  // Hyperdrive Setup Instructions:
+  // 1. Go to Cloudflare Dashboard > Workers & Pages > Hyperdrive
+  // 2. Click "Create a Hyperdrive config"
+  // 3. Name it (e.g., "hriz-mysql")
+  // 4. Select MySQL as database type
+  // 5. Enter your MySQL connection string:
+  //    mysql://root:B1u3g@t35_bluegates@124.6.190.183:3306/bgc_ofc_hris
+  // 6. After creating, click on the config to view details
+  // 7. Copy the "Connection String" (it will look like: postgresql://...)
+  // 8. Add it as HYPERDRIVE_CONNECTION_STRING in your project's Environment Variables
 }
