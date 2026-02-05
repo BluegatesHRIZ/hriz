@@ -1,9 +1,12 @@
 import { JWTPayload } from "@/lib/types/auth";
 
-const JWT_SECRET = process.env.JWT_SALT || "";
-
-if (!JWT_SECRET) {
-  throw new Error("JWT_SALT environment variable is not set");
+// Lazy getter for JWT_SECRET to avoid throwing at module load time
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SALT;
+  if (!secret) {
+    throw new Error("JWT_SALT environment variable is not set");
+  }
+  return secret;
 }
 
 // Convert string to ArrayBuffer
@@ -41,7 +44,7 @@ function base64UrlToArrayBuffer(base64url: string): ArrayBuffer {
 // Get crypto key from secret
 async function getKey(): Promise<CryptoKey> {
   const encoder = new TextEncoder();
-  const keyData = encoder.encode(JWT_SECRET);
+  const keyData = encoder.encode(getJwtSecret());
   return await crypto.subtle.importKey(
     "raw",
     keyData,

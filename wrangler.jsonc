@@ -8,4 +8,11 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS",
   },
+  // Environment variables should be configured in Cloudflare Dashboard:
+  // Workers & Pages > Your Project > Settings > Environment Variables
+  // Required variables:
+  // - JWT_SALT: Secret key for JWT token signing
+  // - DATABASE_URL: MySQL connection string
+  // - SUPABASE_URL: (if using Supabase)
+  // - SUPABASE_KEY: (if using Supabase)
 }
