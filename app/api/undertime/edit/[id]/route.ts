@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyToken } from "@/lib/auth/jwt";
+import { verifyToken } from "@/lib/auth/jwt-edge";
 import * as requestProcedures from "@/lib/services/requests.service";
 import { prisma } from "@/lib/db/prisma";
 import { removeSeconds } from "@/lib/utils/time";
@@ -15,7 +15,7 @@ export async function PUT(
     }
 
     try {
-      verifyToken(authHeader.substring(7));
+      await verifyToken(authHeader.substring(7));
     } catch {
       return NextResponse.json({ message: "Invalid token" }, { status: 401 });
     }

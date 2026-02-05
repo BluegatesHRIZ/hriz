@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { encryptPassword } from "@/lib/auth/password";
-import { createToken, generateRefreshToken } from "@/lib/auth/jwt";
+import { createToken, generateRefreshToken } from "@/lib/auth/jwt-edge";
 import { LoginDTO } from "@/lib/types/auth";
 
 export async function POST(request: NextRequest) {
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     const permissions = "0"; // TODO: Fetch from Accrolepermission table
 
     // Generate tokens
-    const token = createToken(
+    const token = await createToken(
       employee.emp_id,
       employee.emp_role || "",
       employee.emp_first || "",

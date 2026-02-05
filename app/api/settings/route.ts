@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db/prisma"
-import { verifyToken } from "@/lib/auth/jwt"
+import { verifyToken } from "@/lib/auth/jwt-edge"
 
 /**
  * GET /api/settings
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const authHeader = request.headers.get("authorization")
     if (authHeader?.startsWith("Bearer ")) {
       try {
-        verifyToken(authHeader.substring(7))
+        await verifyToken(authHeader.substring(7))
       } catch {
         // Invalid token, but allow access for public settings
       }

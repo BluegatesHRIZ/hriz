@@ -488,8 +488,8 @@ export async function loanManagementList() {
       : [],
     prisma.empadvance.findMany({ where: { emp_adid: { in: loanIds } } }),
   ]);
-  const empById = new Map(employees.map((e) => [e.emp_id, e]));
-  const advByLoaId = new Map(advances.map((a) => [a.emp_adid, a]));
+  const empById = new Map(employees.map((e) => [e.emp_id, e] as const));
+  const advByLoaId = new Map(advances.map((a) => [a.emp_adid, a] as const));
   return loans.map((l) => {
     const emp = l.loa_emp ? empById.get(l.loa_emp) : null;
     const app = l.loa_approvedby ? empById.get(l.loa_approvedby) : null;

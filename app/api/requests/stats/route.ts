@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
-import { verifyToken } from "@/lib/auth/jwt";
+import { verifyToken } from "@/lib/auth/jwt-edge";
 import { serializeForJson } from "@/lib/utils";
 
 /**
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const decoded = verifyToken(authHeader.substring(7));
+    const decoded = await verifyToken(authHeader.substring(7));
     const empId = decoded.name;
 
     if (!empId) {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyToken } from "@/lib/auth/jwt";
+import { verifyToken } from "@/lib/auth/jwt-edge";
 import { deleteFiles } from "@/lib/services/files.service";
 import { prisma } from "@/lib/db/prisma";
 import { storageService } from "@/lib/storage";
@@ -21,7 +21,7 @@ export async function DELETE(
     }
 
     try {
-      verifyToken(authHeader.substring(7));
+      await verifyToken(authHeader.substring(7));
     } catch {
       return NextResponse.json({ message: "Invalid token" }, { status: 401 });
     }

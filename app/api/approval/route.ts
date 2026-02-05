@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
-import { verifyToken } from "@/lib/auth/jwt";
+import { verifyToken } from "@/lib/auth/jwt-edge";
 import { serializeForJson } from "@/lib/utils";
 
 /**
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const decoded = verifyToken(authHeader.substring(7));
+    const decoded = await verifyToken(authHeader.substring(7));
     const approverId = decoded.name;
 
     if (!approverId) {
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const taskIds = minLevels.map((m) => m.fa_taskid).filter(Boolean) as string[];
+    const taskIds = minLevels.map((m: typeof minLevels[number]) => m.fa_taskid).filter(Boolean) as string[];
     const minLevelMap = new Map<string, number>();
     for (const m of minLevels) {
       if (m.fa_taskid && m._min.fa_level != null) {
@@ -60,14 +60,14 @@ export async function GET(request: NextRequest) {
     });
 
     // Filter to only include approvals at the minimum level for each taskid
-    const filteredApprovals = approvals.filter((a) => {
+    const filteredApprovals = approvals.filter((a: typeof approvals[number]) => {
       const minLevel = minLevelMap.get(a.fa_taskid ?? "");
       return minLevel != null && a.fa_level === minLevel;
     });
 
     // Get menu and employee data
-    const menuIds = [...new Set(filteredApprovals.map((a) => a.fa_menu).filter(Boolean))] as string[];
-    const empIds = [...new Set(filteredApprovals.map((a) => a.fa_emp).filter(Boolean))] as string[];
+    const menuIds = [...new Set(filteredApprovals.map((a: typeof filteredApprovals[number]) => a.fa_menu).filter(Boolean))] as string[];
+    const empIds = [...new Set(filteredApprovals.map((a: typeof filteredApprovals[number]) => a.fa_emp).filter(Boolean))] as string[];
 
     const [menus, employees] = await Promise.all([
       menuIds.length > 0
@@ -84,16 +84,16 @@ export async function GET(request: NextRequest) {
         : [],
     ]);
 
-    const menuMap = new Map(menus.map((m) => [m.mnu_id, m.mnu_desc]));
+    const menuMap = new Map(menus.map((m: typeof menus[number]) => [m.mnu_id, m.mnu_desc] as const));
     const empMap = new Map(
-      employees.map((e) => [
+      employees.map((e: typeof employees[number]) => [
         e.emp_id,
         `${e.emp_first || ""}, ${e.emp_last || ""}`,
-      ])
+      ] as const)
     );
 
     // Format response to match SP output
-    const result = filteredApprovals.map((a) => ({
+    const result = filteredApprovals.map((a: typeof filteredApprovals[number]) => ({
       Fa_Id: a.fa_id,
       Fa_TaskId: a.fa_taskid,
       Fa_Emp: a.fa_emp,

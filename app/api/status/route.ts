@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
-import { verifyToken } from "@/lib/auth/jwt";
+import { verifyToken } from "@/lib/auth/jwt-edge";
 import { serializeForJson } from "@/lib/utils";
 
 /**
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const decoded = verifyToken(authHeader.substring(7));
+    const decoded = await verifyToken(authHeader.substring(7));
     const empId = decoded.name;
 
     if (!empId) {
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
             select: { lev_id: true, lev_desc: true },
           })
         : [];
-    const leaveMap = new Map(leaves.map((l) => [l.lev_id, l.lev_desc]));
+    const leaveMap = new Map(leaves.map((l) => [l.lev_id, l.lev_desc] as const));
 
     // Compute balance for each leave credit and format for component
     const leaveCreditsWithBalance = leaveCredits.map((credit) => ({

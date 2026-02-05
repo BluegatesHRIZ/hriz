@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyToken } from "@/lib/auth/jwt";
+import { verifyToken } from "@/lib/auth/jwt-edge";
 import { prisma } from "@/lib/db/prisma";
-import { createToken, generateRefreshToken } from "@/lib/auth/jwt";
+import { createToken, generateRefreshToken } from "@/lib/auth/jwt-edge";
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     const currentToken = authHeader.substring(7);
     let payload;
     try {
-      payload = verifyToken(currentToken);
+      payload = await verifyToken(currentToken);
     } catch {
       // Token might be expired, which is okay for refresh
       // We'll verify using the refresh token instead
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
     const permissions = "0";
 
     // Generate new tokens
-    const newToken = createToken(
+    const newToken = await createToken(
       employee.emp_id,
       employee.emp_role || "",
       employee.emp_first || "",

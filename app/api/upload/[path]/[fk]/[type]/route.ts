@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyToken } from "@/lib/auth/jwt";
+import { verifyToken } from "@/lib/auth/jwt-edge";
 import { storageService } from "@/lib/storage";
 import { insertFile } from "@/lib/services/files.service";
 import { randomBytes } from "crypto";
@@ -26,7 +26,7 @@ export async function POST(
     }
 
     try {
-      verifyToken(authHeader.substring(7));
+      await verifyToken(authHeader.substring(7));
     } catch {
       return NextResponse.json({ message: "Invalid token" }, { status: 401 });
     }

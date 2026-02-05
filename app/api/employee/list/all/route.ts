@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db/prisma"
-import { verifyToken } from "@/lib/auth/jwt"
+import { verifyToken } from "@/lib/auth/jwt-edge"
 
 /**
  * GET /api/employee/list/all
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      verifyToken(authHeader.substring(7))
+      await verifyToken(authHeader.substring(7))
     } catch {
       return NextResponse.json(
         { message: "Invalid token" },

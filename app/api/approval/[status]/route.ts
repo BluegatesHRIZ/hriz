@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyToken } from "@/lib/auth/jwt";
+import { verifyToken } from "@/lib/auth/jwt-edge";
 import { approvalStatus } from "@/lib/services/approval.service";
 
 /**
@@ -18,7 +18,7 @@ export async function PUT(
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const decoded = verifyToken(authHeader.substring(7));
+    const decoded = await verifyToken(authHeader.substring(7));
     const approverId = decoded.name;
 
     if (!approverId) {

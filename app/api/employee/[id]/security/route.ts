@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyToken } from "@/lib/auth/jwt";
+import { verifyToken } from "@/lib/auth/jwt-edge";
 import { prisma } from "@/lib/db/prisma";
 import { encryptPassword } from "@/lib/auth/password";
 
@@ -20,7 +20,7 @@ export async function PUT(
 
     let decoded;
     try {
-      decoded = verifyToken(authHeader.substring(7));
+      decoded = await verifyToken(authHeader.substring(7));
     } catch {
       return NextResponse.json({ message: "Invalid token" }, { status: 401 });
     }

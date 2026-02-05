@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { verifyToken } from "@/lib/auth/jwt"
+import { verifyToken } from "@/lib/auth/jwt-edge"
 import * as requestProcedures from "@/lib/services/requests.service"
 
 export async function GET(request: NextRequest) {
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
 
     let payload
     try {
-      payload = verifyToken(authHeader.substring(7))
+      payload = await verifyToken(authHeader.substring(7))
     } catch {
       return NextResponse.json({ message: "Invalid token" }, { status: 401 })
     }
