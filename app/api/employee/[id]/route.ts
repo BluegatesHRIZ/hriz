@@ -11,7 +11,7 @@ import { formatTimeForInput } from "@/lib/utils/time";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     // Check authorization
@@ -33,7 +33,7 @@ export async function GET(
     if (!empId || typeof empId !== "string") {
       return NextResponse.json(
         { message: "Employee ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -48,7 +48,7 @@ export async function GET(
     if (!employee) {
       return NextResponse.json(
         { message: "Employee not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -122,7 +122,7 @@ export async function GET(
       },
     });
     const leaveTypeMap = new Map(
-      leaveTypes.map((lt) => [lt.lev_id, lt.lev_desc || ""])
+      leaveTypes.map((lt) => [lt.lev_id, lt.lev_desc || ""]),
     );
 
     // Transform to match EmpManagementDTO structure
@@ -277,7 +277,7 @@ export async function GET(
         message: "Internal server error",
         error: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -289,7 +289,7 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     // Check authorization
@@ -311,7 +311,7 @@ export async function PUT(
     if (!empId || typeof empId !== "string") {
       return NextResponse.json(
         { message: "Employee ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -323,7 +323,7 @@ export async function PUT(
     if (!employeeExists) {
       return NextResponse.json(
         { message: "Employee not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -357,17 +357,27 @@ export async function PUT(
     if (!Account || !Account.EmpFirst || !Account.EmpLast) {
       return NextResponse.json(
         { message: "Account.EmpFirst and Account.EmpLast are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    const {
-      updateEmployeeAccount,
-      upsertEmployeePersonal,
-    } = await import("@/lib/services/employee.service");
+    const { updateEmployeeAccount, upsertEmployeePersonal } =
+      await import("@/lib/services/employee.service");
+
+    // Build a fully-typed account object (EmpFirst/EmpLast required)
+    const accountForUpdate = {
+      EmpFirst: Account.EmpFirst,
+      EmpMid: Account.EmpMid ?? null,
+      EmpLast: Account.EmpLast,
+      EmpDept: Account.EmpDept ?? null,
+      EmpPos: Account.EmpPos ?? null,
+      EmpLoc: Account.EmpLoc ?? null,
+      EmpRole: Account.EmpRole ?? null,
+      EmpExternalId: Account.EmpExternalId ?? null,
+    };
 
     // Update account information
-    await updateEmployeeAccount(empId, Account);
+    await updateEmployeeAccount(empId, accountForUpdate);
 
     // Update or insert personal information
     if (Personal != null) {
@@ -400,7 +410,7 @@ export async function PUT(
         message: "Internal server error",
         error: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
