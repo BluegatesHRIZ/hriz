@@ -116,10 +116,12 @@ export function createPrismaClient(hyperdrive?: HyperdriveBinding): PrismaClient
   });
 }
 
-// Default export for backward compatibility (uses DATABASE_URL)
-// Note: In Cloudflare Workers, create a new client per request using createPrismaClient(env.HYPERDRIVE)
+// Default export - always use adapter in production (Cloudflare Workers)
+// In Cloudflare, the adapter prevents binary engine usage
 export const prisma =
   globalForPrisma.prisma ??
-  createPrismaClient()
+  (process.env.NODE_ENV === "production" 
+    ? createPrismaClient() // Always use adapter in production
+    : createPrismaClient()) // Use adapter in dev too for consistency
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma
