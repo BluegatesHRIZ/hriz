@@ -42,8 +42,8 @@ export async function PUT(
       );
     }
 
-    // Get leave types for validation
-    const leaveTypes = await requestProcedures.getLeaveTypes();
+    // Get leave types for validation (per-employee)
+    const leaveTypes = await requestProcedures.getLeaveTypes(LeaSemp);
     const leaveSettings = leaveTypes.find((lt: any) => lt.lev_id === LeaStype);
 
     if (!leaveSettings) {

@@ -565,7 +565,8 @@ export function AccountInformationTab({
               id="EmpBirthday"
               type="date"
               {...register("EmpBirthday", {
-                setValueAs: (value) => (value ? new Date(value) : undefined),
+                setValueAs: (value: string) =>
+                  value ? new Date(value) : undefined,
               })}
               className="bg-gray-50"
             />

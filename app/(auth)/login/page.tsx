@@ -102,7 +102,9 @@ export default function LoginPage() {
         {setIncludes === 2 && (
           <Tabs
             value={includeTabIndex === 0 ? "time" : "pay"}
-            onValueChange={(value) => setIncludeTabIndex(value === "time" ? 0 : 1)}
+            onValueChange={(value: string) =>
+              setIncludeTabIndex(value === "time" ? 0 : 1)
+            }
             className="w-[80%]"
           >
             <TabsList className="grid w-full grid-cols-2 bg-[#D9D9D9]">
@@ -145,7 +147,8 @@ export default function LoginPage() {
                     type="checkbox"
                     id="external_id"
                     {...register("external_id", {
-                      setValueAs: (value) => value === true || value === "on",
+                      setValueAs: (value: unknown) =>
+                        value === true || value === "on",
                     })}
                     className="h-4 w-4 rounded border-gray-300"
                   />

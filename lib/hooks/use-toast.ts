@@ -154,14 +154,14 @@ function toast({ ...props }: Toast) {
 
   dispatch({
     type: "ADD_TOAST",
-    toast: {
-      ...props,
-      id,
-      open: true,
-      onOpenChange: (open) => {
-        if (!open) dismiss()
+      toast: {
+        ...props,
+        id,
+        open: true,
+        onOpenChange: (open: boolean) => {
+          if (!open) dismiss()
+        },
       },
-    },
   })
 
   return {

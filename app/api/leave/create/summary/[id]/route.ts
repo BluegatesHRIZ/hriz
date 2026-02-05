@@ -41,8 +41,8 @@ export async function POST(
       );
     }
 
-    // Get leave types for validation
-    const leaveTypes = await requestProcedures.getLeaveTypes();
+    // Get leave types for validation (per-employee)
+    const leaveTypes = await requestProcedures.getLeaveTypes(empId);
     const leaveSettings = leaveTypes.find((lt: any) => lt.lev_id === LeaStype);
 
     if (!leaveSettings) {

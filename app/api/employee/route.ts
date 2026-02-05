@@ -157,14 +157,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         emp_id: created.emp_id,
-        emp_first: created.emp_first,
-        emp_last: created.emp_last,
-        emp_mid: created.emp_mid,
-        emp_dept: created.emp_dept,
-        emp_pos: created.emp_pos,
-        emp_loc: created.emp_loc,
-        emp_role: created.emp_role,
-        emp_extid: created.emp_extid,
+        emp_first: Account.EmpFirst,
+        emp_last: Account.EmpLast,
+        emp_mid: Account.EmpMid ?? null,
+        emp_dept: Account.EmpDept ?? null,
+        emp_pos: Account.EmpPos ?? null,
+        emp_loc: Account.EmpLoc ?? null,
+        emp_role: Account.EmpRole ?? "EMPLOYEE",
+        emp_extid: Account.EmpExternalId ?? null,
       },
       { status: 201 }
     );

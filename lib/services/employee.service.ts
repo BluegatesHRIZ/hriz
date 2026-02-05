@@ -54,6 +54,14 @@ export async function createEmployeeAccount(
     (account.EmpLast && account.EmpLast.toLowerCase()) ||
     "password";
   const passwordHash = encryptPassword(rawPassword);
+  // Ensure Bytes column receives a Uint8Array; convert Buffer if needed
+  const passwordBytes =
+    passwordHash instanceof Uint8Array
+      ? (passwordHash as unknown as Uint8Array<ArrayBuffer>)
+      : (new Uint8Array(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (passwordHash as any).buffer ?? (passwordHash as any)
+        ) as unknown as Uint8Array<ArrayBuffer>);
 
   await prisma.employee.create({
     data: {
@@ -65,7 +73,7 @@ export async function createEmployeeAccount(
       emp_pos: account.EmpPos ?? null,
       emp_loc: account.EmpLoc ?? null,
       emp_role: account.EmpRole ?? "EMPLOYEE",
-      emp_pswd: passwordHash,
+      emp_pswd: passwordBytes,
       emp_createdby: createdByEmpId,
       emp_extid: account.EmpExternalId ?? null,
     },

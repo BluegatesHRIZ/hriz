@@ -147,7 +147,7 @@ export function LeaveRequestTable({
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={(e) => {
+                      onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                         e.stopPropagation()
                         router.push(`/request/leave/${leave.LeaSid}`)
                       }}
