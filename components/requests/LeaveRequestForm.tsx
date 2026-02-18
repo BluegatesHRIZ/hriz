@@ -11,6 +11,10 @@ import {
   useLeaveSummary,
   useUpdateLeaveSummary,
   LeaveDetailDTO,
+  useUserLeaveScheduleList,
+  useHolidaysForSched,
+  useSchedAdjustedDate,
+  useLeaveRequestCredit,
 } from "@/lib/hooks/useRequestManagement";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -76,10 +80,18 @@ export function LeaveRequestForm({
   const [withPay, setWithPay] = useState(0);
   const [withoutPay, setWithoutPay] = useState(0);
   const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
+  const [leaveCredit, setLeaveCredit] = useState(0);
+  const [leaveUsed, setLeaveUsed] = useState(0);
 
   const { data: leaveTypes } = useEmployeeLeaveTypes(empId);
   const { data: leaveCredits } = useLeaveCredits(empId);
   const { data: existingLeave } = useLeaveSummary(leaveId || "");
+  const { data: scheduleDays } = useUserLeaveScheduleList();
+  const { data: holidays } = useHolidaysForSched();
+  const { data: leaveCreditRequest } = useLeaveRequestCredit(
+    empId,
+    selectedLeaveType
+  );
 
   const createMutation = useCreateLeaveSummary(empId);
   const updateMutation = useUpdateLeaveSummary(leaveId || "");
@@ -96,6 +108,9 @@ export function LeaveRequestForm({
 
   const dateFrom = form.watch("LeaSfrom");
   const dateTo = form.watch("LeaSto");
+  
+  // Hook that depends on dateFrom and dateTo must be after they're defined
+  const { data: schedAdjusted } = useSchedAdjustedDate(dateFrom, dateTo);
 
   // Load existing leave data for editing
   useEffect(() => {
@@ -120,37 +135,104 @@ export function LeaveRequestForm({
     }
   }, [existingLeave, leaveId, form]);
 
-  // Get leave credit for selected type
+  // Get leave credit for selected type (matches C# LeaveType method)
   useEffect(() => {
-    if (selectedLeaveType && leaveCredits) {
+    if (selectedLeaveType && leaveCreditRequest) {
+      const credit = leaveCreditRequest.EmlLeacredit || 0;
+      const used = leaveCreditRequest.EmlUsed || 0;
+      const available = credit - used;
+      
+      setLeaveCredit(credit);
+      setLeaveUsed(used);
+      setAvailableCredit(available);
+    } else if (selectedLeaveType && leaveCredits) {
+      // Fallback to leaveCredits if leaveCreditRequest not available
       const credit = leaveCredits.find(
         (lc) => lc.EmlLeave === selectedLeaveType
       );
       if (credit) {
-        const available = (credit.EmlLeacredit || 0) - (credit.EmlUsed || 0);
+        const creditVal = credit.EmlLeacredit || 0;
+        const usedVal = credit.EmlUsed || 0;
+        const available = creditVal - usedVal;
+        
+        setLeaveCredit(creditVal);
+        setLeaveUsed(usedVal);
         setAvailableCredit(available);
       }
     }
-  }, [selectedLeaveType, leaveCredits]);
+  }, [selectedLeaveType, leaveCreditRequest, leaveCredits]);
 
-  // Generate leave details when date range changes
+  // Generate leave details when date range changes (matches C# GenerateDetailForms)
   useEffect(() => {
-    if (dateFrom && dateTo && dateFrom <= dateTo) {
+    if (
+      dateFrom &&
+      dateTo &&
+      dateFrom <= dateTo &&
+      scheduleDays &&
+      holidays &&
+      schedAdjusted !== undefined
+    ) {
+      const details: LeaveDetailDTO[] = [];
+      const days = eachDayOfInterval({ start: dateFrom, end: dateTo });
+
+      for (const day of days) {
+        const dayOfWeek = day.toLocaleDateString("en-US", { weekday: "long" }).toUpperCase();
+        const scheduleDay = scheduleDays.find((s) => s.sch_day === dayOfWeek);
+        const isWorkingDay = scheduleDay?.sch_rest === 0;
+        
+        // Compare dates by date only (ignore time)
+        const dayDateOnly = new Date(day.getFullYear(), day.getMonth(), day.getDate());
+        const isHoliday = holidays.some((h) => {
+          if (!h.hol_date) return false;
+          const holidayDate = new Date(h.hol_date);
+          return (
+            holidayDate.getFullYear() === dayDateOnly.getFullYear() &&
+            holidayDate.getMonth() === dayDateOnly.getMonth() &&
+            holidayDate.getDate() === dayDateOnly.getDate()
+          );
+        });
+        const isSchedAdjusted = schedAdjusted.some((s) => {
+          if (!s.sca_ddate) return false;
+          const adjustedDate = new Date(s.sca_ddate);
+          return (
+            adjustedDate.getFullYear() === dayDateOnly.getFullYear() &&
+            adjustedDate.getMonth() === dayDateOnly.getMonth() &&
+            adjustedDate.getDate() === dayDateOnly.getDate()
+          );
+        });
+
+        // Include day if:
+        // 1. It's a working day (not rest day), not a holiday, and not schedule-adjusted, OR
+        // 2. It's schedule-adjusted (even if it's a holiday or rest day)
+        if (
+          (isWorkingDay && !isHoliday && !isSchedAdjusted) ||
+          isSchedAdjusted
+        ) {
+          details.push({
+            LeaDdate: day,
+            LeaDtype: "W", // Default to whole day
+            LeaDampm: "",
+          });
+        }
+      }
+
+      setLeaveDetails(details);
+    } else if (dateFrom && dateTo && dateFrom <= dateTo) {
+      // Fallback: generate all days if schedules/holidays not loaded yet
       const days = eachDayOfInterval({ start: dateFrom, end: dateTo });
       const details: LeaveDetailDTO[] = days.map((day) => ({
         LeaDdate: day,
-        LeaDtype: "W", // Default to whole day
+        LeaDtype: "W",
         LeaDampm: "",
       }));
       setLeaveDetails(details);
-      calculatePay();
     } else {
       setLeaveDetails([]);
     }
-  }, [dateFrom, dateTo]);
+  }, [dateFrom, dateTo, scheduleDays, holidays, schedAdjusted]);
 
-  // Calculate pay based on credits
-  const calculatePay = () => {
+  // Calculate day count (matches C# CalculateDayType)
+  useEffect(() => {
     const totalDays = leaveDetails.reduce((sum, detail) => {
       const option = LEAVE_DAY_OPTIONS.find(
         (opt) => opt.optionid === detail.LeaDtype
@@ -158,19 +240,24 @@ export function LeaveRequestForm({
       return sum + (option?.optioncount || 0);
     }, 0);
     setCountLeave(totalDays);
+  }, [leaveDetails]);
 
-    if (availableCredit >= totalDays) {
-      setWithPay(totalDays);
-      setWithoutPay(0);
-    } else {
-      setWithPay(availableCredit);
-      setWithoutPay(totalDays - availableCredit);
-    }
-  };
-
+  // Calculate pay based on credits (matches C# CalculatePay exactly)
   useEffect(() => {
-    calculatePay();
-  }, [leaveDetails, availableCredit]);
+    // C# logic: if availablecredit == countleave || availablecredit >= countleave
+    if (availableCredit === countLeave || availableCredit >= countLeave) {
+      setWithPay(countLeave);
+      setWithoutPay(0);
+    } else if (availableCredit <= countLeave) {
+      setWithPay(availableCredit);
+      setWithoutPay(countLeave - availableCredit);
+    } else {
+      setWithPay(countLeave);
+      setWithoutPay(0);
+    }
+  }, [countLeave, availableCredit]);
+
+
 
   const handleLeaveTypeChange = (value: string) => {
     setSelectedLeaveType(value);
@@ -189,6 +276,7 @@ export function LeaveRequestForm({
     };
 
     setLeaveDetails(updated);
+    // Recalculate will happen in useEffect
   };
 
   const handleSubmit = async (data: z.infer<typeof leaveRequestSchema>) => {
@@ -253,8 +341,8 @@ export function LeaveRequestForm({
 
   return (
     <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-      {/* Leave Balance – table layout to match C# */}
-      {selectedCredit && (
+      {/* Leave Balance – table layout to match C# exactly */}
+      {selectedLeaveType && leaveCreditRequest && (
         <div className="space-y-2">
           <h4 className="text-lg font-semibold text-foreground">
             Leave Balance
@@ -270,13 +358,20 @@ export function LeaveRequestForm({
             </thead>
             <tbody>
               <tr>
-                <td>{availableCredit}</td>
-                <td>{countLeave}</td>
-                <td>{withPay}</td>
-                <td>{withoutPay}</td>
+                <td>{availableCredit.toFixed(1)}</td>
+                <td>{countLeave.toFixed(1)}</td>
+                <td>{withPay.toFixed(1)}</td>
+                <td>{withoutPay.toFixed(1)}</td>
               </tr>
             </tbody>
           </table>
+          {/* Additional info: Credit and Used (for reference, matching C# structure) */}
+          <div className="text-sm text-muted-foreground mt-2">
+            <p>
+              Credit: {leaveCredit.toFixed(1)} | Used: {leaveUsed.toFixed(1)} | Available:{" "}
+              {availableCredit.toFixed(1)}
+            </p>
+          </div>
         </div>
       )}
 
@@ -428,51 +523,99 @@ export function LeaveRequestForm({
                       <TableHead>Date</TableHead>
                       <TableHead>Day</TableHead>
                       <TableHead>Type</TableHead>
+                      <TableHead>Paid</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {leaveDetails.map((detail, index) => (
-                      <TableRow key={index}>
-                        <TableCell>
-                          {detail.LeaDdate
-                            ? format(new Date(detail.LeaDdate), "MMM dd, yyyy")
-                            : "-"}
-                        </TableCell>
-                        <TableCell>
-                          {detail.LeaDdate
-                            ? format(new Date(detail.LeaDdate), "EEEE")
-                            : "-"}
-                        </TableCell>
-                        <TableCell>
-                          <Select
-                            value={
-                              detail.LeaDtype === "W"
-                                ? "W"
-                                : detail.LeaDampm === "A"
-                                ? "H1"
-                                : "H2"
-                            }
-                            onValueChange={(value) =>
-                              handleDayTypeChange(index, value)
-                            }
-                          >
-                            <SelectTrigger className="w-[200px]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {LEAVE_DAY_OPTIONS.map((option) => (
-                                <SelectItem
-                                  key={option.optionid}
-                                  value={option.optionid}
-                                >
-                                  {option.optionname}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {leaveDetails.map((detail, index) => {
+                      // Calculate if this day is paid
+                      // Sum up all previous days' option counts
+                      let cumulativeCount = 0;
+                      for (let i = 0; i < index; i++) {
+                        const option = LEAVE_DAY_OPTIONS.find(
+                          (opt) =>
+                            opt.optionid ===
+                            (leaveDetails[i].LeaDtype === "W"
+                              ? "W"
+                              : leaveDetails[i].LeaDampm === "A"
+                              ? "H1"
+                              : "H2")
+                        );
+                        cumulativeCount += option?.optioncount || 0;
+                      }
+                      
+                      // Get current day's option count
+                      const currentOption = LEAVE_DAY_OPTIONS.find(
+                        (opt) =>
+                          opt.optionid ===
+                          (detail.LeaDtype === "W"
+                            ? "W"
+                            : detail.LeaDampm === "A"
+                            ? "H1"
+                            : "H2")
+                      );
+                      const currentCount = currentOption?.optioncount || 0;
+                      
+                      // Check if this day (or part of it) is paid
+                      const isPaid = cumulativeCount + currentCount <= availableCredit;
+                      const isPartiallyPaid = 
+                        cumulativeCount < availableCredit && 
+                        cumulativeCount + currentCount > availableCredit;
+                      
+                      return (
+                        <TableRow key={index}>
+                          <TableCell>
+                            {detail.LeaDdate
+                              ? format(new Date(detail.LeaDdate), "MMM dd, yyyy")
+                              : "-"}
+                          </TableCell>
+                          <TableCell>
+                            {detail.LeaDdate
+                              ? format(new Date(detail.LeaDdate), "EEEE")
+                              : "-"}
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={
+                                detail.LeaDtype === "W"
+                                  ? "W"
+                                  : detail.LeaDampm === "A"
+                                  ? "H1"
+                                  : "H2"
+                              }
+                              onValueChange={(value) =>
+                                handleDayTypeChange(index, value)
+                              }
+                            >
+                              <SelectTrigger className="w-[200px]">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {LEAVE_DAY_OPTIONS.map((option) => (
+                                  <SelectItem
+                                    key={option.optionid}
+                                    value={option.optionid}
+                                  >
+                                    {option.optionname}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>
+                            {isPaid ? (
+                              <span className="text-green-600 font-medium">Yes</span>
+                            ) : isPartiallyPaid ? (
+                              <span className="text-yellow-600 font-medium">
+                                Partial ({(availableCredit - cumulativeCount).toFixed(1)} days)
+                              </span>
+                            ) : (
+                              <span className="text-red-600 font-medium">No</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>

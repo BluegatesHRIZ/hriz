@@ -76,12 +76,12 @@ export function SalaryHistoryTab({
       return employee.EmpSalary.map((sal) => ({
         SalId: sal.SalId,
         SalPosition: sal.SalPosition || "",
-        SalPayrollType: "S", // Default to Semi Monthly
-        SalDateFrom: sal.SalDate || null,
-        SalDateTo: null, // Would need to calculate from next salary or status
+        SalPayrollType: sal.SalPayrollType || "S",
+        SalDateFrom: sal.SalDateFrom || sal.SalDate || null,
+        SalDateTo: sal.SalDateTo || null,
         SalAmount: sal.SalAmount || 0,
         SalRemarks: sal.SalRemarks || "",
-        SalStatus: 1, // Default to Present
+        SalStatus: sal.SalStatus ?? 1,
       }));
     }
     return [];
@@ -152,25 +152,44 @@ export function SalaryHistoryTab({
 
   const handleSave = async () => {
     try {
-      // Serialize dates properly - handle both Date objects and strings
+      if (salaries.length === 0) {
+        toast({
+          title: "No Data",
+          description: "Please add at least one salary entry",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Serialize dates to ISO strings for JSON transmission
       const salariesToSave = salaries.map((sal) => {
         const dateFrom = sal.SalDateFrom
           ? sal.SalDateFrom instanceof Date
+            ? sal.SalDateFrom.toISOString()
+            : typeof sal.SalDateFrom === "string"
             ? sal.SalDateFrom
-            : new Date(sal.SalDateFrom)
+            : new Date(sal.SalDateFrom).toISOString()
           : null;
         const dateTo = sal.SalDateTo
           ? sal.SalDateTo instanceof Date
+            ? sal.SalDateTo.toISOString()
+            : typeof sal.SalDateTo === "string"
             ? sal.SalDateTo
-            : new Date(sal.SalDateTo)
+            : new Date(sal.SalDateTo).toISOString()
           : null;
 
         return {
-          ...sal,
+          SalPosition: sal.SalPosition,
+          SalPayrollType: sal.SalPayrollType,
           SalDateFrom: dateFrom,
           SalDateTo: dateTo,
+          SalAmount: sal.SalAmount,
+          SalRemarks: sal.SalRemarks,
+          SalStatus: sal.SalStatus,
         };
       });
+
+      console.log("Saving salaries:", salariesToSave);
 
       await saveMutation.mutateAsync({ salaries: salariesToSave });
       toast({

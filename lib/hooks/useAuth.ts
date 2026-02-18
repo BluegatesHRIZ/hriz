@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, ApiError } from "@/lib/api/client";
-import { LoginDTO } from "@/lib/types/auth";
+import { LoginDTO, QrLoginRequest, QrLoginGenerateRequest, QrLoginGenerateResponse } from "@/lib/types/auth";
 import { queryKeys } from "./queries";
 
 interface LoginResponse {
@@ -126,6 +126,53 @@ export function useLogout() {
       }
       // Clear all queries
       queryClient.clear();
+    },
+  });
+}
+
+/**
+ * Hook for QR code login
+ */
+export function useLoginWithQr() {
+  const queryClient = useQueryClient();
+
+  return useMutation<LoginResponse, ApiError, QrLoginRequest>({
+    mutationFn: async (request) => {
+      return apiFetch<LoginResponse>("/auth/login-qr", {
+        method: "POST",
+        body: JSON.stringify(request),
+      });
+    },
+    onSuccess: (data) => {
+      // Store token in localStorage (for client-side access)
+      if (typeof window !== "undefined") {
+        localStorage.setItem("auth_token", data.token);
+        // Dispatch custom event to notify auth context
+        window.dispatchEvent(new Event("auth-storage-change"));
+      }
+      // Invalidate session query to refetch user data
+      queryClient.invalidateQueries({ queryKey: queryKeys.auth.session() });
+    },
+  });
+}
+
+/**
+ * Hook for generating QR login token
+ */
+export function useGenerateQrToken() {
+  return useMutation<QrLoginGenerateResponse, ApiError, QrLoginGenerateRequest>({
+    mutationFn: async (request) => {
+      const token = localStorage.getItem("auth_token");
+      if (!token) {
+        throw new ApiError("No token found", 401);
+      }
+      return apiFetch<QrLoginGenerateResponse>("/auth/qr-login/generate", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(request),
+      });
     },
   });
 }

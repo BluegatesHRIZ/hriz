@@ -86,21 +86,21 @@ export function WorkInformationTab({
   const [emp_code, setEmpCode] = useState(wrk?.emp_code ?? "");
   const [emp_type, setEmpType] = useState<number>(wrk?.emp_type ?? 1);
   const [emp_datehired, setEmpDatehired] = useState<Date | null>(
-    wrk?.emp_datehired ? new Date(wrk.emp_datehired) : null
+    wrk?.emp_datehired ? new Date(wrk.emp_datehired) : null,
   );
   const [emp_dateexp, setEmpDateexp] = useState<Date | null>(
-    wrk?.emp_dateexp ? new Date(wrk.emp_dateexp) : null
+    wrk?.emp_dateexp ? new Date(wrk.emp_dateexp) : null,
   );
   const [emp_datereg, setEmpDatereg] = useState<Date | null>(
-    wrk?.emp_datereg ? new Date(wrk.emp_datereg) : null
+    wrk?.emp_datereg ? new Date(wrk.emp_datereg) : null,
   );
   const [emp_supervisor, setEmpSupervisor] = useState(
-    wrk?.emp_supervisor ?? "None"
+    wrk?.emp_supervisor ?? "None",
   );
   const [emp_remarks, setEmpRemarks] = useState(wrk?.emp_remarks ?? "");
   const [emp_sss, setEmpSss] = useState(wrk?.emp_sss ?? "");
   const [emp_philhealth, setEmpPhilhealth] = useState(
-    wrk?.emp_philhealth ?? ""
+    wrk?.emp_philhealth ?? "",
   );
   const [emp_pagibig, setEmpPagibig] = useState(wrk?.emp_pagibig ?? "");
   const [emp_tin, setEmpTin] = useState(wrk?.emp_tin ?? "");
@@ -120,7 +120,7 @@ export function WorkInformationTab({
   }, [employee.Approval]);
 
   const [approvalLevels, setApprovalLevels] = useState<ApprovalLevelRow[]>(
-    initialApprovalLevels
+    initialApprovalLevels,
   );
 
   useEffect(() => {
@@ -189,7 +189,7 @@ export function WorkInformationTab({
   const updateApprovalLevel = (
     index: number,
     field: keyof ApprovalLevelRow,
-    value: number | string
+    value: number | string,
   ) => {
     const next = [...approvalLevels];
     next[index] = { ...next[index], [field]: value };
@@ -212,9 +212,13 @@ export function WorkInformationTab({
   const getAvailableApprovers = (index: number) => {
     const selectedIds = approvalLevels
       .map((a) => a.AlApprv)
-      .filter((id) => id && id !== "None" && id !== approvalLevels[index]?.AlApprv);
+      .filter(
+        (id) => id && id !== "None" && id !== approvalLevels[index]?.AlApprv,
+      );
     return supervisorOptions.filter(
-      (e) => !selectedIds.includes(e.EmpId) || e.EmpId === approvalLevels[index]?.AlApprv
+      (e) =>
+        !selectedIds.includes(e.EmpId) ||
+        e.EmpId === approvalLevels[index]?.AlApprv,
     );
   };
 
@@ -236,12 +240,12 @@ export function WorkInformationTab({
         emp_rdo: emp_rdo || null,
         emp_passport: emp_passport || null,
         emp_prc: emp_prc || null,
-        approvalLevels: approvalLevels.map((a, index) => ({
-          AlLevel: index + 1, // Level is implicit based on position
-          AlApprv: a.AlApprv,
-        })).filter(
-          (a) => a.AlApprv && a.AlApprv !== "None"
-        ),
+        approvalLevels: approvalLevels
+          .map((a, index) => ({
+            AlLevel: index + 1, // Level is implicit based on position
+            AlApprv: a.AlApprv,
+          }))
+          .filter((a) => a.AlApprv && a.AlApprv !== "None"),
       });
       toast({
         title: "Success",
@@ -260,7 +264,7 @@ export function WorkInformationTab({
   };
 
   const supervisorOptions = employeeList.filter(
-    (e) => e.EmpId !== employee.Account.EmpId && e.EmpId !== "admin"
+    (e) => e.EmpId !== employee.Account.EmpId && e.EmpId !== "admin",
   );
 
   return (
@@ -304,7 +308,7 @@ export function WorkInformationTab({
                   variant="outline"
                   className={cn(
                     "w-full justify-start text-left font-normal",
-                    !emp_datehired && "text-muted-foreground"
+                    !emp_datehired && "text-muted-foreground",
                   )}
                 >
                   {emp_datehired ? format(emp_datehired, "PPP") : "Pick date"}
@@ -328,7 +332,7 @@ export function WorkInformationTab({
                   variant="outline"
                   className={cn(
                     "w-full justify-start text-left font-normal",
-                    !emp_dateexp && "text-muted-foreground"
+                    !emp_dateexp && "text-muted-foreground",
                   )}
                 >
                   {emp_dateexp ? format(emp_dateexp, "PPP") : "Pick date"}
@@ -352,7 +356,7 @@ export function WorkInformationTab({
                   variant="outline"
                   className={cn(
                     "w-full justify-start text-left font-normal",
-                    !emp_datereg && "text-muted-foreground"
+                    !emp_datereg && "text-muted-foreground",
                   )}
                 >
                   {emp_datereg ? format(emp_datereg, "PPP") : "Pick date"}
@@ -475,7 +479,7 @@ export function WorkInformationTab({
         <div className="space-y-4">
           {approvalLevels.length === 0 ? (
             <div className="text-center text-muted-foreground py-4 border rounded-lg">
-              <p>The employee doesn't have an approval level assigned.</p>
+              <p>The employee doesn&apos;t have an approval level assigned.</p>
               <Button
                 type="button"
                 variant="outline"
@@ -494,8 +498,8 @@ export function WorkInformationTab({
                 index === 0
                   ? "Supervisor/1st Approver"
                   : row.AlLevel === 1
-                  ? "1st Approver"
-                  : `${getOrdinal(row.AlLevel)} level Approver`;
+                    ? "1st Approver"
+                    : `${getOrdinal(row.AlLevel)} level Approver`;
 
               return (
                 <div key={index} className="space-y-2">

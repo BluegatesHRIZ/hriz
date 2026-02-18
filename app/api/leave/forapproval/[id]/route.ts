@@ -31,6 +31,23 @@ export async function GET(
       return NextResponse.json({ message: "Leave not found" }, { status: 404 });
     }
 
+    // Get leave type details
+    const leaveType = leaveSummary.lea_stype
+      ? await prisma.leave.findFirst({
+          where: { lev_id: leaveSummary.lea_stype },
+        })
+      : null;
+
+    // Get leave details
+    const leaveDetails = await prisma.leave_detail.findMany({
+      where: {
+        lea_dpk: leaveId,
+      },
+      orderBy: {
+        lea_ddate: "asc",
+      },
+    });
+
     // Get associated files
     const files = await prisma.files.findMany({
       where: {
@@ -40,8 +57,33 @@ export async function GET(
     });
 
     return NextResponse.json({
-      ...leaveSummary,
-      files,
+      LeaSid: leaveSummary.lea_sid,
+      LeaSemp: leaveSummary.lea_semp,
+      LeaStype: leaveSummary.lea_stype,
+      LeaSfrom: leaveSummary.lea_sfrom,
+      LeaSto: leaveSummary.lea_sto,
+      LeaSreason: leaveSummary.lea_sreason,
+      LeaSwithpay: leaveSummary.lea_swithpay,
+      LeaSwithoutpay: leaveSummary.lea_swithoutpay,
+      LeaSapplieddate: leaveSummary.lea_sapplieddate,
+      LeaSstatus: leaveSummary.lea_sstatus,
+      LeaSapproveddate: leaveSummary.lea_sapproveddate,
+      LeaSapprovedby: leaveSummary.lea_sapprovedby,
+      LeaStypeDetail: leaveType
+        ? {
+            LevDesc: leaveType.lev_desc,
+            LevId: leaveType.lev_id,
+          }
+        : null,
+      leavedetail: leaveDetails.map((detail) => ({
+        LeaDdate: detail.lea_ddate,
+        LeaDtype: detail.lea_dtype,
+        LeaDampm: detail.lea_dampm,
+      })),
+      files: files.map((file) => ({
+        fil_name: file.fil_name,
+        fil_path: file.fil_path,
+      })),
     });
   } catch (error) {
     console.error("Get leave for approval error:", error);

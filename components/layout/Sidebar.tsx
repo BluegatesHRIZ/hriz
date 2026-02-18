@@ -35,14 +35,31 @@ interface SidebarLinkProps {
 function SidebarLink({ title, href, icon, className }: SidebarLinkProps) {
   const pathname = usePathname();
   const isActive = pathname === href || pathname?.startsWith(href + "/");
+  
+  // Don't render link if href is invalid
+  if (!href || href === "#") {
+    return (
+      <div
+        className={cn(
+          "flex items-center gap-2 py-2 px-4 text-sm opacity-50 cursor-not-allowed",
+          className,
+        )}
+      >
+        {icon && <span className="w-6 h-6">{icon}</span>}
+        <span>{title}</span>
+      </div>
+    );
+  }
+  
   return (
     <Link
       href={href}
       className={cn(
-        "flex items-center gap-2 py-2 px-4 text-sm hover:bg-[#002750] transition-colors",
+        "flex items-center gap-2 py-2 px-4 text-sm hover:bg-[#002750] transition-colors cursor-pointer",
         isActive && "bg-[#002750] border-l-4 border-white",
         className,
       )}
+      style={{ pointerEvents: 'auto' }}
     >
       {icon && <span className="w-6 h-6">{icon}</span>}
       <span>{title}</span>
@@ -140,15 +157,22 @@ export function Sidebar() {
                     <span>{getHeaderTitle("H3") || "Requests"}</span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="pb-0">
-                  {requestMenus.map((menu) => (
-                    <SidebarLink
-                      key={menu.mnu_id}
-                      title={menu.mnu_desc || ""}
-                      href={menu.mnu_http || "#"}
-                      className="py-[10px] text-sm pl-8"
-                    />
-                  ))}
+                <AccordionContent className="pb-0" onClick={(e) => e.stopPropagation()}>
+                  {requestMenus.map((menu) => {
+                    const href = menu.mnu_http || "#";
+                    // Ensure href starts with / if it's a relative path
+                    const normalizedHref = href !== "#" && !href.startsWith("/") && !href.startsWith("http") 
+                      ? `/${href}` 
+                      : href;
+                    return (
+                      <SidebarLink
+                        key={menu.mnu_id}
+                        title={menu.mnu_desc || ""}
+                        href={normalizedHref}
+                        className="py-[10px] text-sm pl-8"
+                      />
+                    );
+                  })}
                 </AccordionContent>
               </AccordionItem>
             )}
@@ -162,15 +186,21 @@ export function Sidebar() {
                     <span>{getHeaderTitle("H5") || "Payroll"}</span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="pb-0">
-                  {payrollMenus.map((menu) => (
-                    <SidebarLink
-                      key={menu.mnu_id}
-                      title={menu.mnu_desc || ""}
-                      href={menu.mnu_http || "#"}
-                      className="py-[10px] text-sm pl-8"
-                    />
-                  ))}
+                <AccordionContent className="pb-0" onClick={(e) => e.stopPropagation()}>
+                  {payrollMenus.map((menu) => {
+                    const href = menu.mnu_http || "#";
+                    const normalizedHref = href !== "#" && !href.startsWith("/") && !href.startsWith("http") 
+                      ? `/${href}` 
+                      : href;
+                    return (
+                      <SidebarLink
+                        key={menu.mnu_id}
+                        title={menu.mnu_desc || ""}
+                        href={normalizedHref}
+                        className="py-[10px] text-sm pl-8"
+                      />
+                    );
+                  })}
                 </AccordionContent>
               </AccordionItem>
             )}
@@ -184,15 +214,21 @@ export function Sidebar() {
                     <span>{getHeaderTitle("H4") || "Contributions"}</span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="pb-0">
-                  {contriMenus.map((menu) => (
-                    <SidebarLink
-                      key={menu.mnu_id}
-                      title={menu.mnu_desc || ""}
-                      href={menu.mnu_http || "#"}
-                      className="py-[10px] text-sm pl-8"
-                    />
-                  ))}
+                <AccordionContent className="pb-0" onClick={(e) => e.stopPropagation()}>
+                  {contriMenus.map((menu) => {
+                    const href = menu.mnu_http || "#";
+                    const normalizedHref = href !== "#" && !href.startsWith("/") && !href.startsWith("http") 
+                      ? `/${href}` 
+                      : href;
+                    return (
+                      <SidebarLink
+                        key={menu.mnu_id}
+                        title={menu.mnu_desc || ""}
+                        href={normalizedHref}
+                        className="py-[10px] text-sm pl-8"
+                      />
+                    );
+                  })}
                 </AccordionContent>
               </AccordionItem>
             )}
@@ -209,15 +245,21 @@ export function Sidebar() {
                       <span>{getHeaderTitle("H2") || "Reports"}</span>
                     </div>
                   </AccordionTrigger>
-                  <AccordionContent className="pb-0">
-                    {reportMenus.map((menu) => (
-                      <SidebarLink
-                        key={menu.mnu_id}
-                        title={menu.mnu_desc || ""}
-                        href={menu.mnu_http || "#"}
-                        className="py-[10px] text-sm pl-8"
-                      />
-                    ))}
+                  <AccordionContent className="pb-0" onClick={(e) => e.stopPropagation()}>
+                    {reportMenus.map((menu) => {
+                      const href = menu.mnu_http || "#";
+                      const normalizedHref = href !== "#" && !href.startsWith("/") && !href.startsWith("http") 
+                        ? `/${href}` 
+                        : href;
+                      return (
+                        <SidebarLink
+                          key={menu.mnu_id}
+                          title={menu.mnu_desc || ""}
+                          href={normalizedHref}
+                          className="py-[10px] text-sm pl-8"
+                        />
+                      );
+                    })}
                   </AccordionContent>
                 </AccordionItem>
               )}
@@ -234,15 +276,21 @@ export function Sidebar() {
                       <span>{getHeaderTitle("H1") || "Administration"}</span>
                     </div>
                   </AccordionTrigger>
-                  <AccordionContent className="pb-0">
-                    {adminMenus.map((menu) => (
-                      <SidebarLink
-                        key={menu.mnu_id}
-                        title={menu.mnu_desc || ""}
-                        href={menu.mnu_http || "#"}
-                        className="py-[10px] text-sm pl-8"
-                      />
-                    ))}
+                  <AccordionContent className="pb-0" onClick={(e) => e.stopPropagation()}>
+                    {adminMenus.map((menu) => {
+                      const href = menu.mnu_http || "#";
+                      const normalizedHref = href !== "#" && !href.startsWith("/") && !href.startsWith("http") 
+                        ? `/${href}` 
+                        : href;
+                      return (
+                        <SidebarLink
+                          key={menu.mnu_id}
+                          title={menu.mnu_desc || ""}
+                          href={normalizedHref}
+                          className="py-[10px] text-sm pl-8"
+                        />
+                      );
+                    })}
                   </AccordionContent>
                 </AccordionItem>
               )}

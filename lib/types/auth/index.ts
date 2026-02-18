@@ -26,3 +26,15 @@ export interface RefreshToken {
   DateExpires: Date;
   DateCreated: Date;
 }
+
+export interface QrLoginGenerateRequest {
+  empId: string;
+}
+
+export interface QrLoginGenerateResponse {
+  qrToken: string;
+}
+
+export interface QrLoginRequest {
+  qrToken: string;
+}

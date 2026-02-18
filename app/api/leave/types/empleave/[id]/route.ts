@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth/jwt-edge";
-import { prisma } from "@/lib/db/prisma";
+import * as requestProcedures from "@/lib/services/requests.service";
 
+/**
+ * GET /api/leave/types/empleave/{id}
+ * Get leave types available for a specific employee.
+ * Mirrors C# GetLeaveTypesEmpl and stored procedure get_leavetypes(_emp_id).
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -19,34 +24,21 @@ export async function GET(
     }
 
     const resolvedParams = await params;
-    const utId = resolvedParams.id;
+    const empId = resolvedParams.id;
 
-    const undertime = await prisma.undertime.findFirst({
-      where: {
-        utm_id: utId,
-      },
-    });
-
-    if (!undertime) {
+    if (!empId || typeof empId !== "string") {
       return NextResponse.json(
-        { message: "Undertime not found" },
-        { status: 404 }
+        { message: "Employee ID is required" },
+        { status: 400 }
       );
     }
 
-    return NextResponse.json({
-      UtmId: undertime.utm_id,
-      UtmEmp: undertime.utm_emp,
-      UtmDate: undertime.utm_date,
-      UtmFrom: undertime.utm_from,
-      UtmTo: undertime.utm_to,
-      UtmReason: undertime.utm_reason,
-      UtmStatus: undertime.utm_status,
-      UtmApproveddate: undertime.utm_approveddate,
-      UtmApprovedby: undertime.utm_approvedby,
-    });
+    // Get leave types for this employee (matches get_leavetypes SP)
+    const leaveTypes = await requestProcedures.getLeaveTypes(empId);
+
+    return NextResponse.json(leaveTypes);
   } catch (error) {
-    console.error("Get undertime for approval error:", error);
+    console.error("Get employee leave types error:", error);
     return NextResponse.json(
       {
         message: "Internal server error",

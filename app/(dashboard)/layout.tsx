@@ -33,15 +33,17 @@ export default function DashboardLayout({
           transition-transform duration-300 ease-in-out
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         `}
+        style={{ pointerEvents: 'auto' }}
       >
         <Sidebar />
       </div>
 
-      {/* Overlay for mobile */}
+      {/* Overlay for mobile - only show on mobile and when sidebar is open */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
           onClick={() => setSidebarOpen(false)}
+          style={{ pointerEvents: 'auto' }}
         />
       )}
 

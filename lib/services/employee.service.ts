@@ -35,7 +35,7 @@ export async function createEmployeeAccount(
     EmpEmail?: string | null;
     EmpAccount?: string | null;
   } | null,
-  createdByEmpId: string
+  createdByEmpId: string,
 ) {
   // Mirrors stored procedure `employee_create_account`
   // Next emp_id (max+1, padded), excluding 'admin'
@@ -60,7 +60,7 @@ export async function createEmployeeAccount(
       ? (passwordHash as unknown as Uint8Array<ArrayBuffer>)
       : (new Uint8Array(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (passwordHash as any).buffer ?? (passwordHash as any)
+          (passwordHash as any).buffer ?? (passwordHash as any),
         ) as unknown as Uint8Array<ArrayBuffer>);
 
   await prisma.employee.create({
@@ -98,7 +98,11 @@ export async function createEmployeeAccount(
     });
   }
 
-  return { emp_id: newEmpId, emp_first: account.EmpFirst, emp_last: account.EmpLast };
+  return {
+    emp_id: newEmpId,
+    emp_first: account.EmpFirst,
+    emp_last: account.EmpLast,
+  };
 }
 
 /**
@@ -116,7 +120,7 @@ export async function updateEmployeeAccount(
     EmpLoc?: string | null;
     EmpRole?: string | null;
     EmpExternalId?: string | null;
-  }
+  },
 ) {
   await prisma.employee.update({
     where: { emp_id: empId },
@@ -151,7 +155,7 @@ export async function upsertEmployeePersonal(
     EmpContact2?: string | null;
     EmpEmail?: string | null;
     EmpAccount?: string | null;
-  }
+  },
 ) {
   const existing = await prisma.emppersonal.findUnique({
     where: { emp_id: empId },
@@ -201,7 +205,7 @@ export async function insertEmployeeAdvance(
   PayPerMonth: number,
   StartDate: Date,
   AmountPerPay: number,
-  PayCutoff: number | null
+  PayCutoff: number | null,
 ) {
   const count = await prisma.empadvance.count({ where: { emp_id: empId } });
   // emp_adid is VarChar(20): use short format to fit (e.g. 000002-1)
@@ -243,9 +247,11 @@ export async function insertEmployeeWork(
   emp_taxstat: string | null,
   emp_rdo: string | null,
   emp_passport: string | null,
-  emp_prc: string | null
+  emp_prc: string | null,
 ) {
-  const existing = await prisma.empwork.findUnique({ where: { emp_id: empId } });
+  const existing = await prisma.empwork.findUnique({
+    where: { emp_id: empId },
+  });
   if (!existing) {
     await prisma.empwork.create({
       data: {
@@ -297,22 +303,43 @@ export async function deleteEmployeeApprovalLevels(empId: string) {
   });
 }
 
+/**
+ * Add approval level for an employee and approver.
+ * Mirrors stored procedure `addAppLevelSA`:
+ * - Creates approval levels for ALL menus where mnu_id like 'M%'
+ * - al_id = concat(mnu_id, _empappvr, _employee)
+ * - al_menu = mnu_id
+ */
 export async function addApprovalLevel(
   empId: string,
   AlApprv: string,
-  AlLevel: number
+  AlLevel: number,
 ) {
-  const al_id = `${empId}-${AlApprv}-${AlLevel}-${Date.now()}`;
-  await prisma.approvallevels.create({
-    data: {
-      al_id,
-      al_appvr: AlApprv,
-      al_emp: empId,
-      al_menu: null,
-      al_level: AlLevel,
-      al_stat: 1,
+  // Get all menus starting with 'M' (matching SP: menu where mnu_id like 'M%')
+  const menus = await prisma.menu.findMany({
+    where: {
+      mnu_id: { startsWith: "M" },
     },
+    select: { mnu_id: true },
   });
+
+  // Create approval level for each menu (matching SP behavior)
+  for (const menu of menus) {
+    const mnuId = menu.mnu_id;
+    // al_id = concat(mnu_id, _empappvr, _employee) - exactly as stored procedure
+    const al_id = `${mnuId}${AlApprv}${empId}`;
+
+    await prisma.approvallevels.create({
+      data: {
+        al_id,
+        al_appvr: AlApprv === "None" ? empId : AlApprv, // If None, use employee as approver
+        al_emp: empId,
+        al_menu: mnuId,
+        al_level: AlLevel,
+        al_stat: 1,
+      },
+    });
+  }
 }
 
 export async function deleteEmployeeBenefits(empId: string) {
@@ -330,7 +357,7 @@ export async function deleteEmployeeLeaves(empId: string) {
 export async function assignEmployeeLeave(
   empId: string,
   EmlLeave: string,
-  EmlLeacredit: number
+  EmlLeacredit: number,
 ) {
   const eml_id = `${empId}${EmlLeave}`;
   await prisma.empleave.upsert({
@@ -352,7 +379,7 @@ export async function insertEmployeeBenefit(
   empId: string,
   EmbBcode: string,
   EmbDesc: string | null,
-  EmbAmt: number
+  EmbAmt: number,
 ) {
   const count = await prisma.empbenefit.count({ where: { emb_id: empId } });
   const emb_code = `${empId}-${EmbBcode}-${count + 1}`;
@@ -383,29 +410,82 @@ export interface SalaryEntry {
  */
 export async function saveEmployeeSalary(
   empId: string,
-  salaries: SalaryEntry[]
+  salaries: SalaryEntry[],
 ) {
+  // Delete all existing salaries for this employee (matches C# behavior)
   await prisma.empsalary.deleteMany({
     where: { emp_id: empId },
   });
 
-  for (let i = 0; i < salaries.length; i++) {
-    const sal = salaries[i];
-    const emp_salid = `${empId}-SAL-${i + 1}`;
-    const dateFrom = sal.SalDateFrom ? new Date(sal.SalDateFrom) : null;
-    const dateTo = sal.SalDateTo ? new Date(sal.SalDateTo) : null;
-    await prisma.empsalary.create({
-      data: {
-        emp_id: empId,
-        emp_salid,
-        emp_salposition: sal.SalPosition || null,
-        emp_salpayrolltype: sal.SalPayrollType || null,
-        emp_saldatefrom: dateFrom,
-        emp_saldateto: dateTo,
-        emp_salamt: sal.SalAmount ?? 0,
-        emp_salnote: sal.SalRemarks || null,
-        emp_salstatus: sal.SalStatus ?? 0,
-      },
+  // Insert each salary entry, matching stored procedure emp_salid generation
+  // SP: CONCAT(_emp_id, (SELECT COUNT(emp_id) FROM empsalary WHERE emp_id = _emp_id) + 1)
+  for (const sal of salaries) {
+    // Validate entry (matches C# validation exactly)
+    // C# checks: !string.IsNullOrEmpty(salary.EmpSalposition) && !string.IsNullOrEmpty(salary.EmpSalpayrolltype) && salary.EmpSalamt > 0 && salary.EmpSaldatefrom != null
+    const salPosition = sal.SalPosition?.trim();
+    const salPayrollType = sal.SalPayrollType?.trim();
+    
+    if (
+      !salPosition ||
+      salPosition === "" ||
+      !salPayrollType ||
+      salPayrollType === "" ||
+      !sal.SalAmount ||
+      sal.SalAmount <= 0 ||
+      !sal.SalDateFrom
+    ) {
+      console.warn("Skipping invalid salary entry:", sal);
+      continue;
+    }
+
+    // Validate date
+    const dateFrom = sal.SalDateFrom instanceof Date 
+      ? sal.SalDateFrom 
+      : new Date(sal.SalDateFrom);
+    
+    if (isNaN(dateFrom.getTime())) {
+      console.warn("Invalid dateFrom for salary entry:", sal);
+      continue;
+    }
+
+    const dateTo = sal.SalDateTo 
+      ? (sal.SalDateTo instanceof Date 
+          ? sal.SalDateTo 
+          : new Date(sal.SalDateTo))
+      : null;
+
+    if (dateTo && isNaN(dateTo.getTime())) {
+      console.warn("Invalid dateTo for salary entry:", sal);
+      continue;
+    }
+
+    // Get current count to generate emp_salid (matches SP logic)
+    const count = await prisma.empsalary.count({
+      where: { emp_id: empId },
     });
+    const emp_salid = `${empId}${count + 1}`;
+
+    try {
+      await prisma.empsalary.create({
+        data: {
+          emp_id: empId,
+          emp_salid,
+          emp_salposition: salPosition,
+          emp_salpayrolltype: salPayrollType,
+          emp_saldatefrom: dateFrom,
+          emp_saldateto: dateTo,
+          emp_salamt: sal.SalAmount,
+          emp_salnote: sal.SalRemarks?.trim() || null,
+          emp_salstatus: sal.SalStatus ?? 0,
+        },
+      });
+    } catch (error) {
+      console.error("Error creating salary entry:", error, {
+        empId,
+        emp_salid,
+        sal,
+      });
+      throw error;
+    }
   }
 }

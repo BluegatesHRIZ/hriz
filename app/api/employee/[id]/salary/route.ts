@@ -42,25 +42,59 @@ export async function PUT(
       );
     }
 
-    const entries = salaries.map(
-      (s: {
-        SalPosition?: string;
-        SalPayrollType?: string;
-        SalDateFrom?: string | null;
-        SalDateTo?: string | null;
-        SalAmount?: number;
-        SalRemarks?: string;
-        SalStatus?: number;
-      }) => ({
-        SalPosition: s.SalPosition ?? "",
-        SalPayrollType: s.SalPayrollType ?? "S",
-        SalDateFrom: s.SalDateFrom ? new Date(s.SalDateFrom) : null,
-        SalDateTo: s.SalDateTo ? new Date(s.SalDateTo) : null,
-        SalAmount: typeof s.SalAmount === "number" ? s.SalAmount : 0,
-        SalRemarks: s.SalRemarks ?? "",
-        SalStatus: typeof s.SalStatus === "number" ? s.SalStatus : 0,
-      })
-    );
+    // Parse and validate entries
+    const entries = salaries
+      .map(
+        (s: {
+          SalPosition?: string;
+          SalPayrollType?: string;
+          SalDateFrom?: string | Date | null;
+          SalDateTo?: string | Date | null;
+          SalAmount?: number;
+          SalRemarks?: string;
+          SalStatus?: number;
+        }) => {
+          // Handle date parsing - can be string or Date object
+          let dateFrom: Date | null = null;
+          if (s.SalDateFrom) {
+            if (s.SalDateFrom instanceof Date) {
+              dateFrom = s.SalDateFrom;
+            } else if (typeof s.SalDateFrom === "string") {
+              dateFrom = new Date(s.SalDateFrom);
+              if (isNaN(dateFrom.getTime())) {
+                console.warn("Invalid SalDateFrom:", s.SalDateFrom);
+                return null;
+              }
+            }
+          }
+
+          let dateTo: Date | null = null;
+          if (s.SalDateTo) {
+            if (s.SalDateTo instanceof Date) {
+              dateTo = s.SalDateTo;
+            } else if (typeof s.SalDateTo === "string") {
+              dateTo = new Date(s.SalDateTo);
+              if (isNaN(dateTo.getTime())) {
+                console.warn("Invalid SalDateTo:", s.SalDateTo);
+                dateTo = null; // Don't fail on invalid dateTo
+              }
+            }
+          }
+
+          return {
+            SalPosition: s.SalPosition ?? "",
+            SalPayrollType: s.SalPayrollType ?? "S",
+            SalDateFrom: dateFrom,
+            SalDateTo: dateTo,
+            SalAmount: typeof s.SalAmount === "number" ? s.SalAmount : 0,
+            SalRemarks: s.SalRemarks ?? "",
+            SalStatus: typeof s.SalStatus === "number" ? s.SalStatus : 0,
+          };
+        }
+      )
+      .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+
+    console.log("Saving salaries for employee:", empId, "Entries:", entries.length);
 
     await saveEmployeeSalary(empId, entries);
 

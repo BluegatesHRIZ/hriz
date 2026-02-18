@@ -106,8 +106,11 @@ export async function GET(
         orderBy: { fil_datetime: "desc" },
       }),
       prisma.approvallevels.findMany({
-        where: { al_emp: empId },
-        orderBy: { al_id: "asc" },
+        where: { 
+          al_emp: empId,
+          al_menu: "M1", // Filter by M1 menu to get unique approvers (matches get_applvl SP)
+        },
+        orderBy: { al_level: "asc" },
       }),
       prisma.empbenefit.findMany({
         where: { emb_id: empId },
@@ -222,11 +225,15 @@ export async function GET(
         LevTypeDesc: leaveTypeMap.get(lv.eml_leave || "") || "",
       })),
       EmpSalary: empsalary.map((sal) => ({
-        SalId: parseInt(sal.emp_salid) || 0,
+        SalId: parseInt(sal.emp_salid.replace(/[^0-9]/g, "")) || 0, // Extract numeric part for ID
         SalAmount: sal.emp_salamt || null,
         SalDate: sal.emp_saldatefrom,
         SalPosition: sal.emp_salposition,
+        SalPayrollType: sal.emp_salpayrolltype || "S",
+        SalDateFrom: sal.emp_saldatefrom,
+        SalDateTo: sal.emp_saldateto,
         SalRemarks: sal.emp_salnote,
+        SalStatus: sal.emp_salstatus ?? 1,
       })),
       EmpAdvance: empadvance.map((adv) => ({
         AdvId: parseInt(adv.emp_adid) || 0,

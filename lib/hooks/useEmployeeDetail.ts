@@ -99,7 +99,11 @@ export interface EmployeeDetail {
     SalAmount: number | null;
     SalDate: Date | null;
     SalPosition: string | null;
+    SalPayrollType?: string | null;
+    SalDateFrom?: Date | null;
+    SalDateTo?: Date | null;
     SalRemarks: string | null;
+    SalStatus?: number | null;
   }>;
   EmpAdvance: Array<{
     AdvId: number;

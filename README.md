@@ -103,6 +103,34 @@ HRIS_API_Next/
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint
 
+## Deploying to Cloudflare
+
+Deploy with:
+
+```bash
+pnpm run deploy
+```
+
+### Worker size limit (3 MiB)
+
+The **Workers Free plan** limits each Worker to **3 MiB** (gzipped). If deploy fails with:
+
+```
+Your Worker exceeded the size limit of 3 MiB
+```
+
+**Options:**
+
+1. **Upgrade to Workers Paid** ($5/month) for a **10 MiB** limit: [Workers plans](https://dash.cloudflare.com/?to=/:account/workers/plans).
+2. **Reduce bundle size:**
+   - In **Cloudflare Pages** (or your CI), set these **build** environment variables so Wrangler picks smaller Node-style builds where possible:
+     - `WRANGLER_BUILD_PLATFORM` = `node`
+     - `WRANGLER_BUILD_CONDITIONS` = `` (empty)
+   - Add the same to `.env` for local deploys (see `.env.example`).
+   - To see what’s in the bundle: use `.open-next/server-functions/default/handler.mjs.meta.json` with the [ESBuild Bundle Analyzer](https://esbuild.github.io/analyze/).
+
+See [OpenNext Cloudflare troubleshooting](https://opennext.js.org/cloudflare/troubleshooting) and [Worker size limits](https://developers.cloudflare.com/workers/platform/limits/#worker-size).
+
 ## Migration Plan
 
 See the migration plan document for detailed migration strategy and phases.

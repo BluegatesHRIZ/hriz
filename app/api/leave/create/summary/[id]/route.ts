@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth/jwt-edge";
 import * as requestProcedures from "@/lib/services/requests.service";
 import { prisma } from "@/lib/db/prisma";
+import { beforeAfterLead } from "@/lib/utils/requestLimit";
 
 export async function POST(
   request: NextRequest,
@@ -52,8 +53,20 @@ export async function POST(
       );
     }
 
-    // TODO: Implement RequestLimit.BeforeAfterLead validation
-    // For now, proceed with insertion
+    // Validate start date with BeforeAfterLead (matches C# validation)
+    if (
+      beforeAfterLead(
+        new Date(LeaSfrom),
+        leaveSettings.lev_before ?? 0,
+        leaveSettings.lev_after ?? 0,
+        leaveSettings.lev_lead ?? 0
+      )
+    ) {
+      return NextResponse.json(
+        { message: "Leave date is not allowed" },
+        { status: 400 }
+      );
+    }
 
     // Insert leave summary
     const leaveSummaryId = await requestProcedures.leaveInsertSummary(
@@ -69,7 +82,21 @@ export async function POST(
     // Insert leave details
     if (Array.isArray(leavedetail)) {
       for (const detail of leavedetail) {
-        // TODO: Validate date with RequestLimit.BeforeAfterLead
+        // Validate each detail date with BeforeAfterLead (matches C# validation)
+        if (
+          beforeAfterLead(
+            new Date(detail.LeaDdate),
+            leaveSettings.lev_before ?? 0,
+            leaveSettings.lev_after ?? 0,
+            leaveSettings.lev_lead ?? 0
+          )
+        ) {
+          return NextResponse.json(
+            { message: "Leave date is not allowed" },
+            { status: 400 }
+          );
+        }
+
         await requestProcedures.leaveInsertDetails(
           leaveSummaryId,
           new Date(detail.LeaDdate),
@@ -83,6 +110,21 @@ export async function POST(
     const createdSummary = await prisma.leave_summary.findUnique({
       where: { lea_sid: leaveSummaryId },
     });
+
+    // Verify forapproval records were created
+    const approvalRecords = await prisma.forapproval.findMany({
+      where: { fa_taskid: leaveSummaryId },
+    });
+    console.log(
+      `Create leave summary: Created leave "${leaveSummaryId}" for employee "${empId}". ` +
+      `Found ${approvalRecords.length} forapproval records.`
+    );
+    if (approvalRecords.length === 0) {
+      console.warn(
+        `Create leave summary: WARNING - No forapproval records found for leave "${leaveSummaryId}". ` +
+        `This means approval levels may not be configured for employee "${empId}".`
+      );
+    }
 
     return NextResponse.json(createdSummary);
   } catch (error) {

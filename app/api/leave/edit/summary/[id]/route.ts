@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth/jwt-edge";
 import * as requestProcedures from "@/lib/services/requests.service";
 import { prisma } from "@/lib/db/prisma";
+import { beforeAfterLead } from "@/lib/utils/requestLimit";
 
 export async function PUT(
   request: NextRequest,
@@ -53,7 +54,20 @@ export async function PUT(
       );
     }
 
-    // TODO: Implement RequestLimit.BeforeAfterLead validation
+    // Validate start date with BeforeAfterLead (matches C# validation)
+    if (
+      beforeAfterLead(
+        new Date(LeaSfrom),
+        leaveSettings.lev_before ?? 0,
+        leaveSettings.lev_after ?? 0,
+        leaveSettings.lev_lead ?? 0
+      )
+    ) {
+      return NextResponse.json(
+        { message: "Leave date is not allowed" },
+        { status: 400 }
+      );
+    }
 
     // Update leave summary
     await requestProcedures.leaveUpdateSummary(
@@ -74,7 +88,21 @@ export async function PUT(
     // Insert new leave details
     if (Array.isArray(leavedetail)) {
       for (const detail of leavedetail) {
-        // TODO: Validate date with RequestLimit.BeforeAfterLead
+        // Validate each detail date with BeforeAfterLead (matches C# validation)
+        if (
+          beforeAfterLead(
+            new Date(detail.LeaDdate),
+            leaveSettings.lev_before ?? 0,
+            leaveSettings.lev_after ?? 0,
+            leaveSettings.lev_lead ?? 0
+          )
+        ) {
+          return NextResponse.json(
+            { message: "Leave date is not allowed" },
+            { status: 400 }
+          );
+        }
+
         await requestProcedures.leaveInsertDetails(
           leaveId,
           new Date(detail.LeaDdate),

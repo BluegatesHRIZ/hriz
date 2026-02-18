@@ -31,15 +31,42 @@ export async function GET(
       return NextResponse.json({ message: "COA not found" }, { status: 404 });
     }
 
+    // Get COA type details
+    const coaType = summary.coa_stype
+      ? await prisma.coa_type.findFirst({
+          where: { coa_tid: summary.coa_stype },
+        })
+      : null;
+
     const details = await prisma.coa_detail.findMany({
       where: {
         coa_dpk: coaSid,
       },
+      orderBy: {
+        coa_ddate: "asc",
+      },
     });
 
     return NextResponse.json({
-      ...summary,
-      CoaDetails: details,
+      CoaSid: summary.coa_sid,
+      CoaSemp: summary.coa_semp,
+      CoaStype: summary.coa_stype,
+      CoaStypedetail: summary.coa_stypedetail,
+      CoaSreason: summary.coa_sreason,
+      CoaSstatus: summary.coa_sstatus,
+      CoaSapproveddate: summary.coa_sapproveddate,
+      CoaSapprovedby: summary.coa_sapprovedby,
+      CoaStypeNavigation: coaType
+        ? {
+            CoaTdesc: coaType.coa_tdesc,
+            CoaTtag: coaType.coa_ttag,
+          }
+        : null,
+      CoaDetails: details.map((detail) => ({
+        CoaDdate: detail.coa_ddate,
+        CoaDtime: detail.coa_dtime,
+        CoaDtype: detail.coa_dtype,
+      })),
     });
   } catch (error) {
     console.error("Get COA for approval error:", error);

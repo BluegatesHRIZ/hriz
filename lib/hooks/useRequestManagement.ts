@@ -155,6 +155,33 @@ export function useLeaveCredits(empId: string) {
   });
 }
 
+export interface LeaveCreditRequestDTO {
+  EmlLeacredit?: number;
+  EmlUsed?: number;
+}
+
+export function useLeaveRequestCredit(empId: string, leaveType: string) {
+  return useQuery<LeaveCreditRequestDTO, ApiError>({
+    queryKey: ["leave", "credit", "request", empId, leaveType],
+    queryFn: async () => {
+      const token = localStorage.getItem("auth_token");
+      if (!token) throw new ApiError("No token found", 401);
+      return apiFetch<LeaveCreditRequestDTO>(
+        `/leave/credit/request/${empId}/${leaveType}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+    },
+    enabled:
+      !!empId &&
+      !!leaveType &&
+      typeof window !== "undefined" &&
+      !!localStorage.getItem("auth_token"),
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
 export function useCreateLeaveSummary(empId: string) {
   const queryClient = useQueryClient();
   return useMutation<LeaveRequestDTO, ApiError, LeaveRequestDTO>({
@@ -238,6 +265,95 @@ export function useLeaveGrid() {
     staleTime: 2 * 60 * 1000,
     enabled:
       typeof window !== "undefined" && !!localStorage.getItem("auth_token"),
+  });
+}
+
+export interface ScheduleDayDTO {
+  sch_day?: string;
+  sch_rest?: number;
+  sch_in?: string | null;
+  sch_bin?: string | null;
+  sch_bout?: string | null;
+  sch_out?: string | null;
+}
+
+export function useUserLeaveScheduleList() {
+  return useQuery<ScheduleDayDTO[], ApiError>({
+    queryKey: ["schedule", "list", "user"],
+    queryFn: async () => {
+      const token = localStorage.getItem("auth_token");
+      if (!token) throw new ApiError("No token found", 401);
+      return apiFetch<ScheduleDayDTO[]>("/schedule/list/user", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    },
+    staleTime: 10 * 60 * 1000,
+    enabled:
+      typeof window !== "undefined" && !!localStorage.getItem("auth_token"),
+  });
+}
+
+export interface HolidaySchedDTO {
+  hol_id?: number;
+  hol_date?: Date | string;
+  hol_type?: string | null;
+  hol_name?: string | null;
+  hol_logdate?: Date | string | null;
+  hol_status?: number | null;
+  hol_repeat?: number | null;
+}
+
+export function useHolidaysForSched() {
+  return useQuery<HolidaySchedDTO[], ApiError>({
+    queryKey: ["holiday", "list", "forsched"],
+    queryFn: async () => {
+      const token = localStorage.getItem("auth_token");
+      if (!token) throw new ApiError("No token found", 401);
+      return apiFetch<HolidaySchedDTO[]>("/holiday/list/forsched", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    },
+    staleTime: 10 * 60 * 1000,
+    enabled:
+      typeof window !== "undefined" && !!localStorage.getItem("auth_token"),
+  });
+}
+
+export interface SchedAdjustedDate {
+  sca_dpk?: string;
+  sca_did?: string;
+  sca_ddate?: Date | string;
+  sca_dshiftstart?: Date | string | null;
+  sca_dbreakstart?: Date | string | null;
+  sca_dbreakend?: Date | string | null;
+  sca_dshiftend?: Date | string | null;
+  sca_drest?: number | null;
+}
+
+export function useSchedAdjustedDate(dateFrom?: Date, dateTo?: Date) {
+  return useQuery<SchedAdjustedDate[], ApiError>({
+    queryKey: ["schedadjust", "schedadjusted", dateFrom?.toISOString(), dateTo?.toISOString()],
+    queryFn: async () => {
+      const token = localStorage.getItem("auth_token");
+      if (!token) throw new ApiError("No token found", 401);
+      return apiFetch<SchedAdjustedDate[]>("/schedadjust/schedadjusted", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          date_from: dateFrom?.toISOString(),
+          date_to: dateTo?.toISOString(),
+        }),
+      });
+    },
+    enabled:
+      !!dateFrom &&
+      !!dateTo &&
+      typeof window !== "undefined" &&
+      !!localStorage.getItem("auth_token"),
+    staleTime: 5 * 60 * 1000,
   });
 }
 

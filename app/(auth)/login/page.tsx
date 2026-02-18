@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { useLogin } from "@/lib/hooks/useAuth"
+import { useLogin, useLoginWithQr } from "@/lib/hooks/useAuth"
 import { useSettings } from "@/lib/hooks/useSettings"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,6 +13,14 @@ import { Label } from "@/components/ui/label"
 import { PasswordInput } from "@/components/ui/PasswordInput"
 import { BGCLogo } from "@/components/ui/BGCLogo"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { QrCode } from "lucide-react"
 import Image from "next/image"
 
 const loginSchema = z.object({
@@ -26,9 +34,14 @@ type LoginFormData = z.infer<typeof loginSchema>
 export default function LoginPage() {
   const router = useRouter()
   const loginMutation = useLogin()
+  const loginQrMutation = useLoginWithQr()
   const { data: settings } = useSettings()
   const [error, setError] = useState<string | null>(null)
   const [includeTabIndex, setIncludeTabIndex] = useState(0)
+  const [qrScannerOpen, setQrScannerOpen] = useState(false)
+  const scannerRef = useRef<HTMLDivElement>(null)
+  const html5QrCodeRef = useRef<any>(null)
+  const [scannerError, setScannerError] = useState<string | null>(null)
 
   const {
     register,
@@ -72,6 +85,113 @@ export default function LoginPage() {
   }
 
   const setIncludes = settings?.set_includes || 0
+
+  const handleQrScan = async (decodedText: string) => {
+    try {
+      await loginQrMutation.mutateAsync({ qrToken: decodedText })
+      setQrScannerOpen(false)
+      // Wait a moment for auth context to update, then redirect
+      setTimeout(() => {
+        router.push("/dashboard")
+      }, 200)
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message)
+      } else {
+        setError("QR login failed. Please try again.")
+      }
+      // Keep scanner open for retry
+    }
+  }
+
+  useEffect(() => {
+    if (!qrScannerOpen) {
+      // Clean up scanner when dialog closes
+      if (html5QrCodeRef.current) {
+        html5QrCodeRef.current
+          .stop()
+          .then(() => {
+            html5QrCodeRef.current?.clear()
+            html5QrCodeRef.current = null
+          })
+          .catch(() => {
+            // Ignore stop errors
+          })
+      }
+      setScannerError(null)
+      return
+    }
+
+    // Wait for dialog to fully render before initializing scanner
+    const timer = setTimeout(async () => {
+      if (!scannerRef.current) {
+        setScannerError("Scanner container not found")
+        return
+      }
+
+      try {
+        const { Html5Qrcode } = await import("html5-qrcode")
+        const scannerId = `qr-scanner-${Date.now()}`
+        scannerRef.current.id = scannerId
+
+        const scanner = new Html5Qrcode(scannerId)
+        html5QrCodeRef.current = scanner
+
+        await scanner.start(
+          { facingMode: "environment" }, // Use back camera
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0,
+          },
+          (decodedText: string) => {
+            // Stop scanner once QR is decoded
+            scanner.stop().then(() => {
+              scanner.clear()
+              html5QrCodeRef.current = null
+            })
+            handleQrScan(decodedText)
+          },
+          (errorMessage: string) => {
+            // Ignore scanning errors - scanner will keep trying
+            // Only log if it's not a "not found" error
+            if (!errorMessage.includes("NotFoundException")) {
+              console.debug("QR scan error:", errorMessage)
+            }
+          }
+        )
+        setScannerError(null)
+      } catch (error: any) {
+        console.error("Failed to initialize QR scanner:", error)
+        const errorMsg =
+          error?.message?.includes("Permission") ||
+          error?.message?.includes("NotAllowedError")
+            ? "Camera permission denied. Please allow camera access and try again."
+            : error?.message?.includes("NotFoundError")
+            ? "No camera found. Please connect a camera and try again."
+            : "Failed to access camera. Please check permissions and try again."
+        setScannerError(errorMsg)
+        if (html5QrCodeRef.current) {
+          html5QrCodeRef.current = null
+        }
+      }
+    }, 300) // Increased delay to ensure dialog is fully rendered
+
+    return () => {
+      clearTimeout(timer)
+      if (html5QrCodeRef.current) {
+        html5QrCodeRef.current
+          .stop()
+          .then(() => {
+            html5QrCodeRef.current?.clear()
+            html5QrCodeRef.current = null
+          })
+          .catch(() => {
+            // Ignore stop errors
+          })
+      }
+    }
+  }, [qrScannerOpen])
 
   return (
     <div className="relative h-screen w-screen bg-bgc-gray flex items-center justify-center">
@@ -170,7 +290,17 @@ export default function LoginPage() {
           />
 
           {/* Login Button */}
-          <div className="flex justify-end mt-7 mb-7">
+          <div className="flex justify-between items-center mt-7 mb-7">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setQrScannerOpen(true)}
+              disabled={loginMutation.isPending || loginQrMutation.isPending}
+              className="text-sm"
+            >
+              <QrCode className="mr-2 h-4 w-4" />
+              Login with QR
+            </Button>
             <button
               type="submit"
               className="w-max bg-bgc-blue-gray font-bold px-5 py-2 rounded-md text-white disabled:opacity-50"
@@ -193,6 +323,46 @@ export default function LoginPage() {
           </div>
         )}
       </form>
+
+      {/* QR Scanner Dialog */}
+      <Dialog open={qrScannerOpen} onOpenChange={setQrScannerOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Scan QR Code</DialogTitle>
+            <DialogDescription>
+              Point your camera at the QR code to sign in
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4 py-4">
+            <div
+              ref={scannerRef}
+              className="w-full max-w-sm min-h-[300px] flex items-center justify-center bg-gray-100 rounded-lg overflow-hidden"
+              style={{ position: "relative" }}
+            >
+              {scannerError && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg">
+                  <p className="text-sm text-gray-600 text-center p-4">{scannerError}</p>
+                </div>
+              )}
+            </div>
+            {scannerError && (
+              <div className="rounded-md bg-red-50 p-3 text-sm text-red-800 w-full">
+                {scannerError}
+              </div>
+            )}
+            {loginQrMutation.isPending && (
+              <p className="text-sm text-gray-600">Logging in...</p>
+            )}
+            <Button
+              variant="outline"
+              onClick={() => setQrScannerOpen(false)}
+              disabled={loginQrMutation.isPending}
+            >
+              Cancel
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

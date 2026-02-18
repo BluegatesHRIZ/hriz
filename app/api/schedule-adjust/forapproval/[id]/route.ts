@@ -34,7 +34,34 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(schedAdjust);
+    // Get schedule details
+    const schedDetails = await prisma.schedadjust_detail.findMany({
+      where: {
+        sca_dpk: scaId,
+      },
+      orderBy: {
+        sca_ddate: "asc",
+      },
+    });
+
+    return NextResponse.json({
+      ScaSid: schedAdjust.sca_sid,
+      ScaSemp: schedAdjust.sca_semp,
+      ScaSdatefrom: schedAdjust.sca_sdatefrom,
+      ScaSdateto: schedAdjust.sca_sdateto,
+      ScaSreason: schedAdjust.sca_sreason,
+      ScaSstatus: schedAdjust.sca_sstatus,
+      ScaSapproveddate: schedAdjust.sca_sapproveddate,
+      ScaSapprovedby: schedAdjust.sca_sapprovedby,
+      SchedDetail: schedDetails.map((detail) => ({
+        ScaDdate: detail.sca_ddate,
+        ScaDshiftstart: detail.sca_dshiftstart,
+        ScaDbreakstart: detail.sca_dbreakstart,
+        ScaDbreakend: detail.sca_dbreakend,
+        ScaDshiftend: detail.sca_dshiftend,
+        ScaDrest: detail.sca_drest,
+      })),
+    });
   } catch (error) {
     console.error("Get schedule adjust for approval error:", error);
     return NextResponse.json(

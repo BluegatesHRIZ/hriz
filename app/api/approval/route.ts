@@ -25,9 +25,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Mirror get_approvals SP logic:
+    // Mirror get_approvals SP exactly:
+    // SELECT p1.* FROM forapproval p1
+    // INNER JOIN (SELECT min(fa_level) fa_level, fa_taskid FROM forapproval WHERE fa_appstat='0' AND fa_status='0' GROUP BY fa_taskid) p2
+    //   ON p1.fa_taskid = p2.fa_taskid AND p1.fa_level = p2.fa_level
+    // LEFT JOIN menu ON menu.mnu_id = p1.fa_menu
+    // LEFT JOIN employee ON employee.emp_id = p1.fa_emp;
+    // Then filter by approver in memory (matching C# behavior)
+    
     // Get minimum level for each taskid where fa_appstat='0' AND fa_status='0'
-    // Then join with forapproval to get full records at that level
     const minLevels = await prisma.forapproval.groupBy({
       by: ["fa_taskid"],
       where: {
@@ -48,22 +54,43 @@ export async function GET(request: NextRequest) {
     }
 
     if (taskIds.length === 0) {
+      console.log(`Get approval: No pending approvals found (fa_appstat=0 AND fa_status=0)`);
       return NextResponse.json([]);
     }
 
-    // Get approvals at the minimum level for each taskid
+    // Get ALL approvals at the minimum level for each taskid (matching SP - no filter by approver yet)
     const approvals = await prisma.forapproval.findMany({
       where: {
         fa_taskid: { in: taskIds },
-        fa_appvr: approverId,
       },
     });
 
     // Filter to only include approvals at the minimum level for each taskid
-    const filteredApprovals = approvals.filter((a: typeof approvals[number]) => {
+    const approvalsAtMinLevel = approvals.filter((a: typeof approvals[number]) => {
       const minLevel = minLevelMap.get(a.fa_taskid ?? "");
       return minLevel != null && a.fa_level === minLevel;
     });
+
+    // Filter by approver in memory (matching C# behavior: .Where((approval) => approval.Fa_Apprv == emp_id))
+    const filteredApprovals = approvalsAtMinLevel.filter(
+      (a: typeof approvalsAtMinLevel[number]) => a.fa_appvr === approverId
+    );
+
+    console.log(
+      `Get approval: Found ${filteredApprovals.length} approvals for approver "${approverId}" ` +
+      `(from ${approvalsAtMinLevel.length} total at min level, ${approvals.length} total approvals)`
+    );
+    
+    // Debug: Log all approvers in the approvals at min level
+    if (approvalsAtMinLevel.length > 0) {
+      const approvers = [...new Set(approvalsAtMinLevel.map((a) => a.fa_appvr).filter(Boolean))];
+      console.log(
+        `Get approval: Approvers in min level approvals: ${approvers.join(", ")} (looking for "${approverId}")`
+      );
+    }
+    
+    // Debug: Log all taskIds we're looking at
+    console.log(`Get approval: Task IDs with pending approvals: ${taskIds.join(", ")}`);
 
     // Get menu and employee data
     const menuIds = [...new Set(filteredApprovals.map((a: typeof filteredApprovals[number]) => a.fa_menu).filter(Boolean))] as string[];

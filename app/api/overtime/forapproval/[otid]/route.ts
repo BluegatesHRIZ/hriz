@@ -21,17 +21,29 @@ export async function GET(
     const resolvedParams = await params
     const otId = resolvedParams.otid
 
-    const overtime = await prisma.overtime.findMany({
+    const overtime = await prisma.overtime.findFirst({
       where: {
         otm_id: otId,
       },
     })
 
-    if (!overtime || overtime.length === 0) {
+    if (!overtime) {
       return NextResponse.json({ message: "Overtime request not found" }, { status: 404 })
     }
 
-    return NextResponse.json(overtime)
+    return NextResponse.json({
+      otm_id: overtime.otm_id,
+      otm_emp: overtime.otm_emp,
+      otm_type: overtime.otm_type,
+      otm_date: overtime.otm_date,
+      otm_from: overtime.otm_from,
+      otm_to: overtime.otm_to,
+      otm_reason: overtime.otm_reason,
+      otm_applieddate: overtime.otm_applieddate,
+      otm_status: overtime.otm_status,
+      otm_approveddate: overtime.otm_approveddate,
+      otm_approvedby: overtime.otm_approvedby,
+    })
   } catch (error) {
     console.error("Get overtime for approval error:", error)
     return NextResponse.json(

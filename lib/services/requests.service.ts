@@ -15,22 +15,80 @@ const MODTYPE_MENU: Record<string, string> = {
 };
 
 async function addForApproval(taskId: string, employee: string) {
-  const modtype = taskId.split("-")[0];
-  const mtype = MODTYPE_MENU[modtype] ?? null;
-  if (!mtype) return;
-  const levels = await prisma.approvallevels.findMany({
-    where: { al_emp: employee, al_menu: mtype },
-  });
-  for (const al of levels) {
-    await prisma.forapproval.create({
-      data: {
-        fa_taskid: taskId,
-        fa_emp: employee,
-        fa_appvr: al.al_appvr ?? undefined,
-        fa_menu: al.al_menu ?? undefined,
-        fa_level: al.al_level ?? undefined,
-      },
+  try {
+    // Match stored procedure exactly:
+    // SET _modtype=SUBSTRING_INDEX(_taskid,'-',1);
+    // CASE _modtype WHEN 'LEA' THEN SET _mtype='M1'; ... END CASE;
+    // INSERT INTO forapproval(fa_taskid, fa_emp, fa_appvr, fa_menu, fa_level)
+    // SELECT _taskid,_employee,al_appvr,al_menu,al_level
+    // FROM approvallevels WHERE al_emp=_employee AND al_menu=_mtype;
+    
+    const modtype = taskId.split("-")[0];
+    const mtype = MODTYPE_MENU[modtype] ?? null;
+    if (!mtype) {
+      console.warn(`addForApproval: Unknown modtype "${modtype}" for taskId "${taskId}"`);
+      return;
+    }
+    
+    // Get approval levels matching the stored procedure query
+    const levels = await prisma.approvallevels.findMany({
+      where: { al_emp: employee, al_menu: mtype },
     });
+    
+    console.log(
+      `addForApproval: Found ${levels.length} approval levels for employee "${employee}", menu "${mtype}", taskId "${taskId}"`
+    );
+    
+    if (levels.length === 0) {
+      console.warn(
+        `addForApproval: No approval levels found for employee "${employee}" and menu "${mtype}" (taskId: "${taskId}"). ` +
+        `This means the leave request will not appear in any approver's list. ` +
+        `Please configure approval levels for this employee.`
+      );
+      return;
+    }
+    
+    // Log the approval levels we're about to create
+    console.log(
+      `addForApproval: Creating forapproval records with approvers: ${levels.map((al) => al.al_appvr || "NULL").join(", ")}`
+    );
+    
+    // Insert all approval levels at once (matching SP INSERT INTO ... SELECT behavior)
+    // Note: SP doesn't explicitly set fa_status/fa_appstat, but schema defaults them to 0
+    const dataToInsert = levels.map((al) => ({
+      fa_taskid: taskId,
+      fa_emp: employee,
+      fa_appvr: al.al_appvr ?? null,
+      fa_menu: al.al_menu ?? null,
+      fa_level: al.al_level ?? null,
+      // fa_status and fa_appstat default to 0 in schema, matching SP behavior
+    }));
+    
+    const result = await prisma.forapproval.createMany({
+      data: dataToInsert,
+      skipDuplicates: true, // Prevent errors if entries already exist (e.g., on resubmit)
+    });
+    
+    console.log(
+      `addForApproval: Created ${result.count} approval entries for taskId "${taskId}", employee "${employee}", menu "${mtype}"`
+    );
+    
+    // Verify the records were created
+    if (result.count === 0) {
+      console.warn(
+        `addForApproval: WARNING - createMany returned count=0. This might mean records already exist or there was an issue.`
+      );
+      // Check if records already exist
+      const existing = await prisma.forapproval.findMany({
+        where: { fa_taskid: taskId },
+      });
+      console.log(
+        `addForApproval: Found ${existing.length} existing forapproval records for taskId "${taskId}"`
+      );
+    }
+  } catch (error) {
+    console.error(`addForApproval error for taskId "${taskId}", employee "${employee}":`, error);
+    throw error;
   }
 }
 
@@ -202,10 +260,29 @@ export async function leaveUpdateSummary(
       lea_sstatus: 0,
     },
   });
-  await prisma.forapproval.updateMany({
+  
+  // Match stored procedure: update forapproval set fa_status='0',fa_appstat=0 where fa_taskid=_Lea_Sid;
+  const updateResult = await prisma.forapproval.updateMany({
     where: { fa_taskid: leaveId },
     data: { fa_status: 0, fa_appstat: 0 },
   });
+  
+  // If no records were updated, they might not exist - create them
+  // This handles cases where approval levels weren't set up when the request was first created
+  if (updateResult.count === 0) {
+    // Get employee ID from the leave summary
+    const leaveSummary = await prisma.leave_summary.findUnique({
+      where: { lea_sid: leaveId },
+      select: { lea_semp: true },
+    });
+    
+    if (leaveSummary?.lea_semp) {
+      console.log(
+        `leaveUpdateSummary: No existing forapproval records found for leaveId "${leaveId}", creating new ones`
+      );
+      await addForApproval(leaveId, leaveSummary.lea_semp);
+    }
+  }
 }
 
 // --- Overtime ---
@@ -763,6 +840,7 @@ export async function cancelRequest(taskId: string, employee: string) {
 }
 
 // --- Display grids (return list for OVT, LEA, UNT) ---
+// Matches stored procedure display_grid - returns grid data with joins
 export async function displayGrid(
   menu: "OVT" | "LEA" | "UNT",
   employee: string
@@ -774,9 +852,84 @@ export async function displayGrid(
         orderBy: { otm_applieddate: "desc" },
       });
     case "LEA":
-      return prisma.leave_summary.findMany({
+      // Match stored procedure: join with leave, employee, and fapreason
+      const leaves = await prisma.leave_summary.findMany({
         where: { lea_semp: employee },
-        orderBy: { lea_sapplieddate: "desc" },
+        orderBy: [
+          { lea_sapproveddate: "desc" },
+          { lea_sapplieddate: "desc" },
+        ],
+      });
+
+      // Get leave type descriptions
+      const leaveIds = leaves.map((l) => l.lea_stype).filter(Boolean) as string[];
+      const leaveTypes =
+        leaveIds.length > 0
+          ? await prisma.leave.findMany({
+              where: { lev_id: { in: leaveIds } },
+              select: { lev_id: true, lev_desc: true },
+            })
+          : [];
+
+      // Get approver names
+      const approverIds = leaves
+        .map((l) => l.lea_sapprovedby)
+        .filter(Boolean) as string[];
+      const approvers =
+        approverIds.length > 0
+          ? await prisma.employee.findMany({
+              where: { emp_id: { in: approverIds } },
+              select: {
+                emp_id: true,
+                emp_first: true,
+                emp_last: true,
+              },
+            })
+          : [];
+
+      // Get latest fapreason for each leave
+      const leaveTaskIds = leaves.map((l) => l.lea_sid).filter(Boolean) as string[];
+      const fapreasons =
+        leaveTaskIds.length > 0
+          ? await prisma.fapreason.findMany({
+              where: {
+                fap_taskid: { in: leaveTaskIds },
+              },
+              orderBy: { fap_datetime: "desc" },
+            })
+          : [];
+
+      // Group fapreasons by taskid and get the latest one
+      const latestFapreasons = new Map<string, string>();
+      for (const fap of fapreasons) {
+        if (fap.fap_taskid && !latestFapreasons.has(fap.fap_taskid)) {
+          latestFapreasons.set(fap.fap_taskid, fap.fap_reason || "");
+        }
+      }
+
+      // Build result matching stored procedure output
+      return leaves.map((leave) => {
+        const leaveType = leaveTypes.find((lt) => lt.lev_id === leave.lea_stype);
+        const approver = approvers.find((a) => a.emp_id === leave.lea_sapprovedby);
+        const fapReason = latestFapreasons.get(leave.lea_sid || "") || null;
+
+        return {
+          LeaSid: leave.lea_sid,
+          LeaStype: leave.lea_stype,
+          LeaSfrom: leave.lea_sfrom,
+          LeaSto: leave.lea_sto,
+          LeaSreason: leave.lea_sreason,
+          FapReason: fapReason,
+          LeaSwithpay: leave.lea_swithpay,
+          LeaSwithoutpay: leave.lea_swithoutpay,
+          LeaSapplieddate: leave.lea_sapplieddate,
+          LeaSstatus: leave.lea_sstatus,
+          LeaSapproveddate: leave.lea_sapproveddate,
+          LeaSapprovedby: approver
+            ? `${approver.emp_last}, ${approver.emp_first}`
+            : null,
+          LevDesc: leaveType?.lev_desc || null,
+        };
       });
     case "UNT":
       return prisma.undertime.findMany({

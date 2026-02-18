@@ -4,8 +4,9 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth/context"
 import { useEmployees, useManageEmployeeStatus } from "@/lib/hooks/useEmployees"
+import { useGenerateQrToken } from "@/lib/hooks/useAuth"
 import { CardWithHeader } from "@/components/cards/CardWithHeader"
-import { Users } from "lucide-react"
+import { Users, QrCode } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -16,6 +17,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import Link from "next/link"
 import { Plus, Search } from "lucide-react"
 import {
@@ -32,6 +40,10 @@ export default function EmployeesPage() {
   const { data: employees, isLoading, error } = useEmployees()
   const [searchTerm, setSearchTerm] = useState("")
   const manageStatusMutation = useManageEmployeeStatus()
+  const generateQrMutation = useGenerateQrToken()
+  const [qrDialogOpen, setQrDialogOpen] = useState(false)
+  const [selectedEmpId, setSelectedEmpId] = useState<string | null>(null)
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null)
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -72,6 +84,29 @@ export default function EmployeesPage() {
     const status = Number(value)
     if (!status || ![1, 2, 3, 4, 5].includes(status)) return
     manageStatusMutation.mutate({ empId, status })
+  }
+
+  const handleGenerateQr = async (empId: string) => {
+    setSelectedEmpId(empId)
+    setQrDialogOpen(true)
+    setQrCodeDataUrl(null)
+    
+    try {
+      const response = await generateQrMutation.mutateAsync({ empId })
+      
+      // Generate QR code using qrcode library
+      if (typeof window !== "undefined") {
+        const QRCode = (await import("qrcode")).default
+        const dataUrl = await QRCode.toDataURL(response.qrToken, {
+          width: 300,
+          margin: 2,
+        })
+        setQrCodeDataUrl(dataUrl)
+      }
+    } catch (error) {
+      console.error("Failed to generate QR code:", error)
+      setQrDialogOpen(false)
+    }
   }
 
   const filteredEmployees = employees?.filter((emp) => {
@@ -181,9 +216,20 @@ export default function EmployeesPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/employees/${emp.emp_id}`}>View</Link>
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" asChild>
+                            <Link href={`/employees/${emp.emp_id}`}>View</Link>
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleGenerateQr(emp.emp_id)}
+                            disabled={generateQrMutation.isPending}
+                          >
+                            <QrCode className="mr-1 h-4 w-4" />
+                            QR Login
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -193,6 +239,47 @@ export default function EmployeesPage() {
           )}
         </div>
       </CardWithHeader>
+
+      {/* QR Code Dialog */}
+      <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>QR Login Code</DialogTitle>
+            <DialogDescription>
+              Scan this QR code with the login page to sign in as{" "}
+              {selectedEmpId && employees?.find((e) => e.emp_id === selectedEmpId)
+                ? `${employees.find((e) => e.emp_id === selectedEmpId)?.emp_first} ${employees.find((e) => e.emp_id === selectedEmpId)?.emp_last}`
+                : selectedEmpId}
+              . This QR code does not expire.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4 py-4">
+            {generateQrMutation.isPending ? (
+              <div className="flex items-center justify-center h-[300px]">
+                <p>Generating QR code...</p>
+              </div>
+            ) : qrCodeDataUrl ? (
+              <div className="flex flex-col items-center gap-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={qrCodeDataUrl}
+                  alt="QR Code"
+                  className="border rounded-lg p-2 bg-white"
+                  width={300}
+                  height={300}
+                />
+                <p className="text-sm text-gray-500 text-center">
+                  Scan this code with the login page to sign in
+                </p>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-[300px]">
+                <p className="text-red-600">Failed to generate QR code</p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

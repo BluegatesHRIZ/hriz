@@ -4,7 +4,6 @@ import { storageService } from "@/lib/storage";
 import { insertFile } from "@/lib/services/files.service";
 import { randomBytes } from "crypto";
 import { extname } from "path";
-import * as XLSX from "xlsx";
 
 const ALLOWED_FILE_TYPES = [".png", ".jpeg", ".jpg", ".pdf", ".xlsx"];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -75,9 +74,10 @@ export async function POST(
       const fileBuffer = Buffer.from(await file.arrayBuffer());
 
       // Handle Excel files specially (process and delete, don't store)
+      // Dynamic import keeps xlsx out of the main Worker bundle (helps stay under 3 MiB on free plan)
       if (fileExt === ".xlsx") {
         try {
-          // Read Excel file
+          const XLSX = await import("xlsx");
           const workbook = XLSX.read(fileBuffer, { type: "buffer" });
           const sheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[sheetName];
