@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth/jwt-edge";
 import { prisma } from "@/lib/db/prisma";
+import { formatTimeForInput } from "@/lib/utils/time";
 
 /**
  * GET /api/schedule/list/user
@@ -37,7 +38,17 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(schedules);
+    // Format TIME fields to HH:mm strings to avoid timezone issues
+    const formattedSchedules = schedules.map((sched) => ({
+      sch_day: sched.sch_day,
+      sch_rest: sched.sch_rest,
+      sch_in: formatTimeForInput(sched.sch_in),
+      sch_bin: formatTimeForInput(sched.sch_bin),
+      sch_bout: formatTimeForInput(sched.sch_bout),
+      sch_out: formatTimeForInput(sched.sch_out),
+    }));
+
+    return NextResponse.json(formattedSchedules);
   } catch (error) {
     console.error("Get user schedule list error:", error);
     return NextResponse.json(

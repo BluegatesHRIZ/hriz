@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth/jwt-edge";
 import { prisma } from "@/lib/db/prisma";
 import * as requestProcedures from "@/lib/services/requests.service";
-import { removeSeconds } from "@/lib/utils/time";
+import { removeSeconds, formatTimeForInput } from "@/lib/utils/time";
+import { beforeAfter } from "@/lib/utils/requestLimit";
 
 export async function GET(
   request: NextRequest,
@@ -42,9 +43,30 @@ export async function GET(
       },
     });
 
+    // Transform Prisma snake_case to camelCase to match frontend expectations
+    // Format TIME fields to HH:mm strings to avoid timezone issues
+    const transformedDetails = details.map((detail) => ({
+      CoaDdate: detail.coa_ddate,
+      CoaDtime: formatTimeForInput(detail.coa_dtime), // Format as "HH:mm" string
+      CoaDtype: detail.coa_dtype,
+    }));
+
+    // Transform summary fields to camelCase
+    const transformedSummary = {
+      CoaSid: summary.coa_sid,
+      CoaStype: summary.coa_stype,
+      CoaStypedetail: summary.coa_stypedetail,
+      CoaSreason: summary.coa_sreason,
+      CoaSemp: summary.coa_semp,
+      CoaSapplieddate: summary.coa_sapplieddate,
+      CoaSstatus: summary.coa_sstatus,
+      CoaSapprovedby: summary.coa_sapprovedby,
+      CoaSapproveddate: summary.coa_sapproveddate,
+    };
+
     return NextResponse.json({
-      ...summary,
-      CoaDetails: details,
+      ...transformedSummary,
+      CoaDetails: transformedDetails,
     });
   } catch (error) {
     console.error("Get COA error:", error);
@@ -99,8 +121,21 @@ export async function PUT(
     // Insert new details
     if (Array.isArray(CoaDetails)) {
       for (const detail of CoaDetails) {
+        // Validate date with BeforeAfter (matches C# validation)
         if (settings) {
-          // TODO: Implement RequestLimit.BeforeAfter validation
+          const detailDate = new Date(detail.CoaDdate);
+          if (
+            beforeAfter(
+              detailDate,
+              settings.set_coabefore ?? 0,
+              settings.set_coaafter ?? 0
+            )
+          ) {
+            return NextResponse.json(
+              { message: "Attendance change date is not allowed" },
+              { status: 400 }
+            );
+          }
         }
 
         const filteredTime = removeSeconds(new Date(detail.CoaDtime));

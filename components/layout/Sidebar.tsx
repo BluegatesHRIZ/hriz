@@ -21,7 +21,16 @@ import {
   Settings,
   User,
   Bell,
+  ChevronDown,
+  LogOut,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
@@ -68,7 +77,7 @@ function SidebarLink({ title, href, icon, className }: SidebarLinkProps) {
 }
 
 export function Sidebar() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { data: menus, isLoading: menusLoading } = useMenuList();
   const { data: company, isLoading: companyLoading } = useCompanySettings();
   const [activeAccordion, setActiveAccordion] = useState<string>("");
@@ -310,10 +319,45 @@ export function Sidebar() {
             </p>
             <p className="text-xs text-gray-400">{user?.name}</p>
           </div>
-          <button className="relative">
+          <button className="relative" aria-label="Notifications">
             <Bell className="w-5 h-5" />
-            <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+            <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
           </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="flex items-center justify-center p-1 rounded hover:bg-[#002750] transition-colors outline-none focus:ring-2 focus:ring-white/30 focus:ring-offset-2 focus:ring-offset-bgc-dark-blue"
+                aria-label="Open menu"
+              >
+                <ChevronDown className="w-5 h-5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48 bg-white text-gray-900 border-gray-200">
+              <DropdownMenuItem asChild>
+                <Link href="/dashboard" className="flex items-center gap-2 cursor-pointer">
+                  <User className="w-4 h-4" />
+                  Profile
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/dashboard" className="flex items-center gap-2 cursor-pointer">
+                  <Settings className="w-4 h-4" />
+                  Settings
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-red-600 focus:text-red-700 focus:bg-red-50 cursor-pointer"
+                onSelect={(e) => {
+                  e.preventDefault();
+                  logout();
+                }}
+              >
+                <LogOut className="w-4 h-4" />
+                Logout
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </div>

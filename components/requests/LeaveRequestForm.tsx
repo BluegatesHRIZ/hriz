@@ -98,6 +98,9 @@ export function LeaveRequestForm({
 
   const form = useForm<z.infer<typeof leaveRequestSchema>>({
     resolver: zodResolver(leaveRequestSchema),
+    mode: "onSubmit", // Only validate on submit, not on mount/blur/change
+    reValidateMode: "onBlur", // Re-validate on blur after first submit
+    shouldUnregister: false, // Keep form values registered
     defaultValues: {
       LeaStype: "",
       LeaSfrom: undefined,
@@ -108,6 +111,7 @@ export function LeaveRequestForm({
 
   const dateFrom = form.watch("LeaSfrom");
   const dateTo = form.watch("LeaSto");
+  const formLeaStype = form.watch("LeaStype"); // Watch form value for reactivity
   
   // Hook that depends on dateFrom and dateTo must be after they're defined
   const { data: schedAdjusted } = useSchedAdjustedDate(dateFrom, dateTo);
@@ -115,7 +119,7 @@ export function LeaveRequestForm({
   // Load existing leave data for editing
   useEffect(() => {
     if (existingLeave && leaveId) {
-      form.reset({
+      const resetData = {
         LeaStype: existingLeave.LeaStype || "",
         LeaSfrom: existingLeave.LeaSfrom
           ? new Date(existingLeave.LeaSfrom)
@@ -124,8 +128,38 @@ export function LeaveRequestForm({
           ? new Date(existingLeave.LeaSto)
           : undefined,
         LeaSreason: existingLeave.LeaSreason || "",
-      });
-      setSelectedLeaveType(existingLeave.LeaStype || "");
+      };
+      
+      form.reset(
+        resetData,
+        {
+          keepErrors: false, // Clear any existing errors
+          keepDirty: false, // Reset dirty state
+          keepIsSubmitted: false, // Reset submitted state
+          keepIsValid: false, // Reset valid state
+          keepTouched: false, // Reset touched state
+        }
+      );
+      
+      // Set selectedLeaveType to match form value immediately
+      if (resetData.LeaStype) {
+        setSelectedLeaveType(resetData.LeaStype);
+      }
+      
+      // Use setTimeout to ensure form.reset completes before clearing errors
+      setTimeout(() => {
+        // Clear any validation errors after reset
+        form.clearErrors();
+        // Ensure form value is set without validation
+        if (resetData.LeaStype) {
+          form.setValue("LeaStype", resetData.LeaStype, { 
+            shouldValidate: false,
+            shouldDirty: false,
+            shouldTouch: false
+          });
+        }
+      }, 0);
+      
       if (existingLeave.leavedetail) {
         setLeaveDetails(existingLeave.leavedetail);
       }
@@ -134,6 +168,18 @@ export function LeaveRequestForm({
       }
     }
   }, [existingLeave, leaveId, form]);
+
+  // Set selectedLeaveType when leaveTypes loads (handles race condition)
+  useEffect(() => {
+    if (existingLeave && leaveId && leaveTypes && leaveTypes.length > 0 && existingLeave.LeaStype) {
+      const leaveTypeExists = leaveTypes.some(
+        (lt) => lt.lev_id === existingLeave.LeaStype
+      );
+      if (leaveTypeExists && selectedLeaveType !== existingLeave.LeaStype) {
+        setSelectedLeaveType(existingLeave.LeaStype);
+      }
+    }
+  }, [existingLeave, leaveId, leaveTypes, selectedLeaveType]);
 
   // Get leave credit for selected type (matches C# LeaveType method)
   useEffect(() => {
@@ -386,7 +432,7 @@ export function LeaveRequestForm({
             <div className="space-y-2">
               <Label htmlFor="leave_type">Type of Leave</Label>
               <Select
-                value={selectedLeaveType}
+                value={selectedLeaveType || formLeaStype || ""}
                 onValueChange={handleLeaveTypeChange}
               >
                 <SelectTrigger id="leave_type">
@@ -400,7 +446,7 @@ export function LeaveRequestForm({
                   ))}
                 </SelectContent>
               </Select>
-              {form.formState.errors.LeaStype && (
+              {form.formState.errors.LeaStype && form.formState.isSubmitted && (
                 <p className="text-sm text-red-500">
                   {form.formState.errors.LeaStype.message}
                 </p>

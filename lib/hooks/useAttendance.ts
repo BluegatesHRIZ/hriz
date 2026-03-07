@@ -6,6 +6,10 @@ import { apiFetch, ApiError } from "@/lib/api/client"
 export interface ClockAttendanceParams {
   attendanceType: "I" | "O" | "BI" | "BO" // In, Out, Break In, Break Out
   forYesterday?: boolean
+  /** Client's local date (YYYY-MM-DD). Send so server uses user's date, not server's. */
+  clientDate?: string
+  /** Client's local time (HH:mm:ss). Send so server uses user's time, not server's. */
+  clientTime?: string
 }
 
 export interface ClockAttendanceResponse {

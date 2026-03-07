@@ -3,6 +3,7 @@ import { verifyToken } from "@/lib/auth/jwt-edge";
 import * as requestProcedures from "@/lib/services/requests.service";
 import { prisma } from "@/lib/db/prisma";
 import { removeSeconds } from "@/lib/utils/time";
+import { beforeAfter } from "@/lib/utils/requestLimit";
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,14 +30,27 @@ export async function POST(request: NextRequest) {
       CoaStype,
       CoaStypedetail || "",
       CoaSreason || "",
-      CoaSemp
+      CoaSemp,
     );
 
     // Validate and insert COA details
     if (Array.isArray(CoaDetails)) {
       for (const detail of CoaDetails) {
+        // Validate date with BeforeAfter (matches C# validation)
         if (settings) {
-          // TODO: Implement RequestLimit.BeforeAfter validation
+          const detailDate = new Date(detail.CoaDdate);
+          if (
+            beforeAfter(
+              detailDate,
+              settings.set_coabefore ?? 0,
+              settings.set_coaafter ?? 0,
+            )
+          ) {
+            return NextResponse.json(
+              { message: "Attendance change date is not allowed" },
+              { status: 400 },
+            );
+          }
         }
 
         const filteredTime = removeSeconds(new Date(detail.CoaDtime));
@@ -44,7 +58,7 @@ export async function POST(request: NextRequest) {
           coaSid,
           detail.CoaDtype,
           new Date(detail.CoaDdate),
-          filteredTime
+          filteredTime,
         );
       }
     }
@@ -57,7 +71,7 @@ export async function POST(request: NextRequest) {
         message: "Internal server error",
         error: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

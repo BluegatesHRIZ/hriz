@@ -68,6 +68,7 @@ export const queryKeys = {
     all: ["coa"] as const,
     types: () => [...queryKeys.coa.all, "types"] as const,
     list: () => [...queryKeys.coa.all, "list"] as const,
+    grid: () => [...queryKeys.coa.all, "grid"] as const,
     detail: (id: string) => [...queryKeys.coa.all, "detail", id] as const,
   },
 

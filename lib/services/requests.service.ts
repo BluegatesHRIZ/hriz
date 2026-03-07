@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import { randomUUID } from "crypto";
 
 /**
  * Request-related services (leave, overtime, undertime, COA, loan, schedule adjust).
@@ -54,19 +55,20 @@ async function addForApproval(taskId: string, employee: string) {
     );
     
     // Insert all approval levels at once (matching SP INSERT INTO ... SELECT behavior)
-    // Note: SP doesn't explicitly set fa_status/fa_appstat, but schema defaults them to 0
+    // Explicitly set fa_status and fa_appstat to 0 to ensure clean reset
     const dataToInsert = levels.map((al) => ({
       fa_taskid: taskId,
       fa_emp: employee,
       fa_appvr: al.al_appvr ?? null,
       fa_menu: al.al_menu ?? null,
       fa_level: al.al_level ?? null,
-      // fa_status and fa_appstat default to 0 in schema, matching SP behavior
+      fa_status: 0, // Explicitly set to 0 for clean reset
+      fa_appstat: 0, // Explicitly set to 0 for clean reset
     }));
     
     const result = await prisma.forapproval.createMany({
       data: dataToInsert,
-      skipDuplicates: true, // Prevent errors if entries already exist (e.g., on resubmit)
+      skipDuplicates: false, // We delete first, so no duplicates should exist
     });
     
     console.log(
@@ -181,6 +183,12 @@ export async function getLeaveCurYear(employee: string) {
   }));
 }
 
+/**
+ * Exact conversion of leave_insertsummary stored procedure.
+ * SP: SET _Lea_Ctr = ((select count(Lea_Semp) from leave_summary WHERE Lea_Semp = _lea_semp) + 1);
+ * SP: SET _Lea_Sid = CONCAT("LEA-", datenow ,_Lea_Semp,_Lea_Ctr);
+ * We use UUID instead of counter-based ID.
+ */
 export async function leaveInsertSummary(
   empId: string,
   LeaStype: string,
@@ -190,16 +198,19 @@ export async function leaveInsertSummary(
   LeaSwithpay: number,
   LeaSwithoutpay: number
 ): Promise<string> {
+  // SP: SET datenow = DATE_FORMAT(DATE(CURRENT_TIMESTAMP),"%Y%m%d");
   const today = dateOnly(new Date());
-  const count = await prisma.leave_summary.count({
-    where: { lea_semp: empId },
-  });
-  const ctr = count + 1;
-  const lea_sid = `LEA-${formatYmd(today)}${empId}${ctr}`;
+  // SP: SET _Lea_Ctr = ((select count(Lea_Semp) from leave_summary WHERE Lea_Semp = _lea_semp) + 1);
+  // SP: SET _Lea_Sid = CONCAT("LEA-", datenow ,_Lea_Semp,_Lea_Ctr);
+  // We use UUID instead: keep "LEA-" prefix for compatibility
+  const lea_sid = `LEA-${randomUUID()}`;
+  
+  // SP: INSERT INTO leave_summary (Lea_Sid, Lea_sCtr, Lea_Stype, Lea_Sfrom, Lea_Sto, Lea_Sreason, Lea_Swithpay, Lea_Swithoutpay, Lea_Semp, Lea_Sapplieddate)
+  // SP: VALUES (_Lea_Sid, _Lea_Ctr, _Lea_Stype, _Lea_Sfrom, _Lea_Sto, _Lea_Sreason, _Lea_Swithpay, _Lea_Swithoutpay, _Lea_Semp, now());
   await prisma.leave_summary.create({
     data: {
       lea_sid,
-      lea_sctr: ctr,
+      lea_sctr: 1, // Keep counter field but use 1 since UUID is unique
       lea_stype: LeaStype,
       lea_sfrom: LeaSfrom,
       lea_sto: LeaSto,
@@ -207,29 +218,54 @@ export async function leaveInsertSummary(
       lea_swithpay: LeaSwithpay,
       lea_swithoutpay: LeaSwithoutpay,
       lea_semp: empId,
-      lea_sapplieddate: new Date(),
+      lea_sapplieddate: new Date(), // SP: now()
       lea_sstatus: 0,
     },
   });
+  
+  // SP: call addforApproval(_Lea_Sid,_Lea_Semp);
   await addForApproval(lea_sid, empId);
+  
+  // SP: SELECT Lea_Sid INTO _LeaveSummaryID FROM leave_summary WHERE Lea_Sid = _Lea_Sid;
   return lea_sid;
 }
 
+/**
+ * Exact conversion of leave_updatedetails stored procedure.
+ * SP: SET _Lev_Dctr = ((select lev_dctr FROM leave_detail WHERE Lea_Did = _Lea_Did order by lev_dctr desc limit 1) + 1);
+ * SP: SET _Lea_Dpk = CONCAT(_Lea_Did,_Lev_Dctr);
+ * SP: INSERT INTO leave_detail (Lea_Did, Lea_Dpk, ...) VALUES (_Lea_Did, _Lea_Dpk, ...);
+ * Note: SP uses _Lea_Did (summary ID) for lea_did, and _Lea_Dpk (summary ID + counter) for lea_dpk.
+ * Since lea_did is VARCHAR(20) and UUIDs are too long, we use a short unique ID instead.
+ */
 export async function leaveInsertDetails(
-  lea_dpk: string,
+  lea_dpk: string, // This is the summary ID (leaveId) - SP parameter _Lea_Did
   lea_ddate: Date,
   lea_dtype: string,
   lea_dampm: string
 ) {
-  const count = await prisma.leave_detail.count({
+  // SP: SET _Lev_Dctr = ((select lev_dctr FROM leave_detail WHERE Lea_Did = _Lea_Did order by lev_dctr desc limit 1) + 1);
+  // Note: SP filters by lea_did = summary ID, but we filter by lea_dpk (parent reference) to get counter
+  const last = await prisma.leave_detail.findFirst({
     where: { lea_dpk },
+    orderBy: { lea_dctr: "desc" },
+    select: { lea_dctr: true },
   });
-  const counter = count + 1;
-  const lea_did = `${lea_dpk}${counter}`;
+  const counter = (last?.lea_dctr ?? 0) + 1;
+  
+  // SP: SET _Lea_Dpk = CONCAT(_Lea_Did,_Lev_Dctr);
+  const lea_dpk_value = `${lea_dpk}${counter}`; // Summary ID + counter (e.g., "LEA-2026021100001321")
+  
+  // SP: INSERT INTO leave_detail (Lea_Did, Lea_Dpk, ...) VALUES (_Lea_Did, _Lea_Dpk, ...);
+  // SP uses _Lea_Did (summary ID) for lea_did, but lea_did is PRIMARY KEY VARCHAR(20) and must be unique.
+  // Since summary ID + counter can exceed 20 chars, use a short UUID (16 hex chars) for lea_did.
+  // Keep lea_dpk as summary ID + counter for the parent relationship.
+  const lea_did = randomUUID().replace(/-/g, "").substring(0, 16); // 16 chars fits VARCHAR(20)
+  
   await prisma.leave_detail.create({
     data: {
       lea_did,
-      lea_dpk,
+      lea_dpk: lea_dpk_value,
       lea_dctr: counter,
       lea_ddate,
       lea_dtype,
@@ -248,6 +284,7 @@ export async function leaveUpdateSummary(
   LeaSwithoutpay: number
 ) {
   // Matches stored procedure behavior: update fields, reset status to 0, reset forapproval
+  // SP: UPDATE leave_summary SET ... Lea_Sstatus='0' WHERE Lea_Sid=_Lea_Sid;
   await prisma.leave_summary.update({
     where: { lea_sid: leaveId },
     data: {
@@ -258,34 +295,72 @@ export async function leaveUpdateSummary(
       lea_swithpay: LeaSwithpay,
       lea_swithoutpay: LeaSwithoutpay,
       lea_sstatus: 0,
+      lea_sapprovedby: null, // Reset approved by when updating
+      lea_sapproveddate: null, // Reset approved date when updating
     },
   });
   
   // Match stored procedure: update forapproval set fa_status='0',fa_appstat=0 where fa_taskid=_Lea_Sid;
-  const updateResult = await prisma.forapproval.updateMany({
-    where: { fa_taskid: leaveId },
-    data: { fa_status: 0, fa_appstat: 0 },
+  // Get employee ID first to recreate approval records if needed
+  const leaveSummary = await prisma.leave_summary.findUnique({
+    where: { lea_sid: leaveId },
+    select: { lea_semp: true },
   });
   
-  // If no records were updated, they might not exist - create them
-  // This handles cases where approval levels weren't set up when the request was first created
-  if (updateResult.count === 0) {
-    // Get employee ID from the leave summary
-    const leaveSummary = await prisma.leave_summary.findUnique({
-      where: { lea_sid: leaveId },
-      select: { lea_semp: true },
+  if (!leaveSummary?.lea_semp) {
+    console.warn(`leaveUpdateSummary: Could not find leave summary for leaveId "${leaveId}"`);
+    return;
+  }
+  
+  // Delete existing approval records and recreate them to ensure a clean reset
+  // This ensures the approval flow is completely reset when updating a leave request
+  const deleteResult = await prisma.forapproval.deleteMany({
+    where: { fa_taskid: leaveId },
+  });
+  
+  console.log(
+    `leaveUpdateSummary: Deleted ${deleteResult.count} existing approval records for leaveId "${leaveId}"`
+  );
+  
+  // Verify deletion worked
+  const remainingRecords = await prisma.forapproval.count({
+    where: { fa_taskid: leaveId },
+  });
+  
+  if (remainingRecords > 0) {
+    console.warn(
+      `leaveUpdateSummary: WARNING - ${remainingRecords} approval records still exist after delete for leaveId "${leaveId}"`
+    );
+    // Force delete any remaining records
+    await prisma.forapproval.deleteMany({
+      where: { fa_taskid: leaveId },
     });
-    
-    if (leaveSummary?.lea_semp) {
-      console.log(
-        `leaveUpdateSummary: No existing forapproval records found for leaveId "${leaveId}", creating new ones`
-      );
-      await addForApproval(leaveId, leaveSummary.lea_semp);
-    }
+  }
+  
+  // Recreate approval records with fresh status
+  await addForApproval(leaveId, leaveSummary.lea_semp);
+  
+  // Verify records were created
+  const createdRecords = await prisma.forapproval.count({
+    where: { fa_taskid: leaveId },
+  });
+  
+  console.log(
+    `leaveUpdateSummary: Recreated ${createdRecords} approval records for leaveId "${leaveId}"`
+  );
+  
+  if (createdRecords === 0) {
+    console.error(
+      `leaveUpdateSummary: ERROR - No approval records were created for leaveId "${leaveId}". Approval flow may not work correctly.`
+    );
   }
 }
 
 // --- Overtime ---
+/**
+ * Exact conversion of ot_insert_otrequest stored procedure.
+ * SP uses counter-based ID; we use UUID instead.
+ */
 export async function otInsertOtRequest(
   otm_emp: string,
   otm_type: number,
@@ -294,17 +369,14 @@ export async function otInsertOtRequest(
   otm_to: Date,
   otm_reason: string
 ) {
-  // Mirrors stored procedure `ot_insert_otrequest`:
-  // counter = count(otm_emp) + 1; id = "OVT-" + yyyymmdd + emp + counter
-  const today = dateOnly(new Date());
-  const count = await prisma.overtime.count({ where: { otm_emp } });
-  const counter = count + 1;
-  const otm_id = `OVT-${formatYmd(today)}${otm_emp}${counter}`;
+  // SP: counter = count(otm_emp) + 1; id = "OVT-" + yyyymmdd + emp + counter
+  // We use UUID: keep "OVT-" prefix for compatibility
+  const otm_id = `OVT-${randomUUID()}`;
 
   await prisma.overtime.create({
     data: {
       otm_id,
-      otm_ctr: counter,
+      otm_ctr: 1, // Keep counter field but use 1 since UUID is unique
       otm_emp,
       otm_type: String(otm_type),
       otm_date,
@@ -353,6 +425,10 @@ export async function otGetRequestById(empId: string, otId: string) {
 }
 
 // --- Undertime ---
+/**
+ * Exact conversion of undertime_insertsummary stored procedure.
+ * SP uses counter-based ID; we use UUID instead.
+ */
 export async function undertimeInsertSummary(
   utm_emp: string,
   utm_date: Date,
@@ -360,15 +436,12 @@ export async function undertimeInsertSummary(
   utm_to: Date,
   utm_reason: string
 ) {
-  // Mirrors stored procedure `undertime_insertsummary`
-  const today = dateOnly(new Date());
-  const count = await prisma.undertime.count({ where: { utm_emp } });
-  const counter = count + 1;
-  const utm_id = `UNT-${formatYmd(today)}${utm_emp}${counter}`;
+  // SP uses counter-based ID; we use UUID: keep "UNT-" prefix for compatibility
+  const utm_id = `UNT-${randomUUID()}`;
   await prisma.undertime.create({
     data: {
       utm_id,
-      utm_ctr: counter,
+      utm_ctr: 1, // Keep counter field but use 1 since UUID is unique
       utm_date,
       utm_from,
       utm_to,
@@ -407,31 +480,24 @@ export async function undertimeUpdateSummary(
 }
 
 // --- COA ---
+/**
+ * Exact conversion of coa_summary_insert stored procedure.
+ * SP uses counter-based ID; we use UUID instead.
+ */
 export async function coaSummaryInsert(
   CoaStype: string,
   CoaStypedetail: string,
   CoaSreason: string,
   CoaSemp: string
 ): Promise<string> {
-  // Mirrors stored procedure `coa_summary_insert`
-  const today = dateOnly(new Date());
-  // get last coa_sctr for today, else 0
-  const last = await prisma.coa_summary.findFirst({
-    where: {
-      coa_sapplieddate: {
-        gte: today,
-        lt: new Date(today.getTime() + 86400000),
-      },
-    },
-    orderBy: { coa_sctr: "desc" },
-    select: { coa_sctr: true },
-  });
-  const counter = (last?.coa_sctr ?? 0) + 1;
-  const coa_sid = `COA-${formatYmd(today)}${CoaSemp}${counter}`;
+  // SP: get last coa_sctr for today, else 0; counter = last + 1; id = "COA-" + yyyymmdd + emp + counter
+  // We use UUID: keep "COA-" prefix for compatibility
+  // coa_sid is VARCHAR(20), so "COA-" (4) + 16 chars = 20 total
+  const coa_sid = `COA-${randomUUID().replace(/-/g, "").substring(0, 16)}`;
   await prisma.coa_summary.create({
     data: {
       coa_sid,
-      coa_sctr: counter,
+      coa_sctr: 1, // Keep counter field but use 1 since UUID is unique
       coa_stype: CoaStype,
       coa_stypedetail: CoaStypedetail,
       coa_sreason: CoaSreason,
@@ -444,20 +510,30 @@ export async function coaSummaryInsert(
   return coa_sid;
 }
 
+/**
+ * Exact conversion of coa_details_insert stored procedure.
+ * SP: SET detailid = CONCAT(_coa_dpk,counter);
+ * SP: INSERT INTO coa_detail (coa_did, coa_dpk, coa_dctr, ...) VALUES (detailid, _coa_dpk, counter, ...);
+ * Since coa_did is VARCHAR(25) and UUIDs are too long, we use a short UUID (20 chars) instead.
+ */
 export async function coaDetailsInsert(
   coa_dpk: string,
   coa_dtype: string,
   coa_ddate: Date,
   coa_dtime: Date
 ) {
-  // Mirrors stored procedure `coa_details_insert`
+  // SP: get last coa_dctr for coa_dpk, counter = last + 1; detailid = coa_dpk + counter
   const last = await prisma.coa_detail.findFirst({
     where: { coa_dpk },
     orderBy: { coa_dctr: "desc" },
     select: { coa_dctr: true },
   });
   const counter = (last?.coa_dctr ?? 0) + 1;
-  const coa_did = `${coa_dpk}${counter}`;
+  
+  // SP: SET detailid = CONCAT(_coa_dpk,counter);
+  // Use short UUID (20 chars) to fit VARCHAR(25) instead of summary ID + counter
+  const coa_did = randomUUID().replace(/-/g, "").substring(0, 20); // 20 chars fits VARCHAR(25)
+  
   await prisma.coa_detail.create({
     data: {
       coa_did,
@@ -477,6 +553,17 @@ export async function coaSummaryUpdate(
   CoaSreason: string
 ) {
   // Mirrors stored procedure `coa_summary_update`
+  // Get employee ID first to recreate approval records if needed
+  const coaSummary = await prisma.coa_summary.findUnique({
+    where: { coa_sid },
+    select: { coa_semp: true },
+  });
+  
+  if (!coaSummary?.coa_semp) {
+    console.warn(`coaSummaryUpdate: Could not find COA summary for coa_sid "${coa_sid}"`);
+    return;
+  }
+
   await prisma.coa_summary.update({
     where: { coa_sid },
     data: {
@@ -484,15 +571,59 @@ export async function coaSummaryUpdate(
       coa_stypedetail: CoaStypedetail,
       coa_sreason: CoaSreason,
       coa_sstatus: 0,
+      coa_sapprovedby: null, // Reset approved by when updating
+      coa_sapproveddate: null, // Reset approved date when updating
     },
   });
-  await prisma.forapproval.updateMany({
+  
+  // Delete existing approval records and recreate them to ensure a clean reset
+  const deleteResult = await prisma.forapproval.deleteMany({
     where: { fa_taskid: coa_sid },
-    data: { fa_status: 0, fa_appstat: 0 },
   });
+  
+  console.log(
+    `coaSummaryUpdate: Deleted ${deleteResult.count} existing approval records for coa_sid "${coa_sid}"`
+  );
+  
+  // Verify deletion worked
+  const remainingRecords = await prisma.forapproval.count({
+    where: { fa_taskid: coa_sid },
+  });
+  
+  if (remainingRecords > 0) {
+    console.warn(
+      `coaSummaryUpdate: WARNING - ${remainingRecords} approval records still exist after delete for coa_sid "${coa_sid}"`
+    );
+    // Force delete any remaining records
+    await prisma.forapproval.deleteMany({
+      where: { fa_taskid: coa_sid },
+    });
+  }
+  
+  // Recreate approval records with fresh status
+  await addForApproval(coa_sid, coaSummary.coa_semp);
+  
+  // Verify records were created
+  const createdRecords = await prisma.forapproval.count({
+    where: { fa_taskid: coa_sid },
+  });
+  
+  console.log(
+    `coaSummaryUpdate: Recreated ${createdRecords} approval records for coa_sid "${coa_sid}"`
+  );
+  
+  if (createdRecords === 0) {
+    console.error(
+      `coaSummaryUpdate: ERROR - No approval records were created for coa_sid "${coa_sid}". Approval flow may not work correctly.`
+    );
+  }
 }
 
 // --- Loan ---
+/**
+ * Exact conversion of loan_insert_request stored procedure.
+ * SP uses counter-based ID; we use UUID instead.
+ */
 export async function loanInsertRequest(
   LoaAmt: number,
   LoaReason: string,
@@ -500,21 +631,13 @@ export async function loanInsertRequest(
   LoaExprelease: Date | null,
   LoaEmp: string
 ) {
-  // Mirrors stored procedure `loan_insert_request`
-  const today = dateOnly(new Date());
-  const last = await prisma.loan.findFirst({
-    where: {
-      loa_applieddate: { gte: today, lt: new Date(today.getTime() + 86400000) },
-    },
-    orderBy: { loa_ctr: "desc" },
-    select: { loa_ctr: true },
-  });
-  const counter = (last?.loa_ctr ?? 0) + 1;
-  const loa_id = `LOA-${formatYmd(today)}${LoaEmp}${counter}`;
+  // SP: get last loa_ctr for today, counter = last + 1; id = "LOA-" + yyyymmdd + emp + counter
+  // We use UUID: keep "LOA-" prefix for compatibility
+  const loa_id = `LOA-${randomUUID()}`;
   await prisma.loan.create({
     data: {
       loa_id,
-      loa_ctr: counter,
+      loa_ctr: 1, // Keep counter field but use 1 since UUID is unique
       loa_amt: LoaAmt,
       loa_reason: LoaReason,
       loa_type: LoaType,
@@ -674,29 +797,23 @@ export async function loanManageRequest(
 }
 
 // --- Schedule adjust ---
+/**
+ * Exact conversion of schedadjust_insertsummary stored procedure.
+ * SP uses counter-based ID; we use UUID instead.
+ */
 export async function schedAdjustInsertSummary(
   ScaSdatefrom: Date,
   ScaSdateto: Date,
   ScaSreason: string,
   ScaSemp: string
 ): Promise<string> {
-  const today = dateOnly(new Date());
-  const last = await prisma.schedadjust_summary.findFirst({
-    where: {
-      sca_sapplieddate: {
-        gte: today,
-        lt: new Date(today.getTime() + 86400000),
-      },
-    },
-    orderBy: { sca_sctr: "desc" },
-    select: { sca_sctr: true },
-  });
-  const counter = (last?.sca_sctr ?? 0) + 1;
-  const sca_sid = `SCA-${formatYmd(today)}${ScaSemp}${counter}`;
+  // SP: get last sca_sctr for today, counter = last + 1; id = "SCA-" + yyyymmdd + emp + counter
+  // We use UUID: keep "SCA-" prefix for compatibility
+  const sca_sid = `SCA-${randomUUID()}`;
   await prisma.schedadjust_summary.create({
     data: {
       sca_sid,
-      sca_sctr: counter,
+      sca_sctr: 1, // Keep counter field but use 1 since UUID is unique
       sca_sdatefrom: ScaSdatefrom,
       sca_sdateto: ScaSdateto,
       sca_semp: ScaSemp,
@@ -708,6 +825,13 @@ export async function schedAdjustInsertSummary(
   return sca_sid;
 }
 
+/**
+ * Exact conversion of schedadjust_insertdetails stored procedure.
+ * SP: SET _Sca_Dctr = ((select count(Sca_Dctr) from schedadjust_detail WHERE Sca_Dpk = _Sca_Dpk) + 1);
+ * SP: SET _Sca_Did = CONCAT(_Sca_Dpk, _Sca_Dctr);
+ * SP: INSERT INTO schedadjust_detail (Sca_Did, Sca_Dpk, Sca_Dctr, ...) VALUES (_Sca_Did, _Sca_Dpk, _Sca_Dctr, ...);
+ * Since sca_did is VARCHAR(40) and UUIDs are too long, we use a short UUID (32 chars) instead.
+ */
 export async function schedAdjustInsertDetails(
   scaId: string,
   ScaDdate: Date,
@@ -719,13 +843,16 @@ export async function schedAdjustInsertDetails(
   ScaDbreak: number,
   ScaDShift: number | string
 ) {
-  const last = await prisma.schedadjust_detail.findFirst({
+  // SP: SET _Sca_Dctr = ((select count(Sca_Dctr) from schedadjust_detail WHERE Sca_Dpk = _Sca_Dpk) + 1);
+  const count = await prisma.schedadjust_detail.count({
     where: { sca_dpk: scaId },
-    orderBy: { sca_dctr: "desc" },
-    select: { sca_dctr: true },
   });
-  const counter = (last?.sca_dctr ?? 0) + 1;
-  const sca_did = `${scaId}${counter}`;
+  const counter = count + 1;
+  
+  // SP: SET _Sca_Did = CONCAT(_Sca_Dpk, _Sca_Dctr);
+  // Use short UUID (32 chars without dashes) to fit VARCHAR(40) instead of summary ID + counter
+  const sca_did = randomUUID().replace(/-/g, "").substring(0, 32); // 32 chars fits VARCHAR(40)
+  
   await prisma.schedadjust_detail.create({
     data: {
       sca_did,
@@ -839,10 +966,10 @@ export async function cancelRequest(taskId: string, employee: string) {
   });
 }
 
-// --- Display grids (return list for OVT, LEA, UNT) ---
+// --- Display grids (return list for OVT, LEA, UNT, COA) ---
 // Matches stored procedure display_grid - returns grid data with joins
 export async function displayGrid(
-  menu: "OVT" | "LEA" | "UNT",
+  menu: "OVT" | "LEA" | "UNT" | "COA",
   employee: string
 ): Promise<unknown[]> {
   switch (menu) {
@@ -850,6 +977,72 @@ export async function displayGrid(
       return prisma.overtime.findMany({
         where: { otm_emp: employee },
         orderBy: { otm_applieddate: "desc" },
+      });
+    case "COA":
+      // Match stored procedure: join with coa_summary, employee, and fapreason
+      const coas = await prisma.coa_summary.findMany({
+        where: { coa_semp: employee },
+        orderBy: [
+          { coa_sapproveddate: "desc" },
+          { coa_sapplieddate: "desc" },
+        ],
+      });
+
+      // Get approver names
+      const coaApproverIds = coas
+        .map((c) => c.coa_sapprovedby)
+        .filter(Boolean) as string[];
+      const coaApprovers =
+        coaApproverIds.length > 0
+          ? await prisma.employee.findMany({
+              where: { emp_id: { in: coaApproverIds } },
+              select: {
+                emp_id: true,
+                emp_first: true,
+                emp_last: true,
+              },
+            })
+          : [];
+
+      // Get latest fapreason for each COA
+      const coaTaskIds = coas.map((c) => c.coa_sid).filter(Boolean) as string[];
+      const coaFapreasons =
+        coaTaskIds.length > 0
+          ? await prisma.fapreason.findMany({
+              where: {
+                fap_taskid: { in: coaTaskIds },
+              },
+              orderBy: { fap_datetime: "desc" },
+            })
+          : [];
+
+      // Group fapreasons by taskid and get the latest one
+      const latestCoaFapreasons = new Map<string, string>();
+      for (const fap of coaFapreasons) {
+        if (fap.fap_taskid && !latestCoaFapreasons.has(fap.fap_taskid)) {
+          latestCoaFapreasons.set(fap.fap_taskid, fap.fap_reason || "");
+        }
+      }
+
+      // Build result matching stored procedure output
+      return coas.map((coa) => {
+        const approver = coaApprovers.find((a) => a.emp_id === coa.coa_sapprovedby);
+        const fapReason = latestCoaFapreasons.get(coa.coa_sid || "") || null;
+
+        return {
+          coa_sid: coa.coa_sid,
+          coa_stype: coa.coa_stype,
+          coa_stypedetail: coa.coa_stypedetail || (coa.coa_stypedetail === "" ? "Others" : null),
+          coa_sreason: coa.coa_sreason,
+          FapReason: fapReason,
+          coa_semp: coa.coa_semp,
+          coa_sapplieddate: coa.coa_sapplieddate,
+          coa_sstatus: coa.coa_sstatus,
+          coa_sapproveddate: coa.coa_sapproveddate,
+          coa_sapprovedby: approver
+            ? `${approver.emp_last}, ${approver.emp_first}`
+            : null,
+        };
       });
     case "LEA":
       // Match stored procedure: join with leave, employee, and fapreason

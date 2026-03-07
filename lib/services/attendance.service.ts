@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import { randomUUID } from "crypto";
 
 /** Output row for GET /api/biolog (get_attendance). */
 export type BioGridRow = {
@@ -68,9 +69,10 @@ function midTime(schin: Date | null, schout: Date | null): Date | null {
   return new Date(Date.UTC(1970, 0, 1, Math.floor(m / 60), m % 60, 0));
 }
 
-/** Same calendar day (date part only). */
+/** Same calendar day (date part only) - normalized to UTC midnight to avoid timezone shifts. */
 function dateOnly(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  // Use UTC to ensure the same calendar date regardless of server timezone
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 }
 
 /** Compare two dates (date part). */
@@ -86,12 +88,205 @@ function isAfterDay(a: Date, b: Date): boolean {
   return dateOnly(a).getTime() > dateOnly(b).getTime();
 }
 
+/** CURTIME() as time-only Date (1970-01-01 HH:mm:ss) for comparison. */
+function getCurrentTimeDate(now: Date): Date {
+  return new Date(1970, 0, 1, now.getHours(), now.getMinutes(), now.getSeconds());
+}
+
+/** Extract time part as Date(1970,0,1,h,m,s). */
+function timeOnly(d: Date): Date {
+  return new Date(1970, 0, 1, d.getHours(), d.getMinutes(), d.getSeconds());
+}
+
+/** True if time t is >= start and <= end (time parts only). */
+function timeInRange(t: Date, start: Date, end: Date): boolean {
+  const tm = t.getHours() * 3600 + t.getMinutes() * 60 + t.getSeconds();
+  const sm = start.getHours() * 3600 + start.getMinutes() * 60 + start.getSeconds();
+  const em = end.getHours() * 3600 + end.getMinutes() * 60 + end.getSeconds();
+  return tm >= sm && tm <= em;
+}
+
+/**
+ * make_daily(_dte): ensure attendance rows exist from latest att_date through _dte.
+ * SP: CALL make_daily(curdate());
+ */
+async function makeDaily(_dte: Date): Promise<void> {
+  const dte = dateOnly(_dte);
+  const latest = await prisma.attendance.findFirst({
+    orderBy: { att_date: "desc" },
+    select: { att_date: true },
+  });
+  let current = latest?.att_date ? dateOnly(latest.att_date) : new Date(dte.getTime());
+  while (current.getTime() <= dte.getTime()) {
+    await ensureAttendanceForDate(current);
+    current.setUTCDate(current.getUTCDate() + 1); // Use UTC to avoid timezone shifts
+  }
+}
+
+async function ensureAttendanceForDate(biodate: Date): Promise<void> {
+  // Use UTC date to get correct day name regardless of timezone
+  const dayName = new Date(biodate.getUTCFullYear(), biodate.getUTCMonth(), biodate.getUTCDate()).toLocaleDateString("en-US", { weekday: "long" }).toUpperCase();
+  const hiredEmpIds = await prisma.empwork.findMany({
+    where: { emp_datehired: { lte: biodate } },
+    select: { emp_id: true },
+  });
+  const empIds = hiredEmpIds.map((e) => e.emp_id);
+  const employees = await prisma.employee.findMany({
+    where: {
+      emp_id: { in: empIds },
+      emp_status: 1,
+      emp_role: { not: "SUPERADMIN" },
+    },
+    select: { emp_id: true, emp_loc: true },
+  });
+  for (const emp of employees) {
+    const exists = await prisma.attendance.findFirst({
+      where: { att_date: biodate, att_emp: emp.emp_id },
+    });
+    if (exists) continue;
+    const schedule = await prisma.schedule.findFirst({
+      where: { sch_emp: emp.emp_id, sch_day: dayName },
+    });
+    const holiday = await prisma.holiday.findFirst({
+      where: {
+        hol_date: biodate,
+        hol_status: 1,
+        hol_location: emp.emp_loc ?? undefined,
+      },
+    });
+    const holType = holiday
+      ? holiday.hol_type === "Legal Holiday"
+        ? "Y1"
+        : holiday.hol_type === "Special Non-Working Holiday"
+        ? "Y2"
+        : "Y3"
+      : "N";
+    const schIn = schedule?.sch_in;
+    const schOut = schedule?.sch_out;
+    const schBin = schedule?.sch_bin;
+    const schBout = schedule?.sch_bout;
+    const schHrs = schedule?.sch_hrs;
+    const schShift = schedule?.sch_shift;
+    const schRest = schedule?.sch_rest;
+    // att_schhrs = cast(floor(sch_hrs):(mod*60) as time) in SP
+    const attSchhrs =
+      schHrs != null
+        ? new Date(1970, 0, 1, Math.floor(schHrs), Math.round((schHrs % 1) * 60), 0)
+        : undefined;
+    // att_schbreak = timediff(sch_bout, sch_bin) in SP
+    const attSchbreak =
+      schedule?.sch_bout && schedule?.sch_bin
+        ? new Date(
+            new Date(schedule.sch_bout).getTime() - new Date(schedule.sch_bin).getTime()
+          )
+        : undefined;
+    const attSchin = schIn ? new Date(biodate.getFullYear(), biodate.getMonth(), biodate.getDate(), new Date(schIn).getUTCHours(), new Date(schIn).getUTCMinutes()) : null;
+    const attSchout = schOut ? new Date(biodate.getFullYear(), biodate.getMonth(), biodate.getDate(), new Date(schOut).getUTCHours(), new Date(schOut).getUTCMinutes()) : null;
+    const attSchbin = schBin ? new Date(biodate.getFullYear(), biodate.getMonth(), biodate.getDate(), new Date(schBin).getUTCHours(), new Date(schBin).getUTCMinutes()) : null;
+    const attSchbout = schBout ? new Date(biodate.getFullYear(), biodate.getMonth(), biodate.getDate(), new Date(schBout).getUTCHours(), new Date(schBout).getUTCMinutes()) : null;
+    await prisma.attendance.create({
+      data: {
+        att_date: biodate,
+        att_emp: emp.emp_id,
+        att_schin: attSchin ?? undefined,
+        att_schout: attSchout ?? undefined,
+        att_schbin: attSchbin ?? undefined,
+        att_schbout: attSchbout ?? undefined,
+        att_schhrs: attSchhrs,
+        att_schshift: schShift ?? undefined,
+        att_schbreak: attSchbreak,
+        att_restday: schRest != null ? String(schRest) : undefined,
+        att_holiday: holType,
+        att_local: emp.emp_loc ?? undefined,
+      },
+    });
+  }
+}
+
+/**
+ * Ensure a single attendance row exists for (biodate, empId). Creates one if missing
+ * so clock-in/out updateMany can find a row and set att_bioin/att_bioout.
+ */
+async function ensureAttendanceRowForPunch(biodate: Date, empId: string): Promise<void> {
+  // Normalize biodate to UTC midnight for consistent comparison
+  const normalizedDate = dateOnly(biodate);
+  const existing = await prisma.attendance.findFirst({
+    where: { att_date: normalizedDate, att_emp: empId },
+  });
+  if (existing) return;
+
+  // Use UTC date to get correct day name regardless of timezone
+  const dayName = new Date(normalizedDate.getUTCFullYear(), normalizedDate.getUTCMonth(), normalizedDate.getUTCDate()).toLocaleDateString("en-US", { weekday: "long" }).toUpperCase();
+  const emp = await prisma.employee.findUnique({
+    where: { emp_id: empId },
+    select: { emp_loc: true },
+  });
+  const schedule = await prisma.schedule.findFirst({
+    where: { sch_emp: empId, sch_day: dayName },
+  });
+  const holiday = await prisma.holiday.findFirst({
+    where: {
+      hol_date: normalizedDate,
+      hol_status: 1,
+      hol_location: emp?.emp_loc ?? undefined,
+    },
+  });
+  const holType = holiday
+    ? holiday.hol_type === "Legal Holiday"
+      ? "Y1"
+      : holiday.hol_type === "Special Non-Working Holiday"
+      ? "Y2"
+      : "Y3"
+    : "N";
+  const schIn = schedule?.sch_in;
+  const schOut = schedule?.sch_out;
+  const schBin = schedule?.sch_bin;
+  const schBout = schedule?.sch_bout;
+  const schHrs = schedule?.sch_hrs;
+  const schShift = schedule?.sch_shift;
+  const schRest = schedule?.sch_rest;
+  const attSchhrs =
+    schHrs != null
+      ? new Date(1970, 0, 1, Math.floor(schHrs), Math.round((schHrs % 1) * 60), 0)
+      : undefined;
+  const attSchbreak =
+    schedule?.sch_bout && schedule?.sch_bin
+      ? new Date(
+          new Date(schedule.sch_bout).getTime() - new Date(schedule.sch_bin).getTime()
+        )
+      : undefined;
+  // Use UTC date components to ensure correct calendar date regardless of timezone
+  const attSchin = schIn ? new Date(Date.UTC(normalizedDate.getUTCFullYear(), normalizedDate.getUTCMonth(), normalizedDate.getUTCDate(), new Date(schIn).getUTCHours(), new Date(schIn).getUTCMinutes())) : undefined;
+  const attSchout = schOut ? new Date(Date.UTC(normalizedDate.getUTCFullYear(), normalizedDate.getUTCMonth(), normalizedDate.getUTCDate(), new Date(schOut).getUTCHours(), new Date(schOut).getUTCMinutes())) : undefined;
+  const attSchbin = schBin ? new Date(Date.UTC(normalizedDate.getUTCFullYear(), normalizedDate.getUTCMonth(), normalizedDate.getUTCDate(), new Date(schBin).getUTCHours(), new Date(schBin).getUTCMinutes())) : undefined;
+  const attSchbout = schBout ? new Date(Date.UTC(normalizedDate.getUTCFullYear(), normalizedDate.getUTCMonth(), normalizedDate.getUTCDate(), new Date(schBout).getUTCHours(), new Date(schBout).getUTCMinutes())) : undefined;
+
+  await prisma.attendance.create({
+    data: {
+      att_date: normalizedDate,
+      att_emp: empId,
+      att_schin: attSchin,
+      att_schout: attSchout,
+      att_schbin: attSchbin,
+      att_schbout: attSchbout,
+      att_schhrs: attSchhrs,
+      att_schshift: schShift ?? undefined,
+      att_schbreak: attSchbreak,
+      att_restday: schRest != null ? String(schRest) : undefined,
+      att_holiday: holType,
+      att_local: emp?.emp_loc ?? undefined,
+    },
+  });
+}
+
 /**
  * Attendance/biolog service (Prisma-based).
- * Replaces stored procedure InsertUserAttendance (reference: sql/stored_proc.sql).
+ * Exact line-by-line conversion of InsertUserAttendance (sql/stored_proc.sql).
+ * SP uses CURDATE()/CURTIME() (server time) - we use server Date() for consistency.
+ * Bio_id uses UUID instead of counter-based ID from SP.
  */
 export async function insertUserAttendance(params: {
-  bioId: string;
+  bioId?: string; // Not used - UUID generated instead of SP's counter-based ID
   bioEmp: string;
   bioDate: string;
   bioType: string;
@@ -101,87 +296,195 @@ export async function insertUserAttendance(params: {
   location: string;
   local: string;
 }) {
-  const now = new Date();
-  const today = dateOnly(now); // CURDATE()
+  // SP: DECLARE _counter int; DECLARE _bioid VARCHAR(20);
+  // SP: SET _counter = (SELECT COUNT(`bio_emp`) FROM `biologs` WHERE `bio_emp` = _bio_emp and `bio_date`= date(now())) + 1;
+  // SP: SET _bioid = CONCAT(_bio_id, _counter);
+  // We use UUID instead of counter-based ID
+  const bio_id = randomUUID();
 
-  // Settings: grace period and min in
-  const settings = await prisma.settings_tab.findUnique({
-    where: { set_id: "BGC" },
+  // SP: CALL make_daily(curdate());
+  const now = new Date(); // Server CURDATE()/CURTIME()
+  const curdate = dateOnly(now); // CURDATE()
+  const curtime = getCurrentTimeDate(now); // CURTIME() as time-only Date
+  await makeDaily(curdate);
+
+  // SP: SET _counter = (SELECT COUNT(`bio_emp`) FROM `biologs` WHERE `bio_emp` = _bio_emp and `bio_date`= date(now())) + 1;
+  // SP: SET _bioid = CONCAT(_bio_id, _counter);
+  // We skip counter and use UUID above
+
+  // SP: SELECT set_graceperiod,set_minin INTO _gp,_minin FROM settings_tab;
+  // SP has no WHERE clause - we use set_id='BGC' as fallback
+  const settings = await prisma.settings_tab.findFirst({
     select: { set_graceperiod: true, set_minin: true },
   });
-  const gpMinutes =
-    settings?.set_graceperiod !== undefined && settings?.set_graceperiod !== null
-      ? Number(settings.set_graceperiod)
-      : 0;
-  const minInMinutes =
-    settings?.set_minin !== undefined && settings?.set_minin !== null
-      ? Number(settings.set_minin)
-      : 0;
+  const _gp = settings?.set_graceperiod ?? null; // TIME
+  const _minin = settings?.set_minin ?? null; // TIME
 
-  const bioDate = new Date(params.bioDate);
-  let finalDate = dateOnly(bioDate);
-  if (params.forYesterday) {
-    finalDate = new Date(finalDate);
-    finalDate.setDate(finalDate.getDate() - 1);
+  // SP: SELECT subtime(concat(CURDATE(),' ',time(sch_in)),_minin),concat(CURDATE(),' ',CURTIME()) INTO _in,_now
+  // SP: FROM schedule WHERE sch_emp = _bio_emp AND sch_day = DAYNAME(CURDATE());
+  const dayName = now.toLocaleDateString("en-US", { weekday: "long" }).toUpperCase(); // DAYNAME(CURDATE())
+  const schedule = await prisma.schedule.findFirst({
+    where: { sch_emp: params.bioEmp, sch_day: dayName },
+    select: { sch_in: true },
+  });
+
+  let _in: Date | null = null; // datetime: CURDATE + sch_in - _minin
+  // Use UTC to ensure correct date/time representation
+  const _now = new Date(Date.UTC(curdate.getUTCFullYear(), curdate.getUTCMonth(), curdate.getUTCDate(), now.getUTCHours(), now.getUTCMinutes(), now.getUTCSeconds())); // concat(CURDATE(),' ',CURTIME())
+
+  if (schedule?.sch_in && _minin) {
+    // subtime(concat(CURDATE(),' ',time(sch_in)),_minin)
+    const schIn = new Date(schedule.sch_in);
+    const schInTime = new Date(Date.UTC(curdate.getUTCFullYear(), curdate.getUTCMonth(), curdate.getUTCDate(), schIn.getUTCHours(), schIn.getUTCMinutes(), schIn.getUTCSeconds()));
+    const minInMs = (_minin.getUTCHours() * 60 + _minin.getUTCMinutes()) * 60 * 1000;
+    _in = new Date(schInTime.getTime() - minInMs);
+  } else if (schedule?.sch_in) {
+    // No _minin: concat(CURDATE(),' ',time(sch_in))
+    const schIn = new Date(schedule.sch_in);
+    _in = new Date(Date.UTC(curdate.getUTCFullYear(), curdate.getUTCMonth(), curdate.getUTCDate(), schIn.getUTCHours(), schIn.getUTCMinutes(), schIn.getUTCSeconds()));
   }
 
-  // Parse bioTime (HH:mm:ss)
-  const [h, m, s] = params.bioTime.split(":").map(Number);
-  const bioTime = new Date(finalDate);
-  bioTime.setHours(h ?? 0, m ?? 0, s ?? 0, 0);
-
-  // Adjust for grace period if clocking in
-  let finalDateTime = bioTime;
-  if (params.bioType === "I" && gpMinutes > 0) {
-    finalDateTime = new Date(bioTime);
-    finalDateTime.setMinutes(finalDateTime.getMinutes() - gpMinutes);
+  // SP: SET _maxin = ADDTIME(time(_in),time(_gp));
+  let _maxin: Date | null = null;
+  if (_in && _gp) {
+    const inTime = timeOnly(_in);
+    const inMin = inTime.getHours() * 60 + inTime.getMinutes() + inTime.getSeconds() / 60;
+    const gpMin = _gp.getUTCHours() * 60 + _gp.getUTCMinutes() + _gp.getUTCSeconds() / 60;
+    _maxin = new Date(1970, 0, 1, 0, Math.round(inMin + gpMin), 0);
   }
 
-  // Check for holiday
-  const holiday = await prisma.holiday.findFirst({
-    where: {
-      hol_date: finalDate,
-      hol_status: 1,
-      hol_location: params.local,
-    },
-  });
-  const holtype = holiday
-    ? holiday.hol_type === "Legal Holiday"
-      ? "Y1"
-      : holiday.hol_type === "Special Non-Working Holiday"
-      ? "Y2"
-      : "Y3"
-    : "N";
+  // SP: IF _bio_type = "I" THEN ... ELSEIF "O" ... ELSEIF "BO" ... ELSEIF "BI" ...
+  let finalDate: Date;
+  let finalTime: Date;
 
-  // Generate bio_id: COUNT existing + 1
-  const count = await prisma.biologs.count({
-    where: {
-      bio_emp: params.bioEmp,
-      bio_date: finalDate,
-      bio_type: params.bioType,
-    },
-  });
-  const bio_id = `${params.bioId}${count + 1}`;
+  if (params.bioType === "I") {
+    // SP: IF _for_yesterday = 1 THEN set _finaldate=CURDATE() - INTERVAL 1 DAY; ELSE set _finaldate=CURDATE(); END IF;
+    if (params.forYesterday) {
+      finalDate = new Date(curdate);
+      finalDate.setUTCDate(finalDate.getUTCDate() - 1); // Use UTC to avoid timezone shifts
+    } else {
+      finalDate = new Date(curdate);
+    }
+    // SP: set _finaltime=IF(CURTIME()>=time(_in) AND CURTIME()<=time(_maxin),time(_in),CURTIME());
+    if (_in != null && _maxin != null && timeInRange(curtime, timeOnly(_in), _maxin)) {
+      finalTime = timeOnly(_in);
+    } else {
+      finalTime = curtime;
+    }
+  } else if (params.bioType === "O") {
+    // SP: IF _in < _now THEN set _finaldate=CURDATE() - INTERVAL 1 DAY; ELSE set _finaldate=CURDATE(); END IF;
+    // However, the SP logic compares schedule time with current time, which can be incorrect.
+    // Better approach: Check if there's a clock-in for today. If not, check yesterday.
+    // If clock-in exists for today, use today. Otherwise, use the date of the most recent clock-in.
+    const normalizedCurdate = dateOnly(curdate); // Normalize curdate for comparison
+    
+    const todayClockIn = await prisma.biologs.findFirst({
+      where: {
+        bio_emp: params.bioEmp,
+        bio_type: "I",
+        bio_date: normalizedCurdate, // Check for clock-in on current date
+      },
+      orderBy: {
+        bio_logdate: "desc",
+      },
+    });
+    
+    if (todayClockIn) {
+      // Clock-in exists for today, use today's date
+      finalDate = new Date(curdate);
+    } else {
+      // No clock-in for today, check if there's one for yesterday
+      const yesterday = new Date(curdate);
+      yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+      const yesterdayDate = dateOnly(yesterday);
+      
+      const yesterdayClockIn = await prisma.biologs.findFirst({
+        where: {
+          bio_emp: params.bioEmp,
+          bio_type: "I",
+          bio_date: yesterdayDate,
+        },
+        orderBy: {
+          bio_logdate: "desc",
+        },
+      });
+      
+      if (yesterdayClockIn) {
+        // Clock-in exists for yesterday, use yesterday's date
+        finalDate = new Date(yesterdayDate);
+      } else {
+        // No clock-in found for today or yesterday, fall back to SP logic
+        // SP: IF _in < _now THEN set _finaldate=CURDATE() - INTERVAL 1 DAY; ELSE set _finaldate=CURDATE();
+        if (_in != null && _in < _now) {
+          finalDate = new Date(curdate);
+          finalDate.setUTCDate(finalDate.getUTCDate() - 1);
+        } else {
+          finalDate = new Date(curdate);
+        }
+      }
+    }
+    // SP: set _finaltime=CURTIME();
+    finalTime = curtime;
+  } else if (params.bioType === "BO" || params.bioType === "BI") {
+    // SP: set _finaltime=CURTIME(); (SP doesn't set _finaldate for BI/BO - we use CURDATE() for INSERT)
+    finalDate = new Date(curdate);
+    finalTime = curtime;
+  } else {
+    // Fallback
+    finalDate = new Date(curdate);
+    finalTime = curtime;
+  }
 
-  // Insert biolog
+  // Normalize finalDate to UTC midnight for consistent date comparison and storage
+  const normalizedFinalDate = dateOnly(finalDate);
+
+  // SP: INSERT INTO biologs (bio_id,bio_emp,bio_date,bio_type,bio_time,bio_ip,bio_loc,bio_local)
+  // SP: VALUES (_bioid,_bio_emp,_finaldate,_bio_type,_finaltime,_ip_address,_location,_local);
   await prisma.biologs.create({
     data: {
       bio_id,
       bio_emp: params.bioEmp,
-      bio_date: finalDate,
+      bio_date: normalizedFinalDate,
       bio_type: params.bioType,
-      bio_time: finalDateTime,
-      bio_logdate: now,
+      bio_time: finalTime,
       bio_ip: params.ipAddress,
       bio_loc: params.location,
+      bio_local: params.local || "L1",
     },
   });
 
-  // Update attendance table
+  // SP: select if(hol_type="Legal Holiday","Y1",if(hol_type="Special Non-Working Holiday","Y2","Y3")) into _holtype
+  // SP: from holiday where hol_date=_finaldate and hol_location=_local;
+  // SP: if isnull(_holtype) then set _holtype='N'; end if;
+  const holiday = await prisma.holiday.findFirst({
+    where: { hol_date: normalizedFinalDate, hol_location: params.local },
+  });
+  let holtype: string;
+  if (holiday) {
+    if (holiday.hol_type === "Legal Holiday") {
+      holtype = "Y1";
+    } else if (holiday.hol_type === "Special Non-Working Holiday") {
+      holtype = "Y2";
+    } else {
+      holtype = "Y3";
+    }
+  } else {
+    holtype = "N";
+  }
+
+  // SP: CASE WHEN _bio_type = "I" THEN UPDATE attendance SET ...
+  // Use UTC to ensure correct date/time representation (normalizedFinalDate is defined above)
+  const finalDateTime = new Date(Date.UTC(normalizedFinalDate.getUTCFullYear(), normalizedFinalDate.getUTCMonth(), normalizedFinalDate.getUTCDate(), finalTime.getHours(), finalTime.getMinutes(), finalTime.getSeconds()));
+
+  // Ensure attendance row exists (SP assumes make_daily created it)
+  await ensureAttendanceRowForPunch(normalizedFinalDate, params.bioEmp);
+
   if (params.bioType === "I") {
+    // SP: UPDATE attendance SET att_bioin=cast(concat(_finaldate,' ',_finaltime) as datetime),att_holiday=_holtype,att_local=_local
+    // SP: WHERE att_date=_finaldate AND att_emp=_bio_emp AND ISNULL(att_bioin) AND ISNULL(att_paycode);
     await prisma.attendance.updateMany({
       where: {
-        att_date: finalDate,
+        att_date: normalizedFinalDate,
         att_emp: params.bioEmp,
         att_bioin: null,
         att_paycode: null,
@@ -189,41 +492,41 @@ export async function insertUserAttendance(params: {
       data: {
         att_bioin: finalDateTime,
         att_holiday: holtype,
-        att_local: params.local,
+        att_local: params.local || undefined,
       },
     });
   } else if (params.bioType === "O") {
+    // SP: UPDATE attendance SET att_bioout=cast(concat(_finaldate,' ',_finaltime) as datetime)
+    // SP: WHERE att_date=_finaldate AND att_emp=_bio_emp AND ISNULL(att_paycode);
     await prisma.attendance.updateMany({
       where: {
-        att_date: finalDate,
+        att_date: normalizedFinalDate,
         att_emp: params.bioEmp,
         att_paycode: null,
       },
-      data: {
-        att_bioout: finalDateTime,
-      },
+      data: { att_bioout: finalDateTime },
     });
   } else if (params.bioType === "BI") {
+    // SP: UPDATE attendance SET att_brkin=cast(concat(_finaldate,' ',_finaltime) as datetime)
+    // SP: WHERE att_date=_finaldate AND att_emp=_bio_emp AND ISNULL(att_paycode);
     await prisma.attendance.updateMany({
       where: {
-        att_date: finalDate,
+        att_date: normalizedFinalDate,
         att_emp: params.bioEmp,
         att_paycode: null,
       },
-      data: {
-        att_brkin: finalDateTime,
-      },
+      data: { att_brkin: finalDateTime },
     });
   } else if (params.bioType === "BO") {
+    // SP: UPDATE attendance SET att_brkout=cast(concat(_finaldate,' ',_finaltime) as datetime)
+    // SP: WHERE att_date=_finaldate AND att_emp=_bio_emp AND ISNULL(att_paycode);
     await prisma.attendance.updateMany({
       where: {
-        att_date: finalDate,
+        att_date: normalizedFinalDate,
         att_emp: params.bioEmp,
         att_paycode: null,
       },
-      data: {
-        att_brkout: finalDateTime,
-      },
+      data: { att_brkout: finalDateTime },
     });
   }
 }

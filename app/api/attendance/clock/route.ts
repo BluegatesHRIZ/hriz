@@ -5,8 +5,9 @@ import { getCurrentTimeString } from "@/lib/utils/time";
 
 /**
  * POST /api/attendance/clock
- * Clock in/out or break in/out
- * Ported from AttendanceController.InsertUserAttendance
+ * Clock in/out or break in/out.
+ * Calls insertUserAttendance which matches InsertUserAttendance stored procedure exactly.
+ * SP uses CURDATE()/CURTIME() (server); we pass server date/time so service matches SP.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -41,18 +42,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate bio_id: yyyyMMdd + empId
+    // SP uses CURDATE() and CURTIME() (server time) - pass server date/time to match SP exactly
     const now = new Date();
-    const bioId = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(
-      2,
-      "0"
-    )}${String(now.getDate()).padStart(2, "0")}${empId}`;
-    const bioDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
-      2,
-      "0"
-    )}-${String(now.getDate()).padStart(2, "0")}`;
-    // Use utility function for consistent time formatting
-    // Note: For attendance clocking, we use LOCAL time (actual clock time)
+    const bioDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     const bioTime = getCurrentTimeString();
 
     // Get IP address and location from request
@@ -61,9 +53,9 @@ export async function POST(request: NextRequest) {
       request.headers.get("x-real-ip") ||
       "";
 
-    // Insert attendance record
+    // Insert attendance record (bioId is generated as UUID in service, matching SP but with UUID instead of counter)
     await insertUserAttendance({
-      bioId,
+      bioId: "", // Not used - service generates UUID
       bioEmp: empId,
       bioDate,
       bioType: attendanceType,

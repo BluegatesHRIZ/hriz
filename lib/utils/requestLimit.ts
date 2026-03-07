@@ -79,3 +79,50 @@ export function beforeAfterLead(
 
   return result;
 }
+
+/**
+ * COA/Undertime: before (days in past), after (days in future).
+ * Returns true if the date should be disabled/rejected (matches C# RequestLimit.BeforeAfter).
+ * 
+ * Matches C# logic line-by-line.
+ */
+export function beforeAfter(
+  dateRaw: Date,
+  before: number,
+  after: number,
+): boolean {
+  const date = toDate(dateRaw);
+  const today = toDate(new Date());
+  const beforeDate = toDate(
+    new Date(today.getFullYear(), today.getMonth(), today.getDate() - before),
+  );
+  const afterDate = toDate(
+    new Date(today.getFullYear(), today.getMonth(), today.getDate() + after),
+  );
+  let result = false;
+
+  if (date < today) {
+    // Before (past dates)
+    if (before > 0) {
+      result = date < beforeDate;
+    } else if (before === 0) {
+      return true; // Reject all past dates
+    } else if (before < 0) {
+      result = false; // Allow past dates
+    }
+  } else if (date > today) {
+    // After (future dates)
+    if (after > 0) {
+      result = date > afterDate;
+    } else if (after === 0) {
+      return true; // Reject all future dates
+    } else if (after < 0) {
+      result = false; // Allow future dates
+    }
+  } else {
+    // Today
+    result = false; // Allow today
+  }
+
+  return result;
+}

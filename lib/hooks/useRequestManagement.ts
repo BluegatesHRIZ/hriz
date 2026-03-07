@@ -271,10 +271,10 @@ export function useLeaveGrid() {
 export interface ScheduleDayDTO {
   sch_day?: string;
   sch_rest?: number;
-  sch_in?: string | null;
-  sch_bin?: string | null;
-  sch_bout?: string | null;
-  sch_out?: string | null;
+  sch_in?: string | null; // HH:mm format from API
+  sch_bin?: string | null; // HH:mm format from API
+  sch_bout?: string | null; // HH:mm format from API
+  sch_out?: string | null; // HH:mm format from API
 }
 
 export function useUserLeaveScheduleList() {
@@ -659,10 +659,11 @@ export function useCancelScheduleAdjust(scaId: string) {
 
 // ==================== COA (Change of Attendance) REQUESTS ====================
 
+/** COA type from API (Prisma coa_type: snake_case) */
 export interface CoaType {
-  CoaTypeId?: string;
-  CoaTypeDesc?: string;
-  [key: string]: any;
+  coa_tid: string;
+  coa_tdesc?: string | null;
+  coa_ttag?: number | null;
 }
 
 export interface CoaForm {
@@ -671,14 +672,12 @@ export interface CoaForm {
   CoaSreason?: string;
   CoaSemp?: string;
   CoaDetails?: CoaDetailDTO[];
-  [key: string]: any;
 }
 
 export interface CoaDetailDTO {
   CoaDtype?: string;
   CoaDdate?: Date | string;
   CoaDtime?: Date | string;
-  [key: string]: any;
 }
 
 export function useCoaTypes() {
@@ -747,6 +746,35 @@ export function useUpdateCOA(coaSid: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.coa.all });
     },
+  });
+}
+
+export interface CoaGrid {
+  coa_sid?: string;
+  coa_stype?: string;
+  coa_stypedetail?: string;
+  coa_sreason?: string;
+  FapReason?: string | null;
+  coa_semp?: string;
+  coa_sapplieddate?: Date | string;
+  coa_sstatus?: number;
+  coa_sapprovedby?: string | null;
+  coa_sapproveddate?: Date | string | null;
+}
+
+export function useCoaGrid() {
+  return useQuery<CoaGrid[], ApiError>({
+    queryKey: queryKeys.coa.grid(),
+    queryFn: async () => {
+      const token = localStorage.getItem("auth_token");
+      if (!token) throw new ApiError("No token found", 401);
+      return apiFetch<CoaGrid[]>("/coa/grid", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    },
+    staleTime: 2 * 60 * 1000,
+    enabled:
+      typeof window !== "undefined" && !!localStorage.getItem("auth_token"),
   });
 }
 

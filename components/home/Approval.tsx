@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useApproval } from "@/lib/hooks/useApproval"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 import {
   useApproveRequests,
   useRejectRequests,
@@ -25,6 +26,8 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 
+const ITEMS_PER_PAGE = 5
+
 export function Approval() {
   const { data: approvals, isLoading } = useApproval()
   const approveMutation = useApproveRequests()
@@ -41,6 +44,8 @@ export function Approval() {
   const [requestDetail, setRequestDetail] = useState<Record<string, unknown> | null>(null)
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [btnEnabled, setBtnEnabled] = useState(true)
+  const [approvalPage, setApprovalPage] = useState(1)
+  const [discrepancyPage, setDiscrepancyPage] = useState(1)
 
   interface ApprovalDTO {
     Fa_Id?: number
@@ -55,8 +60,30 @@ export function Approval() {
     Fa_Level?: number
   }
 
-  const approvalItems = approvals?.filter((a: ApprovalDTO) => a.Fa_Status === 0) || []
-  const discrepancyItems = approvals?.filter((a: ApprovalDTO) => a.Fa_Status === 1) || []
+  // Sort by date descending (latest first), then filter
+  const allApprovals = approvals || []
+  const approvalItems = allApprovals
+    .filter((a: ApprovalDTO) => a.Fa_Status === 0)
+    .sort((a: ApprovalDTO, b: ApprovalDTO) => {
+      const dateA = a.Fa_Datetime ? new Date(a.Fa_Datetime).getTime() : 0
+      const dateB = b.Fa_Datetime ? new Date(b.Fa_Datetime).getTime() : 0
+      return dateB - dateA // Descending (latest first)
+    })
+  const discrepancyItems = allApprovals
+    .filter((a: ApprovalDTO) => a.Fa_Status === 1)
+    .sort((a: ApprovalDTO, b: ApprovalDTO) => {
+      const dateA = a.Fa_Datetime ? new Date(a.Fa_Datetime).getTime() : 0
+      const dateB = b.Fa_Datetime ? new Date(b.Fa_Datetime).getTime() : 0
+      return dateB - dateA // Descending (latest first)
+    })
+
+  // Reset to page 1 when data changes
+  useEffect(() => {
+    setApprovalPage(1)
+  }, [approvalItems.length])
+  useEffect(() => {
+    setDiscrepancyPage(1)
+  }, [discrepancyItems.length])
 
   const toggleSelection = (index: number, e?: React.MouseEvent) => {
     if (e) {
@@ -427,29 +454,39 @@ export function Approval() {
               </TabsList>
               <TabsContent value="approval" className="mt-4">
                 {approvalItems.length > 0 ? (
-                  <div className="space-y-2">
-                    {approvalItems.slice(0, 5).map((item: ApprovalDTO, idx: number) => (
-                      <div
-                        key={idx}
-                        className="flex items-center gap-2 border-b pb-2 cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
-                        onClick={() => handleRowClick(item)}
-                      >
-                        <Checkbox
-                          checked={selectedItems.has(idx)}
-                          onCheckedChange={() => toggleSelection(idx)}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                        <div className="flex-1 grid grid-cols-3 gap-4 items-center">
-                          <p className="text-sm font-semibold">{item.Fa_Module || "N/A"}</p>
-                          <p className="text-sm text-gray-700">{item.employee || item.Fa_Emp || "N/A"}</p>
-                          <p className="text-sm text-gray-600 text-right">
-                            {item.Fa_Datetime
-                              ? new Date(item.Fa_Datetime).toLocaleDateString()
-                              : "N/A"}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
+                  <>
+                    <div className="space-y-2">
+                      {approvalItems
+                        .slice(
+                          (approvalPage - 1) * ITEMS_PER_PAGE,
+                          approvalPage * ITEMS_PER_PAGE
+                        )
+                        .map((item: ApprovalDTO, idx: number) => {
+                          const globalIdx = (approvalPage - 1) * ITEMS_PER_PAGE + idx
+                          return (
+                            <div
+                              key={globalIdx}
+                              className="flex items-center gap-2 border-b pb-2 cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
+                              onClick={() => handleRowClick(item)}
+                            >
+                              <Checkbox
+                                checked={selectedItems.has(globalIdx)}
+                                onCheckedChange={() => toggleSelection(globalIdx)}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                              <div className="flex-1 grid grid-cols-3 gap-4 items-center">
+                                <p className="text-sm font-semibold">{item.Fa_Module || "N/A"}</p>
+                                <p className="text-sm text-gray-700">{item.employee || item.Fa_Emp || "N/A"}</p>
+                                <p className="text-sm text-gray-600 text-right">
+                                  {item.Fa_Datetime
+                                    ? new Date(item.Fa_Datetime).toLocaleDateString()
+                                    : "N/A"}
+                                </p>
+                              </div>
+                            </div>
+                          )
+                        })}
+                    </div>
                     <div className="flex gap-2 mt-4">
                       <Button
                         size="sm"
@@ -470,24 +507,119 @@ export function Approval() {
                         Reject
                       </Button>
                     </div>
-                  </div>
+                    {approvalItems.length > ITEMS_PER_PAGE && (
+                      <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                        <div className="text-xs text-gray-600">
+                          Showing {(approvalPage - 1) * ITEMS_PER_PAGE + 1} to{" "}
+                          {Math.min(approvalPage * ITEMS_PER_PAGE, approvalItems.length)}{" "}
+                          of {approvalItems.length} records
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setApprovalPage((p) => Math.max(1, p - 1))}
+                            disabled={approvalPage === 1}
+                          >
+                            <ChevronLeft className="w-4 h-4" />
+                          </Button>
+                          <span className="text-sm text-gray-700">
+                            Page {approvalPage} of{" "}
+                            {Math.ceil(approvalItems.length / ITEMS_PER_PAGE)}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              setApprovalPage((p) =>
+                                Math.min(
+                                  Math.ceil(approvalItems.length / ITEMS_PER_PAGE),
+                                  p + 1
+                                )
+                              )
+                            }
+                            disabled={
+                              approvalPage >= Math.ceil(approvalItems.length / ITEMS_PER_PAGE)
+                            }
+                          >
+                            <ChevronRight className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <p className="text-gray-500 text-center py-4">No pending approvals</p>
                 )}
               </TabsContent>
               <TabsContent value="discrepancy" className="mt-4">
                 {discrepancyItems.length > 0 ? (
-                  <div className="space-y-2">
-                    {discrepancyItems.slice(0, 5).map((item: ApprovalDTO, idx: number) => (
-                      <div key={idx} className="flex items-center gap-2 border-b pb-2">
-                        <Checkbox />
-                        <div className="flex-1">
-                          <p className="text-sm font-semibold">{item.Fa_Module || "N/A"}</p>
-                          <p className="text-xs text-gray-600">{item.Fa_Emp || "N/A"}</p>
+                  <>
+                    <div className="space-y-2">
+                      {discrepancyItems
+                        .slice(
+                          (discrepancyPage - 1) * ITEMS_PER_PAGE,
+                          discrepancyPage * ITEMS_PER_PAGE
+                        )
+                        .map((item: ApprovalDTO, idx: number) => {
+                          const globalIdx = (discrepancyPage - 1) * ITEMS_PER_PAGE + idx
+                          return (
+                            <div key={globalIdx} className="flex items-center gap-2 border-b pb-2">
+                              <Checkbox />
+                              <div className="flex-1">
+                                <p className="text-sm font-semibold">{item.Fa_Module || "N/A"}</p>
+                                <p className="text-xs text-gray-600">{item.employee || item.Fa_Emp || "N/A"}</p>
+                                <p className="text-xs text-gray-500">
+                                  {item.Fa_Datetime
+                                    ? new Date(item.Fa_Datetime).toLocaleDateString()
+                                    : "N/A"}
+                                </p>
+                              </div>
+                            </div>
+                          )
+                        })}
+                    </div>
+                    {discrepancyItems.length > ITEMS_PER_PAGE && (
+                      <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                        <div className="text-xs text-gray-600">
+                          Showing {(discrepancyPage - 1) * ITEMS_PER_PAGE + 1} to{" "}
+                          {Math.min(discrepancyPage * ITEMS_PER_PAGE, discrepancyItems.length)}{" "}
+                          of {discrepancyItems.length} records
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setDiscrepancyPage((p) => Math.max(1, p - 1))}
+                            disabled={discrepancyPage === 1}
+                          >
+                            <ChevronLeft className="w-4 h-4" />
+                          </Button>
+                          <span className="text-sm text-gray-700">
+                            Page {discrepancyPage} of{" "}
+                            {Math.ceil(discrepancyItems.length / ITEMS_PER_PAGE)}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              setDiscrepancyPage((p) =>
+                                Math.min(
+                                  Math.ceil(discrepancyItems.length / ITEMS_PER_PAGE),
+                                  p + 1
+                                )
+                              )
+                            }
+                            disabled={
+                              discrepancyPage >= Math.ceil(discrepancyItems.length / ITEMS_PER_PAGE)
+                            }
+                          >
+                            <ChevronRight className="w-4 h-4" />
+                          </Button>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    )}
+                  </>
                 ) : (
                   <p className="text-gray-500 text-center py-4">No discrepancies</p>
                 )}

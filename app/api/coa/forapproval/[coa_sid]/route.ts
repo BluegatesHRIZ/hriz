@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth/jwt-edge";
 import { prisma } from "@/lib/db/prisma";
+import { formatTimeForInput } from "@/lib/utils/time";
 
 export async function GET(
   request: NextRequest,
@@ -64,7 +65,7 @@ export async function GET(
         : null,
       CoaDetails: details.map((detail) => ({
         CoaDdate: detail.coa_ddate,
-        CoaDtime: detail.coa_dtime,
+        CoaDtime: formatTimeForInput(detail.coa_dtime), // Format as "HH:mm" string to avoid timezone issues
         CoaDtype: detail.coa_dtype,
       })),
     });
