@@ -372,7 +372,26 @@ export interface OvertimeRequestDTO {
   otm_from?: Date | string;
   otm_to?: Date | string;
   otm_reason?: string;
+  otm_status?: number;
+  otm_approvedby?: string | null;
+  otm_approveddate?: Date | string | null;
+  fap_reason?: string | null;
   [key: string]: any;
+}
+
+export interface OvertimeAttendanceDTO {
+  AttDate?: Date | string;
+  AttSchin?: Date | string | null;
+  AttSchout?: Date | string | null;
+  AttSchbin?: Date | string | null;
+  AttSchbout?: Date | string | null;
+  AttSchhrs?: string | null;
+  AttSchshift?: string | null;
+  AttRestday?: string | null;
+  AttBioin?: Date | string | null;
+  AttBioout?: Date | string | null;
+  AttFin?: Date | string | null;
+  AttFout?: Date | string | null;
 }
 
 export function useOvertimeYear() {
@@ -404,6 +423,41 @@ export function useOvertimeList() {
     staleTime: 2 * 60 * 1000,
     enabled:
       typeof window !== "undefined" && !!localStorage.getItem("auth_token"),
+  });
+}
+
+export function useOvertimeById(userId: string, otId: string) {
+  return useQuery<OvertimeRequestDTO[], ApiError>({
+    queryKey: queryKeys.overtime.detail(otId),
+    queryFn: async () => {
+      const token = localStorage.getItem("auth_token");
+      if (!token) throw new ApiError("No token found", 401);
+      return apiFetch<OvertimeRequestDTO[]>(`/overtime/byid/${userId}/${otId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    },
+    enabled:
+      !!userId &&
+      !!otId &&
+      typeof window !== "undefined" &&
+      !!localStorage.getItem("auth_token"),
+  });
+}
+
+export function useOvertimeAttendance(date: string) {
+  return useQuery<OvertimeAttendanceDTO[], ApiError>({
+    queryKey: queryKeys.overtime.attendance(date),
+    queryFn: async () => {
+      const token = localStorage.getItem("auth_token");
+      if (!token) throw new ApiError("No token found", 401);
+      return apiFetch<OvertimeAttendanceDTO[]>(`/overtime/attendance/${date}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    },
+    enabled:
+      !!date &&
+      typeof window !== "undefined" &&
+      !!localStorage.getItem("auth_token"),
   });
 }
 
@@ -469,7 +523,28 @@ export interface UndertimeRequestDTO {
   UtmFrom?: Date | string;
   UtmTo?: Date | string;
   UtmReason?: string;
+  UtmApplieddate?: Date | string;
+  UtmStatus?: number;
+  UtmApprovedby?: string | null;
+  UtmApproveddate?: Date | string | null;
+  fap_reason?: string | null;
   [key: string]: any;
+}
+
+export function useUndertimeList() {
+  return useQuery<UndertimeRequestDTO[], ApiError>({
+    queryKey: queryKeys.undertime.list(),
+    queryFn: async () => {
+      const token = localStorage.getItem("auth_token");
+      if (!token) throw new ApiError("No token found", 401);
+      return apiFetch<UndertimeRequestDTO[]>("/undertime/list", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    },
+    staleTime: 2 * 60 * 1000,
+    enabled:
+      typeof window !== "undefined" && !!localStorage.getItem("auth_token"),
+  });
 }
 
 export function useUndertimeById(id: string) {
@@ -555,6 +630,11 @@ export interface SchedAdjustRequestDTO {
   ScaSdatefrom?: Date | string;
   ScaSdateto?: Date | string;
   ScaSreason?: string;
+  ScaSapplieddate?: Date | string;
+  ScaSstatus?: number;
+  ScaSapprovedby?: string | null;
+  ScaSapproveddate?: Date | string | null;
+  FapReason?: string | null;
   SchedDetail?: SchedAdjustDetailDTO[];
   [key: string]: any;
 }
@@ -569,6 +649,22 @@ export interface SchedAdjustDetailDTO {
   ScaDbreak?: number;
   ScaDShift?: number;
   [key: string]: any;
+}
+
+export function useScheduleAdjustList() {
+  return useQuery<SchedAdjustRequestDTO[], ApiError>({
+    queryKey: queryKeys.scheduleAdjust.list(),
+    queryFn: async () => {
+      const token = localStorage.getItem("auth_token");
+      if (!token) throw new ApiError("No token found", 401);
+      return apiFetch<SchedAdjustRequestDTO[]>("/schedule-adjust/list", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    },
+    staleTime: 2 * 60 * 1000,
+    enabled:
+      typeof window !== "undefined" && !!localStorage.getItem("auth_token"),
+  });
 }
 
 export function useScheduleAdjustYear() {
@@ -642,11 +738,11 @@ export function useUpdateScheduleAdjust(scaId: string) {
 
 export function useCancelScheduleAdjust(scaId: string) {
   const queryClient = useQueryClient();
-  return useMutation<void, ApiError>({
+  return useMutation<SchedAdjustRequestDTO[], ApiError>({
     mutationFn: async () => {
       const token = localStorage.getItem("auth_token");
       if (!token) throw new ApiError("No token found", 401);
-      return apiFetch<void>(`/schedule-adjust/cancel/${scaId}`, {
+      return apiFetch<SchedAdjustRequestDTO[]>(`/schedule-adjust/cancel/${scaId}`, {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -783,10 +879,16 @@ export function useCoaGrid() {
 export interface LoanDTO {
   LoaId?: string;
   LoaEmp?: string;
+  EmpName?: string | null;
   LoaAmt?: number;
   LoaReason?: string;
   LoaType?: string;
   LoaExprelease?: Date | string | null;
+  FapReason?: string | null;
+  LoaApplieddate?: Date | string;
+  LoaStatus?: number;
+  LoaApprovedby?: string | null;
+  LoaApproveddate?: Date | string | null;
   [key: string]: any;
 }
 
@@ -823,6 +925,22 @@ export function useLoanManagementList() {
       const token = localStorage.getItem("auth_token");
       if (!token) throw new ApiError("No token found", 401);
       return apiFetch<LoanGridManagement[]>("/loan", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    },
+    staleTime: 2 * 60 * 1000,
+    enabled:
+      typeof window !== "undefined" && !!localStorage.getItem("auth_token"),
+  });
+}
+
+export function useLoanList() {
+  return useQuery<LoanDTO[], ApiError>({
+    queryKey: queryKeys.loan.list(),
+    queryFn: async () => {
+      const token = localStorage.getItem("auth_token");
+      if (!token) throw new ApiError("No token found", 401);
+      return apiFetch<LoanDTO[]>("/loan", {
         headers: { Authorization: `Bearer ${token}` },
       });
     },
@@ -895,6 +1013,23 @@ export function useManageLoan() {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}` },
         body: JSON.stringify(data),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.loan.all });
+    },
+  });
+}
+
+export function useCancelLoan(loanId: string) {
+  const queryClient = useQueryClient();
+  return useMutation<LoanDTO[], ApiError>({
+    mutationFn: async () => {
+      const token = localStorage.getItem("auth_token");
+      if (!token) throw new ApiError("No token found", 401);
+      return apiFetch<LoanDTO[]>(`/loan/cancel/${loanId}`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}` },
       });
     },
     onSuccess: () => {

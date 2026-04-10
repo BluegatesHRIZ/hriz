@@ -1,21 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyToken } from "@/lib/auth/jwt-edge";
+import { authorizeApiRequest } from "@/lib/auth/authorization";
 import * as requestProcedures from "@/lib/services/requests.service";
 import { prisma } from "@/lib/db/prisma";
+import { beforeAfter } from "@/lib/utils/requestLimit";
 
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
-    let payload;
-    try {
-      payload = await verifyToken(authHeader.substring(7));
-    } catch {
-      return NextResponse.json({ message: "Invalid token" }, { status: 401 });
-    }
+    const auth = await authorizeApiRequest(request, "apiScheduleChange");
+    if (!auth.ok) return auth.response;
+    const payload = auth.payload;
 
     const body = await request.json();
     const { ScaSdatefrom, ScaSdateto, ScaSreason, SchedDetail } = body;
@@ -25,11 +18,22 @@ export async function POST(request: NextRequest) {
     // Get settings for validation
     const settings = await prisma.settings_tab.findFirst();
 
-    // Validate dates
+    // Validate dates (legacy RequestLimit.After behavior using set_scaafter)
     if (Array.isArray(SchedDetail)) {
       for (const detail of SchedDetail) {
         if (settings && detail.ScaDdate) {
-          // TODO: Implement RequestLimit.After validation
+          if (
+            beforeAfter(
+              new Date(detail.ScaDdate),
+              0,
+              settings.set_scaafter ?? 0,
+            )
+          ) {
+            return NextResponse.json(
+              { message: "Schedule Change date is not allowed" },
+              { status: 400 },
+            );
+          }
         }
       }
     }
@@ -59,7 +63,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json(body);
+    const result = await requestProcedures.displayGrid("SCA", username);
+    return NextResponse.json(result?.[0] ?? body);
   } catch (error) {
     console.error("Create schedule adjustment error:", error);
     return NextResponse.json(

@@ -1,24 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyToken } from "@/lib/auth/jwt-edge";
+import { authorizeApiRequest } from "@/lib/auth/authorization";
 import * as requestProcedures from "@/lib/services/requests.service";
 import { prisma } from "@/lib/db/prisma";
 import { removeSeconds } from "@/lib/utils/time";
+import { beforeAfter } from "@/lib/utils/requestLimit";
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
-    try {
-      await verifyToken(authHeader.substring(7));
-    } catch {
-      return NextResponse.json({ message: "Invalid token" }, { status: 401 });
-    }
+    const auth = await authorizeApiRequest(request, "apiUndertime");
+    if (!auth.ok) return auth.response;
 
     const resolvedParams = await params;
     const utId = resolvedParams.id;
@@ -29,14 +22,29 @@ export async function PUT(
     // Get settings for validation
     const settings = await prisma.settings_tab.findFirst();
 
-    // TODO: Implement RequestLimit.LeadAfter validation
+    if (
+      settings &&
+      beforeAfter(
+        new Date(UtmDate),
+        settings.set_utmlead ?? 0,
+        settings.set_utmafter ?? 0,
+      )
+    ) {
+      return NextResponse.json(
+        { message: "Undertime date is not allowed" },
+        { status: 400 },
+      );
+    }
+
+    const filteredTimeFrom = removeSeconds(new Date(UtmFrom));
+    const filteredTimeTo = removeSeconds(new Date(UtmTo));
 
     // Update undertime summary
     await requestProcedures.undertimeUpdateSummary(
       utId,
       new Date(UtmDate),
-      new Date(UtmFrom),
-      new Date(UtmTo),
+      filteredTimeFrom,
+      filteredTimeTo,
       UtmReason || ""
     );
 

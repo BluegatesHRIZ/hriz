@@ -9,6 +9,7 @@ import { Plus, Hourglass, CheckCircle2, XCircle } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { AttendanceChangeRequestTable } from "@/components/requests/AttendanceChangeRequestTable"
 import { useAuth } from "@/lib/auth/context"
+import { ProtectedPage } from "@/components/auth/ProtectedPage"
 
 export default function AttendanceChangeListPage() {
   const router = useRouter()
@@ -33,6 +34,7 @@ export default function AttendanceChangeListPage() {
   const showLoading = coaGrid === undefined || isLoading
 
   return (
+    <ProtectedPage routeKey="requestAttendanceChange">
     <div className="container mx-auto mt-4 mb-5 pb-5 pt-4 px-4">
       <div className="request-section">
         <div className="header-container mb-4 flex justify-between items-center">
@@ -93,5 +95,6 @@ export default function AttendanceChangeListPage() {
         </Card>
       </div>
     </div>
+    </ProtectedPage>
   )
 }

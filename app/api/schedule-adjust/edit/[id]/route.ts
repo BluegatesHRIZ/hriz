@@ -1,23 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyToken } from "@/lib/auth/jwt-edge";
+import { authorizeApiRequest } from "@/lib/auth/authorization";
 import * as requestProcedures from "@/lib/services/requests.service";
 import { prisma } from "@/lib/db/prisma";
+import { beforeAfter } from "@/lib/utils/requestLimit";
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
-    try {
-      await verifyToken(authHeader.substring(7));
-    } catch {
-      return NextResponse.json({ message: "Invalid token" }, { status: 401 });
-    }
+    const auth = await authorizeApiRequest(request, "apiScheduleChange");
+    if (!auth.ok) return auth.response;
 
     const resolvedParams = await params;
     const scaId = resolvedParams.id;
@@ -28,11 +21,22 @@ export async function PUT(
     // Get settings for validation
     const settings = await prisma.settings_tab.findFirst();
 
-    // Validate dates
+    // Validate dates (legacy RequestLimit.After behavior using set_scaafter)
     if (Array.isArray(SchedDetail)) {
       for (const detail of SchedDetail) {
         if (settings && detail.ScaDdate) {
-          // TODO: Implement RequestLimit.After validation
+          if (
+            beforeAfter(
+              new Date(detail.ScaDdate),
+              0,
+              settings.set_scaafter ?? 0,
+            )
+          ) {
+            return NextResponse.json(
+              { message: "Schedule Change date is not allowed" },
+              { status: 400 },
+            );
+          }
         }
       }
     }

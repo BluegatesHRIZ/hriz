@@ -1,5 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth/jwt-edge";
+import { getApiRouteKey, getPageRouteKey } from "@/lib/auth/routePermissions";
+import { PERMISSIONS, hasAnyPermission, parsePermissionMask } from "@/lib/auth/permissions";
+const BIGINT_ZERO = BigInt(0);
+
+const COARSE_ROUTE_PERMISSIONS: Record<string, bigint> = {
+  requestLeave: PERMISSIONS.AccessLeave | PERMISSIONS.AllAccess,
+  requestAttendanceChange: PERMISSIONS.AccessAttendanceChange | PERMISSIONS.AllAccess,
+  requestOvertime: PERMISSIONS.AccessOvertime | PERMISSIONS.AllAccess,
+  requestUndertime: PERMISSIONS.AccessUndertime | PERMISSIONS.AllAccess,
+  requestScheduleChange: PERMISSIONS.AccessScheduleAdjustment | PERMISSIONS.AllAccess,
+  requestLoan: PERMISSIONS.AccessLoan | PERMISSIONS.AllAccess,
+  apiLeave: PERMISSIONS.AccessLeave | PERMISSIONS.AllAccess,
+  apiAttendanceChange: PERMISSIONS.AccessAttendanceChange | PERMISSIONS.AllAccess,
+  apiOvertime: PERMISSIONS.AccessOvertime | PERMISSIONS.AllAccess,
+  apiUndertime: PERMISSIONS.AccessUndertime | PERMISSIONS.AllAccess,
+  apiScheduleChange: PERMISSIONS.AccessScheduleAdjustment | PERMISSIONS.AllAccess,
+  apiLoan: PERMISSIONS.AccessLoan | PERMISSIONS.AllAccess,
+};
 
 /**
  * Middleware for route protection
@@ -9,7 +27,12 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Public routes that don't require authentication
-  const publicRoutes = ["/login", "/api/auth/login", "/api/auth/login-qr"];
+  const publicRoutes = [
+    "/login",
+    "/unauthorized",
+    "/api/auth/login",
+    "/api/auth/login-qr",
+  ];
   if (publicRoutes.some((route) => pathname.startsWith(route))) {
     return NextResponse.next();
   }
@@ -35,7 +58,20 @@ export async function middleware(request: NextRequest) {
 
   // Verify token
   try {
-    await verifyToken(token);
+    const payload = await verifyToken(token);
+    const routeKey = pathname.startsWith("/api/")
+      ? getApiRouteKey(pathname)
+      : getPageRouteKey(pathname);
+    if (routeKey) {
+      const requiredMask = COARSE_ROUTE_PERMISSIONS[routeKey] ?? BIGINT_ZERO;
+      const userMask = parsePermissionMask(payload.permissions);
+      if (!hasAnyPermission(userMask, requiredMask)) {
+        if (pathname.startsWith("/api/")) {
+          return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+        }
+        return NextResponse.redirect(new URL("/unauthorized", request.url));
+      }
+    }
     return NextResponse.next();
   } catch {
     if (pathname.startsWith("/api/")) {

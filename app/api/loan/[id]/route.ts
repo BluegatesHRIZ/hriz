@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyToken } from "@/lib/auth/jwt-edge";
+import { authorizeApiRequest } from "@/lib/auth/authorization";
 import { prisma } from "@/lib/db/prisma";
 import * as requestProcedures from "@/lib/services/requests.service";
 
@@ -8,17 +8,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
-    let payload;
-    try {
-      payload = await verifyToken(authHeader.substring(7));
-    } catch {
-      return NextResponse.json({ message: "Invalid token" }, { status: 401 });
-    }
+    const auth = await authorizeApiRequest(request, "apiLoan");
+    if (!auth.ok) return auth.response;
+    const payload = auth.payload;
 
     const resolvedParams = await params;
     const loanId = resolvedParams.id;
@@ -35,7 +27,18 @@ export async function GET(
       return NextResponse.json({ message: "Loan not found" }, { status: 404 });
     }
 
-    return NextResponse.json(loan);
+    return NextResponse.json({
+      LoaId: loan.loa_id,
+      LoaEmp: loan.loa_emp,
+      LoaAmt: loan.loa_amt,
+      LoaReason: loan.loa_reason,
+      LoaType: loan.loa_type,
+      LoaExprelease: loan.loa_exprelease,
+      LoaStatus: loan.loa_status,
+      LoaApplieddate: loan.loa_applieddate,
+      LoaApprovedby: loan.loa_approvedby,
+      LoaApproveddate: loan.loa_approveddate,
+    });
   } catch (error) {
     console.error("Get loan by ID error:", error);
     return NextResponse.json(
@@ -53,17 +56,9 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
-    let payload;
-    try {
-      payload = await verifyToken(authHeader.substring(7));
-    } catch {
-      return NextResponse.json({ message: "Invalid token" }, { status: 401 });
-    }
+    const auth = await authorizeApiRequest(request, "apiLoan");
+    if (!auth.ok) return auth.response;
+    const payload = auth.payload;
 
     const resolvedParams = await params;
     const loanId = resolvedParams.id;
@@ -71,6 +66,19 @@ export async function PUT(
 
     const { LoaAmt, LoaReason, LoaType, LoaExprelease } = body;
     const employee = payload.name; // EmpId from JWT payload
+
+    if (LoaAmt <= 0) {
+      return NextResponse.json(
+        { message: "Input your loan amount." },
+        { status: 400 },
+      );
+    }
+    if (!LoaReason || LoaReason.trim() === "") {
+      return NextResponse.json(
+        { message: "Input your loan reason." },
+        { status: 400 },
+      );
+    }
 
     // Update loan request
     await requestProcedures.loanUpdateRequest(

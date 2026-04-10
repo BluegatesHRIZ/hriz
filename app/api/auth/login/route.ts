@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { encryptPassword } from "@/lib/auth/password";
 import { createToken, generateRefreshToken } from "@/lib/auth/jwt-edge";
 import { LoginDTO } from "@/lib/types/auth";
+import { getRolePermissionMask } from "@/lib/services/authorization.service";
 
 export async function POST(request: NextRequest) {
   try {
@@ -56,8 +57,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get permissions (simplified for now - will need to fetch from DB)
-    const permissions = "0"; // TODO: Fetch from Accrolepermission table
+    const permissions = (await getRolePermissionMask(employee.emp_role)).toString();
 
     // Generate tokens
     const token = await createToken(

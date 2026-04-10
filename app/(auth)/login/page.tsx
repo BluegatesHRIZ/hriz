@@ -41,6 +41,7 @@ export default function LoginPage() {
   const [qrScannerOpen, setQrScannerOpen] = useState(false)
   const scannerRef = useRef<HTMLDivElement>(null)
   const html5QrCodeRef = useRef<any>(null)
+  const scannerStoppingRef = useRef(false)
   const [scannerError, setScannerError] = useState<string | null>(null)
 
   const {
@@ -86,6 +87,26 @@ export default function LoginPage() {
 
   const setIncludes = settings?.set_includes || 0
 
+  const cleanupScanner = async () => {
+    const scanner = html5QrCodeRef.current
+    if (!scanner || scannerStoppingRef.current) return
+
+    scannerStoppingRef.current = true
+    try {
+      await scanner.stop()
+    } catch {
+      // ignore stop transition errors
+    } finally {
+      try {
+        await scanner.clear()
+      } catch {
+        // ignore clear errors
+      }
+      html5QrCodeRef.current = null
+      scannerStoppingRef.current = false
+    }
+  }
+
   const handleQrScan = async (decodedText: string) => {
     try {
       await loginQrMutation.mutateAsync({ qrToken: decodedText })
@@ -107,17 +128,7 @@ export default function LoginPage() {
   useEffect(() => {
     if (!qrScannerOpen) {
       // Clean up scanner when dialog closes
-      if (html5QrCodeRef.current) {
-        html5QrCodeRef.current
-          .stop()
-          .then(() => {
-            html5QrCodeRef.current?.clear()
-            html5QrCodeRef.current = null
-          })
-          .catch(() => {
-            // Ignore stop errors
-          })
-      }
+      void cleanupScanner()
       setScannerError(null)
       return
     }
@@ -146,10 +157,7 @@ export default function LoginPage() {
           },
           (decodedText: string) => {
             // Stop scanner once QR is decoded
-            scanner.stop().then(() => {
-              scanner.clear()
-              html5QrCodeRef.current = null
-            })
+            void cleanupScanner()
             handleQrScan(decodedText)
           },
           (errorMessage: string) => {
@@ -179,17 +187,7 @@ export default function LoginPage() {
 
     return () => {
       clearTimeout(timer)
-      if (html5QrCodeRef.current) {
-        html5QrCodeRef.current
-          .stop()
-          .then(() => {
-            html5QrCodeRef.current?.clear()
-            html5QrCodeRef.current = null
-          })
-          .catch(() => {
-            // Ignore stop errors
-          })
-      }
+      void cleanupScanner()
     }
   }, [qrScannerOpen])
 

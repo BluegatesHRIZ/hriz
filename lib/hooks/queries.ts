@@ -46,6 +46,8 @@ export const queryKeys = {
     year: () => [...queryKeys.overtime.all, "year"] as const,
     list: () => [...queryKeys.overtime.all, "list"] as const,
     detail: (id: string) => [...queryKeys.overtime.all, "detail", id] as const,
+    attendance: (date: string) =>
+      [...queryKeys.overtime.all, "attendance", date] as const,
   },
 
   // Undertime Requests
@@ -59,6 +61,7 @@ export const queryKeys = {
   scheduleAdjust: {
     all: ["scheduleAdjust"] as const,
     year: () => [...queryKeys.scheduleAdjust.all, "year"] as const,
+    list: () => [...queryKeys.scheduleAdjust.all, "list"] as const,
     detail: (id: string) =>
       [...queryKeys.scheduleAdjust.all, "detail", id] as const,
   },
@@ -75,6 +78,7 @@ export const queryKeys = {
   // Loan Requests
   loan: {
     all: ["loan"] as const,
+    list: () => [...queryKeys.loan.all, "list"] as const,
     managementList: () => [...queryKeys.loan.all, "managementList"] as const,
     detail: (id: string) => [...queryKeys.loan.all, "detail", id] as const,
   },

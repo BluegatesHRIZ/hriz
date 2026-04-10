@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { verifyToken, createToken, generateRefreshToken } from "@/lib/auth/jwt-edge";
 import { QrLoginRequest } from "@/lib/types/auth";
+import { getRolePermissionMask } from "@/lib/services/authorization.service";
 
 /**
  * Login using a QR token
@@ -56,8 +57,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get permissions (simplified for now - will need to fetch from DB)
-    const permissions = "0"; // TODO: Fetch from Accrolepermission table
+    const permissions = (await getRolePermissionMask(employee.emp_role)).toString();
 
     // Generate session tokens (same flow as password login)
     const token = await createToken(

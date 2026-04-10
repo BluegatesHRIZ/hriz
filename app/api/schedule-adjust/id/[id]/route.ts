@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyToken } from "@/lib/auth/jwt-edge";
+import { authorizeApiRequest } from "@/lib/auth/authorization";
 import { prisma } from "@/lib/db/prisma";
 
 export async function GET(
@@ -7,17 +7,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
-    let payload;
-    try {
-      payload = await verifyToken(authHeader.substring(7));
-    } catch {
-      return NextResponse.json({ message: "Invalid token" }, { status: 401 });
-    }
+    const auth = await authorizeApiRequest(request, "apiScheduleChange");
+    if (!auth.ok) return auth.response;
+    const payload = auth.payload;
 
     const resolvedParams = await params;
     const scaId = resolvedParams.id;
@@ -37,7 +29,32 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(schedAdjust);
+    const schedDetails = await prisma.schedadjust_detail.findMany({
+      where: { sca_dpk: scaId },
+      orderBy: { sca_ddate: "asc" },
+    });
+
+    return NextResponse.json({
+      ScaSid: schedAdjust.sca_sid,
+      ScaSemp: schedAdjust.sca_semp,
+      ScaSdatefrom: schedAdjust.sca_sdatefrom,
+      ScaSdateto: schedAdjust.sca_sdateto,
+      ScaSreason: schedAdjust.sca_sreason,
+      ScaSstatus: schedAdjust.sca_sstatus,
+      ScaSapplieddate: schedAdjust.sca_sapplieddate,
+      ScaSapproveddate: schedAdjust.sca_sapproveddate,
+      ScaSapprovedby: schedAdjust.sca_sapprovedby,
+      SchedDetail: schedDetails.map((detail) => ({
+        ScaDdate: detail.sca_ddate,
+        ScaDshiftstart: detail.sca_dshiftstart,
+        ScaDbreakstart: detail.sca_dbreakstart,
+        ScaDbreakend: detail.sca_dbreakend,
+        ScaDshiftend: detail.sca_dshiftend,
+        ScaDrest: detail.sca_drest,
+        ScaDbreak: detail.sca_dbreak,
+        ScaDShift: detail.sca_dshift,
+      })),
+    });
   } catch (error) {
     console.error("Get schedule adjust error:", error);
     return NextResponse.json(

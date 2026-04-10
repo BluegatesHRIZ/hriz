@@ -6,8 +6,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import {
   OvertimeRequestDTO,
+  useOvertimeAttendance,
   useCreateOvertime,
   useUpdateOvertime,
+  useUserLeaveScheduleList,
 } from "@/lib/hooks/useRequestManagement";
 import { useSettings } from "@/lib/hooks/useSettings";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,6 +28,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/lib/hooks/use-toast";
 import { beforeAfter } from "@/lib/utils/requestLimit";
+import { format as formatDate } from "date-fns";
 
 const overtimeSchema = z.object({
   otm_type: z.string().min(1, "Overtime type is required"),
@@ -76,6 +79,7 @@ export function OvertimeRequestForm({
 }: OvertimeRequestFormProps) {
   const { toast } = useToast();
   const { data: settings } = useSettings();
+  const { data: scheduleDays } = useUserLeaveScheduleList();
 
   const createMutation = useCreateOvertime();
   const updateMutation = useUpdateOvertime(otId || "");
@@ -137,6 +141,60 @@ export function OvertimeRequestForm({
       otm_reason: existing.otm_reason ?? "",
     });
   }, [existing, form]);
+
+  const selectedDate = form.watch("otm_date");
+  const attendanceDateParam = selectedDate
+    ? formatDate(selectedDate, "yyyy-MM-dd")
+    : "";
+  const { data: attendanceRows } = useOvertimeAttendance(attendanceDateParam);
+
+  const toHHmm = (value: Date | string | null | undefined): string => {
+    if (!value) return "";
+    const d = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(d.getTime())) return "";
+    return `${String(d.getHours()).padStart(2, "0")}:${String(
+      d.getMinutes(),
+    ).padStart(2, "0")}`;
+  };
+
+  const scheduleTimeForDay = (
+    date: Date,
+    type: "in" | "out",
+  ): string => {
+    if (!scheduleDays || scheduleDays.length === 0) return "";
+    const dayOfWeek = date
+      .toLocaleDateString("en-US", { weekday: "long" })
+      .toUpperCase();
+    const schedule = scheduleDays.find((s) => s.sch_day === dayOfWeek);
+    if (!schedule) return "";
+    const value = type === "in" ? schedule.sch_in : schedule.sch_out;
+    if (!value || typeof value !== "string") return "";
+    const [hours = "00", minutes = "00"] = value.split(":");
+    return `${hours.padStart(2, "0")}:${minutes.padStart(2, "0")}`;
+  };
+
+  // Auto-fill From/To for new OT requests:
+  // attendance IN/OUT if available, otherwise scheduled IN/OUT for selected day.
+  useEffect(() => {
+    if (otId) return; // do not override existing edit values
+    if (!selectedDate) return;
+
+    const attendance = attendanceRows?.[0];
+    const attendanceIn = toHHmm(attendance?.AttBioin || attendance?.AttFin);
+    const attendanceOut = toHHmm(attendance?.AttBioout || attendance?.AttFout);
+    const scheduleIn = scheduleTimeForDay(selectedDate, "in");
+    const scheduleOut = scheduleTimeForDay(selectedDate, "out");
+
+    const nextFrom = attendanceIn || scheduleIn;
+    const nextTo = attendanceOut || scheduleOut;
+
+    if (nextFrom) {
+      form.setValue("otm_from_time", nextFrom, { shouldDirty: true });
+    }
+    if (nextTo) {
+      form.setValue("otm_to_time", nextTo, { shouldDirty: true });
+    }
+  }, [otId, selectedDate, attendanceRows, scheduleDays, form]);
 
   async function onSubmit(values: OvertimeFormValues) {
     if (!empId) {

@@ -969,7 +969,7 @@ export async function cancelRequest(taskId: string, employee: string) {
 // --- Display grids (return list for OVT, LEA, UNT, COA) ---
 // Matches stored procedure display_grid - returns grid data with joins
 export async function displayGrid(
-  menu: "OVT" | "LEA" | "UNT" | "COA",
+  menu: "OVT" | "LEA" | "UNT" | "COA" | "SCA" | "LOA",
   employee: string
 ): Promise<unknown[]> {
   switch (menu) {
@@ -1125,9 +1125,161 @@ export async function displayGrid(
         };
       });
     case "UNT":
-      return prisma.undertime.findMany({
+      // Match stored procedure style output with approver name and latest fapreason
+      const undertimes = await prisma.undertime.findMany({
         where: { utm_emp: employee },
-        orderBy: { utm_applieddate: "desc" },
+        orderBy: [
+          { utm_approveddate: "desc" },
+          { utm_applieddate: "desc" },
+        ],
+      });
+
+      const utApproverIds = undertimes
+        .map((u) => u.utm_approvedby)
+        .filter(Boolean) as string[];
+      const utApprovers =
+        utApproverIds.length > 0
+          ? await prisma.employee.findMany({
+              where: { emp_id: { in: utApproverIds } },
+              select: { emp_id: true, emp_first: true, emp_last: true },
+            })
+          : [];
+
+      const utTaskIds = undertimes
+        .map((u) => u.utm_id)
+        .filter(Boolean) as string[];
+      const utFapreasons =
+        utTaskIds.length > 0
+          ? await prisma.fapreason.findMany({
+              where: { fap_taskid: { in: utTaskIds } },
+              orderBy: { fap_datetime: "desc" },
+            })
+          : [];
+
+      const latestUtFapreasons = new Map<string, string>();
+      for (const fap of utFapreasons) {
+        if (fap.fap_taskid && !latestUtFapreasons.has(fap.fap_taskid)) {
+          latestUtFapreasons.set(fap.fap_taskid, fap.fap_reason || "");
+        }
+      }
+
+      return undertimes.map((ut) => {
+        const approver = utApprovers.find((a) => a.emp_id === ut.utm_approvedby);
+        return {
+          UtmId: ut.utm_id,
+          UtmEmp: ut.utm_emp,
+          UtmDate: ut.utm_date,
+          UtmFrom: ut.utm_from,
+          UtmTo: ut.utm_to,
+          UtmReason: ut.utm_reason,
+          UtmApplieddate: ut.utm_applieddate,
+          UtmStatus: ut.utm_status,
+          UtmApproveddate: ut.utm_approveddate,
+          UtmApprovedby: approver
+            ? `${approver.emp_last}, ${approver.emp_first}`
+            : null,
+          fap_reason: latestUtFapreasons.get(ut.utm_id || "") || null,
+        };
+      });
+    case "SCA":
+      const scas = await prisma.schedadjust_summary.findMany({
+        where: { sca_semp: employee },
+        orderBy: [{ sca_sapproveddate: "desc" }, { sca_sapplieddate: "desc" }],
+      });
+
+      const scaApproverIds = scas
+        .map((s) => s.sca_sapprovedby)
+        .filter(Boolean) as string[];
+      const scaApprovers =
+        scaApproverIds.length > 0
+          ? await prisma.employee.findMany({
+              where: { emp_id: { in: scaApproverIds } },
+              select: { emp_id: true, emp_first: true, emp_last: true },
+            })
+          : [];
+
+      const scaTaskIds = scas.map((s) => s.sca_sid).filter(Boolean) as string[];
+      const scaFapreasons =
+        scaTaskIds.length > 0
+          ? await prisma.fapreason.findMany({
+              where: { fap_taskid: { in: scaTaskIds } },
+              orderBy: { fap_datetime: "desc" },
+            })
+          : [];
+
+      const latestScaFapreasons = new Map<string, string>();
+      for (const fap of scaFapreasons) {
+        if (fap.fap_taskid && !latestScaFapreasons.has(fap.fap_taskid)) {
+          latestScaFapreasons.set(fap.fap_taskid, fap.fap_reason || "");
+        }
+      }
+
+      return scas.map((sca) => {
+        const approver = scaApprovers.find((a) => a.emp_id === sca.sca_sapprovedby);
+        return {
+          ScaSid: sca.sca_sid,
+          ScaSdatefrom: sca.sca_sdatefrom,
+          ScaSdateto: sca.sca_sdateto,
+          ScaSreason: sca.sca_sreason,
+          ScaSapplieddate: sca.sca_sapplieddate,
+          ScaSstatus: sca.sca_sstatus,
+          ScaSapproveddate: sca.sca_sapproveddate,
+          ScaSapprovedby: approver
+            ? `${approver.emp_last}, ${approver.emp_first}`
+            : null,
+          FapReason: latestScaFapreasons.get(sca.sca_sid || "") || null,
+        };
+      });
+    case "LOA":
+      const loans = await prisma.loan.findMany({
+        where: { loa_emp: employee },
+        orderBy: [{ loa_approveddate: "desc" }, { loa_applieddate: "desc" }],
+      });
+
+      const loanApproverIds = loans
+        .map((l) => l.loa_approvedby)
+        .filter(Boolean) as string[];
+      const loanApprovers =
+        loanApproverIds.length > 0
+          ? await prisma.employee.findMany({
+              where: { emp_id: { in: loanApproverIds } },
+              select: { emp_id: true, emp_first: true, emp_last: true },
+            })
+          : [];
+
+      const loanTaskIds = loans.map((l) => l.loa_id).filter(Boolean) as string[];
+      const loanFapreasons =
+        loanTaskIds.length > 0
+          ? await prisma.fapreason.findMany({
+              where: { fap_taskid: { in: loanTaskIds } },
+              orderBy: { fap_datetime: "desc" },
+            })
+          : [];
+
+      const latestLoanFapreasons = new Map<string, string>();
+      for (const fap of loanFapreasons) {
+        if (fap.fap_taskid && !latestLoanFapreasons.has(fap.fap_taskid)) {
+          latestLoanFapreasons.set(fap.fap_taskid, fap.fap_reason || "");
+        }
+      }
+
+      return loans.map((loan) => {
+        const approver = loanApprovers.find((a) => a.emp_id === loan.loa_approvedby);
+        return {
+          LoaId: loan.loa_id,
+          LoaEmp: loan.loa_emp,
+          LoaAmt: loan.loa_amt,
+          LoaReason: loan.loa_reason,
+          LoaType: loan.loa_type,
+          LoaExprelease: loan.loa_exprelease,
+          LoaApplieddate: loan.loa_applieddate,
+          LoaStatus: loan.loa_status,
+          LoaApproveddate: loan.loa_approveddate,
+          LoaApprovedby: approver
+            ? `${approver.emp_last}, ${approver.emp_first}`
+            : null,
+          FapReason: latestLoanFapreasons.get(loan.loa_id || "") || null,
+        };
       });
     default:
       return [];

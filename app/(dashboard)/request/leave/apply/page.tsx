@@ -36,6 +36,7 @@ import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/lib/hooks/use-toast";
 import { LeaveRequestForm } from "@/components/requests/LeaveRequestForm";
+import { ProtectedPage } from "@/components/auth/ProtectedPage";
 
 const leaveRequestSchema = z.object({
   LeaStype: z.string().min(1, "Leave type is required"),
@@ -94,6 +95,7 @@ export default function LeaveApplyPage() {
   };
 
   return (
+    <ProtectedPage routeKey="requestLeave">
     <div className="container mx-auto mt-4 mb-5 pb-5 pt-4 px-4">
       <div className="request-section">
         <div className="header-container mb-4">
@@ -108,5 +110,6 @@ export default function LeaveApplyPage() {
         />
       </div>
     </div>
+    </ProtectedPage>
   );
 }

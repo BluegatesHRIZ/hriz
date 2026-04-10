@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth/context";
 import { useMenuList } from "@/lib/hooks/useMenu";
+import { useAuthorizationMap } from "@/lib/hooks/useAuthorization";
 import { useCompanySettings } from "@/lib/hooks/useSettings";
 import {
   Accordion,
@@ -33,6 +34,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { hasAnyPermission, parsePermissionMask } from "@/lib/auth/permissions";
 
 interface SidebarLinkProps {
   title: string;
@@ -79,10 +81,11 @@ function SidebarLink({ title, href, icon, className }: SidebarLinkProps) {
 export function Sidebar() {
   const { user, logout } = useAuth();
   const { data: menus, isLoading: menusLoading } = useMenuList();
+  const { data: authMap, isLoading: authMapLoading } = useAuthorizationMap();
   const { data: company, isLoading: companyLoading } = useCompanySettings();
   const [activeAccordion, setActiveAccordion] = useState<string>("");
 
-  if (menusLoading || companyLoading) {
+  if (menusLoading || companyLoading || authMapLoading) {
     return (
       <div className="min-w-[350px] max-w-[350px] min-h-screen max-h-screen bg-bgc-dark-blue text-white flex flex-col justify-center items-center">
         <p>Loading...</p>
@@ -98,8 +101,15 @@ export function Sidebar() {
     );
   }
 
-  // Organize menus by category
-  const activeMenus = menus.filter((m) => m.mnu_status === 1);
+  // Organize menus by category and keep only items user can access.
+  const userMask = parsePermissionMask(user?.permissions ?? "0");
+  const activeMenus = menus
+    .filter((m) => m.mnu_status === 1)
+    .filter((m) => {
+      if (!m.mnu_id) return true;
+      const requiredMask = parsePermissionMask(authMap?.menuPermissions?.[m.mnu_id] ?? "0");
+      return hasAnyPermission(userMask, requiredMask);
+    });
   const headerMenus = activeMenus.filter(
     (m) => m.mnu_id?.substring(0, 1) === "H",
   );
