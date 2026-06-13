@@ -4,7 +4,11 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth/context";
-import { hasAnyPermission, parsePermissionMask } from "@/lib/auth/permissions";
+import {
+  PERMISSIONS,
+  hasAnyPermission,
+  parsePermissionMask,
+} from "@/lib/auth/permissions";
 
 type PermissionsMapResponse = {
   routePermissions: Record<string, string>;
@@ -46,5 +50,23 @@ export function useCanAccessMenu(menuId: string) {
     const required = parsePermissionMask(data.menuPermissions[menuId] ?? "0");
     return hasAnyPermission(userMask, required);
   }, [user, data, menuId]);
+}
+
+/**
+ * Bitwise check for whether the current user may assign a role to an employee.
+ * Mirrors the C# Blazor gate of
+ * `AssignRoles | AdministrationRolesAndPermissions | AllAccess`.
+ */
+export function useCanAssignRoles() {
+  const { user } = useAuth();
+  return useMemo(() => {
+    if (!user) return false;
+    const userMask = parsePermissionMask(user.permissions);
+    const required =
+      PERMISSIONS.AssignRoles |
+      PERMISSIONS.AdministrationRolesAndPermissions |
+      PERMISSIONS.AllAccess;
+    return hasAnyPermission(userMask, required);
+  }, [user]);
 }
 

@@ -32,7 +32,7 @@ import { format as formatDate } from "date-fns";
 
 const overtimeSchema = z.object({
   otm_type: z.string().min(1, "Overtime type is required"),
-  otm_date: z.date({ required_error: "Date is required" }),
+  otm_date: z.date({ message: "Date is required" }),
   otm_from_time: z.string().min(1, "From time is required"),
   otm_to_time: z.string().min(1, "To time is required"),
   otm_reason: z

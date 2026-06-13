@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth/jwt-edge";
 import { approvalStatus } from "@/lib/services/approval.service";
+import { prisma } from "@/lib/db/prisma";
+
+const STATUS_LABEL: Record<number, string> = { 1: "approved", 2: "rejected", 4: "returned for revision" };
+const MODULE_LABEL: Record<string, string> = {
+  L001: "Leave", OT01: "Overtime", UT01: "Undertime", CA01: "COA", SC01: "Schedule Adjustment", LN01: "Loan",
+};
 
 /**
  * PUT /api/approval/{status}
@@ -72,6 +78,23 @@ export async function PUT(
       // This logic is complex and module-specific, so we'll handle it per module type
 
       processedIds.push(approval.mod_id);
+
+      // Notify the requesting employee
+      try {
+        const moduleName = MODULE_LABEL[approval.module] ?? approval.module ?? "Request";
+        const actionLabel = STATUS_LABEL[status] ?? "updated";
+        await prisma.notification.create({
+          data: {
+            not_emp: approval.emp_id,
+            not_title: `${moduleName} ${actionLabel}`,
+            not_desc: `Your ${moduleName.toLowerCase()} request has been ${actionLabel}.`,
+            not_status: 0,
+            not_createdby: approverId,
+          },
+        });
+      } catch {
+        // Non-critical — don't fail the approval if notification insert fails
+      }
     }
 
     return NextResponse.json(processedIds);

@@ -29,7 +29,7 @@ import { useToast } from "@/lib/hooks/use-toast";
 import { beforeAfter } from "@/lib/utils/requestLimit";
 
 const undertimeSchema = z.object({
-  UtmDate: z.date({ required_error: "Date is required" }),
+  UtmDate: z.date({ message: "Date is required" }),
   UtmFromTime: z.string().min(1, "From time is required"),
   UtmToTime: z.string().min(1, "To time is required"),
   UtmReason: z

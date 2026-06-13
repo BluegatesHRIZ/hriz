@@ -3,6 +3,57 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, ApiError } from "@/lib/api/client";
 
+export interface EmpMedRec {
+  emp_mrid: string;
+  emp_mrfile: string | null;
+  emp_mrrem: string | null;
+}
+
+export interface EmpMovement {
+  emp_mvid: string;
+  emp_mvdate: Date | null;
+  emp_mvposfrm: string | null;
+  emp_mvposto: string | null;
+  emp_mvsvisor: string | null;
+  emp_mvdept: string | null;
+  emp_mvtype: string | null;
+  emp_mvempstat: string | null;
+  emp_mvloc: string | null;
+}
+
+export interface EmpMemo {
+  emp_mmid: string;
+  emp_mmlev: string | null;
+  emp_mmcode: string | null;
+  emp_mmtype: string | null;
+  emp_mmnote: string | null;
+  emp_mmlogdate: Date | null;
+}
+
+export interface EmpAsset {
+  emp_asid: string;
+  emp_asitem: string | null;
+  emp_assn: string | null;
+  emp_asissue: Date | null;
+  emp_asreturn: Date | null;
+  emp_ascond: string | null;
+}
+
+export interface EmpTraining {
+  emp_trid: string;
+  emp_trdate: Date | null;
+  emp_trdesc: string | null;
+  emp_tradd: string | null;
+  emp_trspeak: string | null;
+  emp_trtype: string | null;
+}
+
+export interface EmpReq {
+  emp_rqid: string;
+  emp_rqname: string | null;
+  emp_rqnote: string | null;
+}
+
 export interface EmployeeDetail {
   Account: {
     EmpId: string;
@@ -130,6 +181,12 @@ export interface EmployeeDetail {
     AlStatus: number | null;
     AlRemarks: string | null;
   }>;
+  EmpMedRec: EmpMedRec[];
+  EmpMovement: EmpMovement[];
+  EmpMemo: EmpMemo[];
+  EmpAsset: EmpAsset[];
+  EmpTraining: EmpTraining[];
+  EmpReq: EmpReq[];
   files: {
     profile: {
       fil_id: string;
@@ -165,6 +222,12 @@ export const EMPTY_EMPLOYEE_DETAIL: EmployeeDetail = {
   EmpAdvance: [],
   Schedule: [],
   Approval: [],
+  EmpMedRec: [],
+  EmpMovement: [],
+  EmpMemo: [],
+  EmpAsset: [],
+  EmpTraining: [],
+  EmpReq: [],
   files: { profile: null },
 };
 
@@ -264,7 +327,12 @@ export function useLocations() {
 }
 
 /**
- * Hook for fetching roles
+ * Hook for fetching roles assignable to employees.
+ *
+ * Unified with the role-management list (`/api/roles-permissions/roles`) so the
+ * Employee Security tab and the Role Maker share a single source of truth.
+ * The shape is normalised to the legacy `{ rol_id, rol_name, rol_desc }` used
+ * by the security tab dropdown.
  */
 export function useRoles() {
   return useQuery<
@@ -276,13 +344,17 @@ export function useRoles() {
       const token = localStorage.getItem("auth_token");
       if (!token) throw new ApiError("No token found", 401);
 
-      return apiFetch<
-        Array<{ rol_id: string; rol_name: string | null; rol_desc: string | null }>
-      >("/roles", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      const roles = await apiFetch<
+        Array<{ RolId: string; RolName: string | null; RolDesc: string | null }>
+      >("/roles-permissions/roles", {
+        headers: { Authorization: `Bearer ${token}` },
       });
+
+      return roles.map((role) => ({
+        rol_id: role.RolId,
+        rol_name: role.RolName,
+        rol_desc: role.RolDesc,
+      }));
     },
   });
 }
@@ -666,6 +738,181 @@ export function useSaveAdvances(empId: string) {
         queryKey: ["employee", "detail", empId],
       });
     },
+  });
+}
+
+function authHeader() {
+  const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+  if (!token) throw new ApiError("No token found", 401);
+  return { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+}
+
+export function useAddMedicalRecord(empId: string) {
+  const qc = useQueryClient();
+  return useMutation<EmpMedRec, ApiError, { emp_mrfile?: string; emp_mrrem?: string }>({
+    mutationFn: (data) => apiFetch<EmpMedRec>(`/employee/${empId}/medical-records`, { method: "POST", headers: authHeader(), body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["employee", "medrec", empId] }),
+  });
+}
+
+export function useDeleteMedicalRecord(empId: string) {
+  const qc = useQueryClient();
+  return useMutation<void, ApiError, string>({
+    mutationFn: (mrid) => apiFetch<void>(`/employee/${empId}/medical-records?mrid=${mrid}`, { method: "DELETE", headers: { Authorization: `Bearer ${localStorage.getItem("auth_token") ?? ""}` } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["employee", "medrec", empId] }),
+  });
+}
+
+export function useMedicalRecords(empId: string) {
+  return useQuery<EmpMedRec[], ApiError>({
+    queryKey: ["employee", "medrec", empId],
+    queryFn: () => apiFetch<EmpMedRec[]>(`/employee/${empId}/medical-records`, { headers: { Authorization: `Bearer ${localStorage.getItem("auth_token") ?? ""}` } }),
+    enabled: !!empId,
+  });
+}
+
+export function useAssets(empId: string) {
+  return useQuery<EmpAsset[], ApiError>({
+    queryKey: ["employee", "assets", empId],
+    queryFn: () => apiFetch<EmpAsset[]>(`/employee/${empId}/assets`, { headers: { Authorization: `Bearer ${localStorage.getItem("auth_token") ?? ""}` } }),
+    enabled: !!empId,
+  });
+}
+
+export function useAddAsset(empId: string) {
+  const qc = useQueryClient();
+  return useMutation<EmpAsset, ApiError, Omit<EmpAsset, "emp_asid">>({
+    mutationFn: (data) => apiFetch<EmpAsset>(`/employee/${empId}/assets`, { method: "POST", headers: authHeader(), body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["employee", "assets", empId] }),
+  });
+}
+
+export function useUpdateAsset(empId: string) {
+  const qc = useQueryClient();
+  return useMutation<EmpAsset, ApiError, EmpAsset>({
+    mutationFn: (data) => apiFetch<EmpAsset>(`/employee/${empId}/assets`, { method: "PUT", headers: authHeader(), body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["employee", "assets", empId] }),
+  });
+}
+
+export function useDeleteAsset(empId: string) {
+  const qc = useQueryClient();
+  return useMutation<void, ApiError, string>({
+    mutationFn: (asid) => apiFetch<void>(`/employee/${empId}/assets?asid=${asid}`, { method: "DELETE", headers: { Authorization: `Bearer ${localStorage.getItem("auth_token") ?? ""}` } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["employee", "assets", empId] }),
+  });
+}
+
+export function useMovements(empId: string) {
+  return useQuery<EmpMovement[], ApiError>({
+    queryKey: ["employee", "movement", empId],
+    queryFn: () => apiFetch<EmpMovement[]>(`/employee/${empId}/movement`, { headers: { Authorization: `Bearer ${localStorage.getItem("auth_token") ?? ""}` } }),
+    enabled: !!empId,
+  });
+}
+
+export function useAddMovement(empId: string) {
+  const qc = useQueryClient();
+  return useMutation<EmpMovement, ApiError, Omit<EmpMovement, "emp_mvid">>({
+    mutationFn: (data) => apiFetch<EmpMovement>(`/employee/${empId}/movement`, { method: "POST", headers: authHeader(), body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["employee", "movement", empId] }),
+  });
+}
+
+export function useMemos(empId: string) {
+  return useQuery<EmpMemo[], ApiError>({
+    queryKey: ["employee", "memos", empId],
+    queryFn: () => apiFetch<EmpMemo[]>(`/employee/${empId}/memos`, { headers: { Authorization: `Bearer ${localStorage.getItem("auth_token") ?? ""}` } }),
+    enabled: !!empId,
+  });
+}
+
+export function useAddMemo(empId: string) {
+  const qc = useQueryClient();
+  return useMutation<EmpMemo, ApiError, Omit<EmpMemo, "emp_mmid" | "emp_mmlogdate">>({
+    mutationFn: (data) => apiFetch<EmpMemo>(`/employee/${empId}/memos`, { method: "POST", headers: authHeader(), body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["employee", "memos", empId] }),
+  });
+}
+
+export function useTrainings(empId: string) {
+  return useQuery<EmpTraining[], ApiError>({
+    queryKey: ["employee", "trainings", empId],
+    queryFn: () => apiFetch<EmpTraining[]>(`/employee/${empId}/trainings`, { headers: { Authorization: `Bearer ${localStorage.getItem("auth_token") ?? ""}` } }),
+    enabled: !!empId,
+  });
+}
+
+export function useAddTraining(empId: string) {
+  const qc = useQueryClient();
+  return useMutation<EmpTraining, ApiError, Omit<EmpTraining, "emp_trid">>({
+    mutationFn: (data) => apiFetch<EmpTraining>(`/employee/${empId}/trainings`, { method: "POST", headers: authHeader(), body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["employee", "trainings", empId] }),
+  });
+}
+
+export function useDeleteTraining(empId: string) {
+  const qc = useQueryClient();
+  return useMutation<void, ApiError, string>({
+    mutationFn: (trid) => apiFetch<void>(`/employee/${empId}/trainings?trid=${trid}`, { method: "DELETE", headers: { Authorization: `Bearer ${localStorage.getItem("auth_token") ?? ""}` } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["employee", "trainings", empId] }),
+  });
+}
+
+export function useRequirements(empId: string) {
+  return useQuery<EmpReq[], ApiError>({
+    queryKey: ["employee", "requirements", empId],
+    queryFn: () => apiFetch<EmpReq[]>(`/employee/${empId}/requirements`, { headers: { Authorization: `Bearer ${localStorage.getItem("auth_token") ?? ""}` } }),
+    enabled: !!empId,
+  });
+}
+
+export function useAddRequirement(empId: string) {
+  const qc = useQueryClient();
+  return useMutation<EmpReq, ApiError, { emp_rqname?: string; emp_rqnote?: string }>({
+    mutationFn: (data) => apiFetch<EmpReq>(`/employee/${empId}/requirements`, { method: "POST", headers: authHeader(), body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["employee", "requirements", empId] }),
+  });
+}
+
+export function useDeleteRequirement(empId: string) {
+  const qc = useQueryClient();
+  return useMutation<void, ApiError, string>({
+    mutationFn: (rqid) => apiFetch<void>(`/employee/${empId}/requirements?rqid=${rqid}`, { method: "DELETE", headers: { Authorization: `Bearer ${localStorage.getItem("auth_token") ?? ""}` } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["employee", "requirements", empId] }),
+  });
+}
+
+export interface ApprovalLevelRecord {
+  al_id: string;
+  al_appvr: string | null;
+  al_emp: string | null;
+  al_menu: string | null;
+  al_level: number | null;
+  al_stat: number | null;
+}
+
+export function useApprovalLevels(empId: string) {
+  return useQuery<ApprovalLevelRecord[], ApiError>({
+    queryKey: ["employee", "approvals", empId],
+    queryFn: () => apiFetch<ApprovalLevelRecord[]>(`/employee/${empId}/approval-levels`, { headers: { Authorization: `Bearer ${localStorage.getItem("auth_token") ?? ""}` } }),
+    enabled: !!empId,
+  });
+}
+
+export function useAddApprovalLevel(empId: string) {
+  const qc = useQueryClient();
+  return useMutation<ApprovalLevelRecord, ApiError, { al_appvr?: string; al_menu?: string; al_level?: number }>({
+    mutationFn: (data) => apiFetch<ApprovalLevelRecord>(`/employee/${empId}/approval-levels`, { method: "POST", headers: authHeader(), body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["employee", "approvals", empId] }),
+  });
+}
+
+export function useDeleteApprovalLevel(empId: string) {
+  const qc = useQueryClient();
+  return useMutation<void, ApiError, string>({
+    mutationFn: (alId) => apiFetch<void>(`/employee/${empId}/approval-levels?al_id=${alId}`, { method: "DELETE", headers: { Authorization: `Bearer ${localStorage.getItem("auth_token") ?? ""}` } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["employee", "approvals", empId] }),
   });
 }
 

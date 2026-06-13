@@ -271,10 +271,11 @@ export function useLeaveGrid() {
 export interface ScheduleDayDTO {
   sch_day?: string;
   sch_rest?: number;
-  sch_in?: string | null; // HH:mm format from API
-  sch_bin?: string | null; // HH:mm format from API
-  sch_bout?: string | null; // HH:mm format from API
-  sch_out?: string | null; // HH:mm format from API
+  sch_shift?: string;
+  sch_in?: string | null;   // HH:mm format from API
+  sch_bin?: string | null;  // break in HH:mm
+  sch_bout?: string | null; // break out HH:mm
+  sch_out?: string | null;  // HH:mm format from API
 }
 
 export function useUserLeaveScheduleList() {
@@ -647,7 +648,7 @@ export interface SchedAdjustDetailDTO {
   ScaDshiftend?: Date | string;
   ScaDrest?: number;
   ScaDbreak?: number;
-  ScaDShift?: number;
+  ScaDShift?: number | string;
   [key: string]: any;
 }
 
@@ -899,6 +900,13 @@ export interface LoanGridManagement {
   LoaReason?: string;
   LoaType?: string;
   LoaStatus?: number;
+  LoaExprelease?: string | null;
+  LoaApplieddate?: string | null;
+  EmpName?: string | null;
+  EmpAdaddedamt?: number | null;
+  EmpAdamtperpay?: number | null;
+  EmpAdpaypermonth?: number | null;
+  EmpAdpaycutoff?: number | null;
   [key: string]: any;
 }
 
@@ -924,7 +932,7 @@ export function useLoanManagementList() {
     queryFn: async () => {
       const token = localStorage.getItem("auth_token");
       if (!token) throw new ApiError("No token found", 401);
-      return apiFetch<LoanGridManagement[]>("/loan", {
+      return apiFetch<LoanGridManagement[]>("/loan/manage", {
         headers: { Authorization: `Bearer ${token}` },
       });
     },

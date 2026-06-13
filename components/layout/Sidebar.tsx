@@ -21,9 +21,10 @@ import {
   FileBarChart,
   Settings,
   User,
-  Bell,
   ChevronDown,
   LogOut,
+  KeyRound,
+  Receipt,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -35,6 +36,7 @@ import {
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { hasAnyPermission, parsePermissionMask } from "@/lib/auth/permissions";
+import { NotificationBell } from "@/components/layout/NotificationBell";
 
 interface SidebarLinkProps {
   title: string;
@@ -329,10 +331,7 @@ export function Sidebar() {
             </p>
             <p className="text-xs text-gray-400">{user?.name}</p>
           </div>
-          <button className="relative" aria-label="Notifications">
-            <Bell className="w-5 h-5" />
-            <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
-          </button>
+          <NotificationBell />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
@@ -344,15 +343,21 @@ export function Sidebar() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48 bg-white text-gray-900 border-gray-200">
               <DropdownMenuItem asChild>
-                <Link href="/dashboard" className="flex items-center gap-2 cursor-pointer">
+                <Link href="/profile" className="flex items-center gap-2 cursor-pointer">
                   <User className="w-4 h-4" />
                   Profile
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/dashboard" className="flex items-center gap-2 cursor-pointer">
-                  <Settings className="w-4 h-4" />
-                  Settings
+                <Link href="/profile/change-password" className="flex items-center gap-2 cursor-pointer">
+                  <KeyRound className="w-4 h-4" />
+                  Change Password
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/profile/payslip" className="flex items-center gap-2 cursor-pointer">
+                  <Receipt className="w-4 h-4" />
+                  Payslip
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />

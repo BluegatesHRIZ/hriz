@@ -39,8 +39,8 @@ import {
 } from "@/components/ui/table";
 
 const schema = z.object({
-  ScaSdatefrom: z.date({ required_error: "From date is required" }),
-  ScaSdateto: z.date({ required_error: "To date is required" }),
+  ScaSdatefrom: z.date({ message: "From date is required" }),
+  ScaSdateto: z.date({ message: "To date is required" }),
   ScaSreason: z.string().max(200, "Reason must be less than 200 characters"),
 });
 
@@ -140,8 +140,8 @@ export function ScheduleAdjustRequestForm({ empId, scaId, onSuccess }: Props) {
       .toUpperCase();
     const sched = scheduleDays?.find((s) => s.sch_day === dayName);
     const shiftIn = sched?.sch_in ?? "07:00";
-    const breakIn = sched?.sch_breakin ?? "11:00";
-    const breakOut = sched?.sch_breakout ?? "12:00";
+    const breakIn = sched?.sch_bin ?? "11:00";
+    const breakOut = sched?.sch_bout ?? "12:00";
     const shiftOut = sched?.sch_out ?? "16:00";
     const isRest = sched?.sch_rest === 1;
 
@@ -574,7 +574,7 @@ export function ScheduleAdjustRequestForm({ empId, scaId, onSuccess }: Props) {
                     <TableCell>
                       <select
                         className="border rounded-md px-2 py-1 text-sm"
-                        value={(d.ScaDShift as string) || "R"}
+                        value={d.ScaDShift != null ? String(d.ScaDShift) : "R"}
                         onChange={(e) => updateDetail(idx, "ScaDShift", e.target.value)}
                       >
                         <option value="R">Regular</option>

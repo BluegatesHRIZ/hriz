@@ -25,6 +25,13 @@ import { BenefitsAndLeaveTab } from "@/components/employee/BenefitsAndLeaveTab";
 import { SalaryHistoryTab } from "@/components/employee/SalaryHistoryTab";
 import { AdvancesAndLoansTab } from "@/components/employee/AdvancesAndLoansTab";
 import { SecurityTab } from "@/components/employee/SecurityTab";
+import { MedicalRecordsTab } from "@/components/employee/MedicalRecordsTab";
+import { AssetsTab } from "@/components/employee/AssetsTab";
+import { MovementTab } from "@/components/employee/MovementTab";
+import { MemosTab } from "@/components/employee/MemosTab";
+import { TrainingsTab } from "@/components/employee/TrainingsTab";
+import { RequirementsTab } from "@/components/employee/RequirementsTab";
+import { ApprovalLevelsTab } from "@/components/employee/ApprovalLevelsTab";
 
 export default function EmployeeDetailPage() {
   const router = useRouter();
@@ -120,7 +127,7 @@ export default function EmployeeDetailPage() {
       {/* Tabs */}
       <div className="bg-white pb-5">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-7 bg-transparent border-b rounded-none h-auto p-0">
+          <TabsList className="flex w-full flex-wrap bg-transparent border-b rounded-none h-auto p-0">
             <TabsTrigger
               value="account"
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#2972fb] data-[state=active]:bg-transparent data-[state=active]:text-[#2972fb]"
@@ -162,6 +169,48 @@ export default function EmployeeDetailPage() {
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#2972fb] data-[state=active]:bg-transparent data-[state=active]:text-[#2972fb]"
             >
               Security
+            </TabsTrigger>
+            <TabsTrigger
+              value="medical"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#2972fb] data-[state=active]:bg-transparent data-[state=active]:text-[#2972fb]"
+            >
+              Medical Records
+            </TabsTrigger>
+            <TabsTrigger
+              value="assets"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#2972fb] data-[state=active]:bg-transparent data-[state=active]:text-[#2972fb]"
+            >
+              Assets
+            </TabsTrigger>
+            <TabsTrigger
+              value="movement"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#2972fb] data-[state=active]:bg-transparent data-[state=active]:text-[#2972fb]"
+            >
+              Movement
+            </TabsTrigger>
+            <TabsTrigger
+              value="memos"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#2972fb] data-[state=active]:bg-transparent data-[state=active]:text-[#2972fb]"
+            >
+              Memos
+            </TabsTrigger>
+            <TabsTrigger
+              value="trainings"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#2972fb] data-[state=active]:bg-transparent data-[state=active]:text-[#2972fb]"
+            >
+              Trainings
+            </TabsTrigger>
+            <TabsTrigger
+              value="requirements"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#2972fb] data-[state=active]:bg-transparent data-[state=active]:text-[#2972fb]"
+            >
+              Requirements
+            </TabsTrigger>
+            <TabsTrigger
+              value="approvals"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#2972fb] data-[state=active]:bg-transparent data-[state=active]:text-[#2972fb]"
+            >
+              Approval Levels
             </TabsTrigger>
           </TabsList>
 
@@ -211,6 +260,34 @@ export default function EmployeeDetailPage() {
 
           <TabsContent value="security" className="mt-6">
             <SecurityTab employee={displayEmployee} />
+          </TabsContent>
+
+          <TabsContent value="medical" className="mt-6">
+            {!isNewEmployee && <MedicalRecordsTab empId={empId} />}
+          </TabsContent>
+
+          <TabsContent value="assets" className="mt-6">
+            {!isNewEmployee && <AssetsTab empId={empId} />}
+          </TabsContent>
+
+          <TabsContent value="movement" className="mt-6">
+            {!isNewEmployee && <MovementTab empId={empId} />}
+          </TabsContent>
+
+          <TabsContent value="memos" className="mt-6">
+            {!isNewEmployee && <MemosTab empId={empId} />}
+          </TabsContent>
+
+          <TabsContent value="trainings" className="mt-6">
+            {!isNewEmployee && <TrainingsTab empId={empId} />}
+          </TabsContent>
+
+          <TabsContent value="requirements" className="mt-6">
+            {!isNewEmployee && <RequirementsTab empId={empId} />}
+          </TabsContent>
+
+          <TabsContent value="approvals" className="mt-6">
+            {!isNewEmployee && <ApprovalLevelsTab empId={empId} />}
           </TabsContent>
         </Tabs>
       </div>

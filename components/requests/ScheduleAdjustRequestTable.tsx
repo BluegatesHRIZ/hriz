@@ -270,7 +270,7 @@ export function ScheduleAdjustRequestTable({ schedules, isLoading, status }: Pro
                           <TableCell>{fmtDate(d.ScaDbreakstart)}</TableCell>
                           <TableCell>{fmtDate(d.ScaDbreakend)}</TableCell>
                           <TableCell>{fmtDate(d.ScaDshiftend)}</TableCell>
-                          <TableCell>{(d.ScaDShift as string) || "-"}</TableCell>
+                          <TableCell>{d.ScaDShift != null ? String(d.ScaDShift) : "-"}</TableCell>
                           <TableCell>{d.ScaDrest === 1 ? "Yes" : "No"}</TableCell>
                         </TableRow>
                       ))}

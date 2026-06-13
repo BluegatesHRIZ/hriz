@@ -82,4 +82,48 @@ export const queryKeys = {
     managementList: () => [...queryKeys.loan.all, "managementList"] as const,
     detail: (id: string) => [...queryKeys.loan.all, "detail", id] as const,
   },
+
+  // Roles & Permissions (Role Management)
+  rolesPermissions: {
+    all: ["rolesPermissions"] as const,
+    roles: () => [...queryKeys.rolesPermissions.all, "roles"] as const,
+    roleAndPermission: () =>
+      [...queryKeys.rolesPermissions.all, "roleAndPermission"] as const,
+    permissions: () => [...queryKeys.rolesPermissions.all, "permissions"] as const,
+    permissionValue: (role: string) =>
+      [...queryKeys.rolesPermissions.all, "permissionValue", role] as const,
+  },
+
+  // Reports
+  reports: {
+    all: ["reports"] as const,
+    attendance: (filters?: Record<string, unknown>) =>
+      [...queryKeys.reports.all, "attendance", filters] as const,
+    leave: (filters?: Record<string, unknown>) =>
+      [...queryKeys.reports.all, "leave", filters] as const,
+    overtime: (filters?: Record<string, unknown>) =>
+      [...queryKeys.reports.all, "overtime", filters] as const,
+    payroll: (year: string) =>
+      [...queryKeys.reports.all, "payroll", year] as const,
+    dailylog: (date: string) =>
+      [...queryKeys.reports.all, "dailylog", date] as const,
+    undertime: (filters?: Record<string, unknown>) =>
+      [...queryKeys.reports.all, "undertime", filters] as const,
+    scheduleChange: (filters?: Record<string, unknown>) =>
+      [...queryKeys.reports.all, "scheduleChange", filters] as const,
+    coa: (filters?: Record<string, unknown>) =>
+      [...queryKeys.reports.all, "coaReport", filters] as const,
+    biolog: (filters?: Record<string, unknown>) =>
+      [...queryKeys.reports.all, "biolog", filters] as const,
+  },
+
+  contributions: {
+    all: ["contributions"] as const,
+    sss: (year: string, emp: string) =>
+      [...queryKeys.contributions.all, "sss", year, emp] as const,
+    hdmf: (year: string, emp: string) =>
+      [...queryKeys.contributions.all, "hdmf", year, emp] as const,
+    phic: (year: string, emp: string) =>
+      [...queryKeys.contributions.all, "phic", year, emp] as const,
+  },
 };

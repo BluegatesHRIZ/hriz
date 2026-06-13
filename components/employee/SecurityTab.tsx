@@ -7,6 +7,7 @@ import {
   useRoles,
   useUpdateEmployeeAccount,
 } from "@/lib/hooks/useEmployeeDetail"
+import { useCanAssignRoles } from "@/lib/hooks/useAuthorization"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
@@ -28,6 +29,7 @@ export function SecurityTab({ employee }: SecurityTabProps) {
   const { toast } = useToast()
   const passwordMutation = useChangePassword(employee.Account.EmpId)
   const updateAccountMutation = useUpdateEmployeeAccount(employee.Account.EmpId)
+  const canAssignRoles = useCanAssignRoles()
   const { data: roles } = useRoles()
 
   const [selectedRole, setSelectedRole] = useState(
@@ -138,47 +140,50 @@ export function SecurityTab({ employee }: SecurityTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* Role Assignment */}
-      <div>
-        <h4 className="text-lg font-semibold mb-4">Assign Role</h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl">
-          <div>
-            <Label htmlFor="EmpRole">Role Type</Label>
-            <Select
-              value={selectedRole}
-              onValueChange={(value) => setSelectedRole(value)}
+      {/* Role Assignment – only available to users with AssignRoles,
+          AdministrationRolesAndPermissions, or AllAccess (mirrors C# UI gate). */}
+      {canAssignRoles && (
+        <div>
+          <h4 className="text-lg font-semibold mb-4">Assign Role</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl">
+            <div>
+              <Label htmlFor="EmpRole">Role Type</Label>
+              <Select
+                value={selectedRole}
+                onValueChange={(value) => setSelectedRole(value)}
+              >
+                <SelectTrigger id="EmpRole" className="bg-gray-50">
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {roles?.map((role) => (
+                    <SelectItem key={role.rol_id} value={role.rol_id}>
+                      {role.rol_name || role.rol_id}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="role_description">Description</Label>
+              <p id="role_description" className="text-sm text-gray-600 mt-1">
+                {roles?.find((r) => r.rol_id === selectedRole)?.rol_desc ??
+                  "Undefined"}
+              </p>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button
+              type="button"
+              onClick={handleSaveRole}
+              disabled={updateAccountMutation.isPending}
             >
-              <SelectTrigger id="EmpRole" className="bg-gray-50">
-                <SelectValue placeholder="Select role" />
-              </SelectTrigger>
-              <SelectContent>
-                {roles?.map((role) => (
-                  <SelectItem key={role.rol_id} value={role.rol_id}>
-                    {role.rol_name || role.rol_id}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label htmlFor="role_description">Description</Label>
-            <p id="role_description" className="text-sm text-gray-600 mt-1">
-              {roles?.find((r) => r.rol_id === selectedRole)?.rol_desc ??
-                "Undefined"}
-            </p>
+              <Save className="mr-2 h-4 w-4" />
+              {updateAccountMutation.isPending ? "Saving..." : "Save Role"}
+            </Button>
           </div>
         </div>
-        <div className="flex justify-end gap-2 mt-4">
-          <Button
-            type="button"
-            onClick={handleSaveRole}
-            disabled={updateAccountMutation.isPending}
-          >
-            <Save className="mr-2 h-4 w-4" />
-            {updateAccountMutation.isPending ? "Saving..." : "Save Role"}
-          </Button>
-        </div>
-      </div>
+      )}
 
       {/* Change Password */}
       <div>

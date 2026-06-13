@@ -29,10 +29,21 @@ const MENU_TO_PERMISSION_NAMES: Record<string, PermissionName[]> = {
   M4: ["AccessUndertime", "AllAccess"],
   M5: ["AccessScheduleAdjustment", "AllAccess"],
   M6: ["AccessLoan", "AllAccess"],
+  H4: ["AccessContribution", "AllAccess"],
   C1: ["SSSContribution", "AllAccess"],
   C2: ["HDMFContribution", "AllAccess"],
   C3: ["PHICContribution", "AllAccess"],
   PR1: ["AccessPayroll", "AllAccess"],
+  // R* rows mirror the Reports accordion in the Blazor `HRIS_Header.razor`.
+  // R4 (Payroll Report) is granted by AccessReports OR AllAccess at the menu
+  // level; the page itself further gates on `PayrollReport | AllAccess`.
+  R1: ["AccessReports", "AllAccess"],
+  R2: ["AccessReports", "AllAccess"],
+  R3: ["AccessReports", "AllAccess"],
+  R4: ["AccessReports", "AllAccess"],
+  R5: ["AccessReports", "AllAccess"],
+  R6: ["AccessReports", "AllAccess"],
+  R7: ["AccessReports", "AllAccess"],
 };
 
 const ROUTE_TO_PERMISSION_NAMES: Record<string, PermissionName[]> = {
@@ -42,12 +53,40 @@ const ROUTE_TO_PERMISSION_NAMES: Record<string, PermissionName[]> = {
   requestUndertime: ["AccessUndertime", "AllAccess"],
   requestScheduleChange: ["AccessScheduleAdjustment", "AllAccess"],
   requestLoan: ["AccessLoan", "AllAccess"],
+  adminRolesPermissions: ["AdministrationRolesAndPermissions", "AllAccess"],
   apiLeave: ["AccessLeave", "AllAccess"],
   apiAttendanceChange: ["AccessAttendanceChange", "AllAccess"],
   apiOvertime: ["AccessOvertime", "AllAccess"],
   apiUndertime: ["AccessUndertime", "AllAccess"],
   apiScheduleChange: ["AccessScheduleAdjustment", "AllAccess"],
   apiLoan: ["AccessLoan", "AllAccess"],
+  apiRolesPermissionsRead: ["None"],
+  apiRolesPermissionsWrite: ["AdministrationRolesAndPermissions", "AllAccess"],
+  reportAttendance: ["AccessReports", "AllAccess"],
+  reportLeave: ["AccessReports", "AllAccess"],
+  reportOvertime: ["AccessReports", "AllAccess"],
+  reportPayroll: ["PayrollReport", "AllAccess"],
+  reportDailylog: ["AccessReports", "AllAccess"],
+  apiAttendanceReport: ["AccessReports", "AllAccess"],
+  apiLeaveReport: ["AccessReports", "AllAccess"],
+  apiOvertimeReport: ["AccessReports", "AllAccess"],
+  apiPayrollReport: ["PayrollReport", "AllAccess"],
+  apiDailylogReport: ["AccessReports", "AllAccess"],
+  reportUndertime: ["AccessReports", "AllAccess"],
+  reportScheduleChange: ["AccessReports", "AllAccess"],
+  reportCoa: ["AccessReports", "AllAccess"],
+  reportBiolog: ["AccessBiolog", "AllAccess"],
+  apiUndertimeReport: ["AccessReports", "AllAccess"],
+  apiScheduleChangeReport: ["AccessReports", "AllAccess"],
+  apiCoaReport: ["AccessReports", "AllAccess"],
+  apiBiologReport: ["AccessBiolog", "AllAccess"],
+  contributionSss: ["SSSContribution", "AllAccess"],
+  contributionHdmf: ["HDMFContribution", "AllAccess"],
+  contributionPhic: ["PHICContribution", "AllAccess"],
+  apiContributionSss: ["SSSContribution", "AllAccess"],
+  apiContributionHdmf: ["HDMFContribution", "AllAccess"],
+  apiContributionPhic: ["PHICContribution", "AllAccess"],
+  adminManageLoans: ["LoanApprove", "LoanRelease", "AllAccess"],
 };
 
 async function fetchPermissionValues() {
@@ -97,6 +136,16 @@ export async function getAuthorizationConfig() {
   if (cache && cache.expiresAt > Date.now()) return cache;
   cache = await buildCache();
   return cache;
+}
+
+/**
+ * Clears the in-memory authorization cache so the next request rebuilds it
+ * from the database. Call after any mutation that affects `accrole`,
+ * `accpermission`, or `accrolepermission` so route/menu masks reflect the
+ * latest permission values.
+ */
+export function invalidateAuthorizationCache(): void {
+  cache = null;
 }
 
 export async function getRouteRequiredMask(routeKey: string): Promise<bigint> {

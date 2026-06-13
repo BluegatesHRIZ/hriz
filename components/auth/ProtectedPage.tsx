@@ -7,7 +7,7 @@ import { useAuthorizationMap } from "@/lib/hooks/useAuthorization";
 import { hasAnyPermission, parsePermissionMask } from "@/lib/auth/permissions";
 
 interface ProtectedPageProps {
-  routeKey: string;
+  routeKey?: string;
   children: React.ReactNode;
 }
 
@@ -17,8 +17,10 @@ export function ProtectedPage({ routeKey, children }: ProtectedPageProps) {
   const { data: map, isLoading: mapLoading } = useAuthorizationMap();
 
   const userMask = parsePermissionMask(user?.permissions ?? "0");
-  const requiredMask = parsePermissionMask(map?.routePermissions?.[routeKey] ?? "0");
-  const allowed = hasAnyPermission(userMask, requiredMask);
+  const requiredMask = parsePermissionMask(
+    routeKey ? (map?.routePermissions?.[routeKey] ?? "0") : "0"
+  );
+  const allowed = !routeKey || hasAnyPermission(userMask, requiredMask);
 
   useEffect(() => {
     if (authLoading || mapLoading) return;
@@ -26,12 +28,12 @@ export function ProtectedPage({ routeKey, children }: ProtectedPageProps) {
       router.replace("/login");
       return;
     }
-    if (!allowed) {
+    if (routeKey && !allowed) {
       router.replace("/unauthorized");
     }
-  }, [allowed, authLoading, mapLoading, router, user]);
+  }, [allowed, authLoading, mapLoading, router, routeKey, user]);
 
-  if (authLoading || mapLoading || !user || !allowed) {
+  if (authLoading || mapLoading || !user || (routeKey && !allowed)) {
     return <div className="p-6 text-sm text-gray-500">Checking permissions...</div>;
   }
 

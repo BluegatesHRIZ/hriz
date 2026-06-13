@@ -11,12 +11,42 @@ const COARSE_ROUTE_PERMISSIONS: Record<string, bigint> = {
   requestUndertime: PERMISSIONS.AccessUndertime | PERMISSIONS.AllAccess,
   requestScheduleChange: PERMISSIONS.AccessScheduleAdjustment | PERMISSIONS.AllAccess,
   requestLoan: PERMISSIONS.AccessLoan | PERMISSIONS.AllAccess,
+  adminRolesPermissions:
+    PERMISSIONS.AdministrationRolesAndPermissions | PERMISSIONS.AllAccess,
   apiLeave: PERMISSIONS.AccessLeave | PERMISSIONS.AllAccess,
   apiAttendanceChange: PERMISSIONS.AccessAttendanceChange | PERMISSIONS.AllAccess,
   apiOvertime: PERMISSIONS.AccessOvertime | PERMISSIONS.AllAccess,
   apiUndertime: PERMISSIONS.AccessUndertime | PERMISSIONS.AllAccess,
   apiScheduleChange: PERMISSIONS.AccessScheduleAdjustment | PERMISSIONS.AllAccess,
   apiLoan: PERMISSIONS.AccessLoan | PERMISSIONS.AllAccess,
+  // Reads are open to any authenticated user (mirrors C# `[Authorize]` defaults).
+  // Mutation handlers enforce `AdministrationRolesAndPermissions | AllAccess`
+  // via `authorizeApiRequest("apiRolesPermissionsWrite")`.
+  apiRolesPermissionsRead: BIGINT_ZERO,
+  reportAttendance: PERMISSIONS.AccessReports | PERMISSIONS.AllAccess,
+  reportLeave: PERMISSIONS.AccessReports | PERMISSIONS.AllAccess,
+  reportOvertime: PERMISSIONS.AccessReports | PERMISSIONS.AllAccess,
+  reportPayroll: PERMISSIONS.PayrollReport | PERMISSIONS.AllAccess,
+  reportDailylog: PERMISSIONS.AccessReports | PERMISSIONS.AllAccess,
+  apiAttendanceReport: PERMISSIONS.AccessReports | PERMISSIONS.AllAccess,
+  apiLeaveReport: PERMISSIONS.AccessReports | PERMISSIONS.AllAccess,
+  apiOvertimeReport: PERMISSIONS.AccessReports | PERMISSIONS.AllAccess,
+  apiPayrollReport: PERMISSIONS.PayrollReport | PERMISSIONS.AllAccess,
+  apiDailylogReport: PERMISSIONS.AccessReports | PERMISSIONS.AllAccess,
+  reportUndertime: PERMISSIONS.AccessReports | PERMISSIONS.AllAccess,
+  reportScheduleChange: PERMISSIONS.AccessReports | PERMISSIONS.AllAccess,
+  reportCoa: PERMISSIONS.AccessReports | PERMISSIONS.AllAccess,
+  reportBiolog: PERMISSIONS.AccessBiolog | PERMISSIONS.AllAccess,
+  apiUndertimeReport: PERMISSIONS.AccessReports | PERMISSIONS.AllAccess,
+  apiScheduleChangeReport: PERMISSIONS.AccessReports | PERMISSIONS.AllAccess,
+  apiCoaReport: PERMISSIONS.AccessReports | PERMISSIONS.AllAccess,
+  apiBiologReport: PERMISSIONS.AccessBiolog | PERMISSIONS.AllAccess,
+  contributionSss: PERMISSIONS.SSSContribution | PERMISSIONS.AllAccess,
+  contributionHdmf: PERMISSIONS.HDMFContribution | PERMISSIONS.AllAccess,
+  contributionPhic: PERMISSIONS.PHICContribution | PERMISSIONS.AllAccess,
+  apiContributionSss: PERMISSIONS.SSSContribution | PERMISSIONS.AllAccess,
+  apiContributionHdmf: PERMISSIONS.HDMFContribution | PERMISSIONS.AllAccess,
+  apiContributionPhic: PERMISSIONS.PHICContribution | PERMISSIONS.AllAccess,
 };
 
 /**
