@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useRouter } from "next/navigation";
 import { LoanRequestForm } from "@/components/requests/LoanRequestForm";
 import { ProtectedPage } from "@/components/auth/ProtectedPage";

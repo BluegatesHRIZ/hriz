@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { ProtectedPage } from "@/components/auth/ProtectedPage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DepartmentTab, LocationTab, PositionTab, LeaveTypeTab } from "@/components/admin/MasterfileTab";

@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { ProtectedPage } from "@/components/auth/ProtectedPage";
 import { ProfileTabs } from "@/components/profile/ProfileTabs";
 import { useAuth } from "@/lib/auth/context";
