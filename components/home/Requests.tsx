@@ -22,13 +22,13 @@ export function Requests() {
           <p>Loading...</p>
         </div>
       ) : moduleStats.length === 0 ? (
-        <p className="text-gray-500 text-center py-4">No request statistics</p>
+        <p className="text-muted-foreground text-center py-4">No request statistics</p>
       ) : (
         <div className="space-y-3">
           {moduleStats.map((mod: any, idx: number) => (
             <div key={idx} className="border-b pb-2">
               <p className="font-semibold text-sm">{mod.Module || "N/A"}</p>
-              <div className="flex justify-between text-xs text-gray-600 mt-1">
+              <div className="flex justify-between text-xs text-muted-foreground mt-1">
                 <span>Pending: {mod.Pending || 0}</span>
                 <span>Resended: {mod.Resended || 0}</span>
               </div>

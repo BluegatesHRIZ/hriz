@@ -35,6 +35,23 @@ import { TrainingsTab } from "@/components/employee/TrainingsTab";
 import { RequirementsTab } from "@/components/employee/RequirementsTab";
 import { ApprovalLevelsTab } from "@/components/employee/ApprovalLevelsTab";
 
+const TABS = [
+  { value: "account", label: "Account Information" },
+  { value: "schedule", label: "Work Schedule" },
+  { value: "work", label: "Work Information" },
+  { value: "benefits", label: "Benefits & Leave" },
+  { value: "salary", label: "Salary History" },
+  { value: "advances", label: "Advances & Loans" },
+  { value: "security", label: "Security" },
+  { value: "medical", label: "Medical Records" },
+  { value: "assets", label: "Assets" },
+  { value: "movement", label: "Movement" },
+  { value: "memos", label: "Memos" },
+  { value: "trainings", label: "Trainings" },
+  { value: "requirements", label: "Requirements" },
+  { value: "approvals", label: "Approval Levels" },
+];
+
 export default function EmployeeDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -74,21 +91,19 @@ export default function EmployeeDetailPage() {
 
   if (!isNewEmployee && (error || !employee)) {
     return (
-      <div className="container mt-4 pb-4">
-        <div className="flex items-center gap-4 mb-4">
-          <Button variant="outline" asChild>
-            <Link href="/employees">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to List
-            </Link>
-          </Button>
-        </div>
+      <div className="w-full px-4 md:px-6 lg:px-8 pt-5 pb-8">
+        <Button variant="ghost" size="sm" asChild className="mb-4 -ml-1 text-muted-foreground hover:text-foreground">
+          <Link href="/employees">
+            <ArrowLeft className="mr-1.5 h-4 w-4" />
+            Employee Management
+          </Link>
+        </Button>
         <CardWithHeader
           title="Error"
           icon={<User className="w-6 h-6" />}
           iconColor="#8db7ff"
         >
-          <p className="text-red-600">
+          <p className="text-destructive">
             {error ? "Failed to load employee details" : "Employee not found"}
           </p>
         </CardWithHeader>
@@ -101,198 +116,127 @@ export default function EmployeeDetailPage() {
     : employee!;
 
   return (
-    <div className="container mt-4 mb-2 pb-1">
+    <div className="w-full px-4 md:px-6 lg:px-8 pt-5 pb-8">
       {/* Header */}
-      <div className="mb-3">
-        <div className="flex items-center gap-4 mb-2">
-          <Button variant="outline" asChild>
-            <Link href="/employees">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
-            </Link>
-          </Button>
-        </div>
-        <h2 className="text-2xl font-normal text-[#2972fb] mb-0">
-          {isNewEmployee ? "Add New Employee" : "Employee Management"}
-        </h2>
-        {!isNewEmployee &&
-          displayEmployee.Account.EmpLast &&
-          displayEmployee.Account.EmpFirst && (
-            <h6 className="text-sm text-gray-500 font-normal italic mt-0 mb-0">
-              {displayEmployee.Account.EmpId
-                ? `(${displayEmployee.Account.EmpId}) ${displayEmployee.Account.EmpLast}, ${displayEmployee.Account.EmpFirst}`
-                : `${displayEmployee.Account.EmpLast}, ${displayEmployee.Account.EmpFirst}`}
-            </h6>
-          )}
+      <div className="mb-5">
+        <Button
+          variant="ghost"
+          size="sm"
+          asChild
+          className="mb-3 -ml-1 text-muted-foreground hover:text-foreground"
+        >
+          <Link href="/employees">
+            <ArrowLeft className="mr-1.5 h-4 w-4" />
+            Employee Management
+          </Link>
+        </Button>
+        <h1 className="text-2xl font-semibold text-foreground leading-tight">
+          {isNewEmployee
+            ? "Add New Employee"
+            : displayEmployee.Account.EmpLast
+            ? `${displayEmployee.Account.EmpLast}, ${displayEmployee.Account.EmpFirst}`
+            : "Employee Detail"}
+        </h1>
+        {!isNewEmployee && displayEmployee.Account.EmpId && (
+          <p className="text-sm text-muted-foreground mt-1">
+            Employee ID: {displayEmployee.Account.EmpId}
+          </p>
+        )}
       </div>
 
       {/* Tabs */}
-      <div className="bg-white pb-5">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="flex w-full flex-wrap bg-transparent border-b rounded-none h-auto p-0">
-            <TabsTrigger
-              value="account"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#2972fb] data-[state=active]:bg-transparent data-[state=active]:text-[#2972fb]"
-            >
-              Account Information
-            </TabsTrigger>
-            <TabsTrigger
-              value="schedule"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#2972fb] data-[state=active]:bg-transparent data-[state=active]:text-[#2972fb]"
-            >
-              Work Schedule
-            </TabsTrigger>
-            <TabsTrigger
-              value="work"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#2972fb] data-[state=active]:bg-transparent data-[state=active]:text-[#2972fb]"
-            >
-              Work Information
-            </TabsTrigger>
-            <TabsTrigger
-              value="benefits"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#2972fb] data-[state=active]:bg-transparent data-[state=active]:text-[#2972fb]"
-            >
-              Benefits & Leave
-            </TabsTrigger>
-            <TabsTrigger
-              value="salary"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#2972fb] data-[state=active]:bg-transparent data-[state=active]:text-[#2972fb]"
-            >
-              Salary History
-            </TabsTrigger>
-            <TabsTrigger
-              value="advances"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#2972fb] data-[state=active]:bg-transparent data-[state=active]:text-[#2972fb]"
-            >
-              Advances & Loans
-            </TabsTrigger>
-            <TabsTrigger
-              value="security"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#2972fb] data-[state=active]:bg-transparent data-[state=active]:text-[#2972fb]"
-            >
-              Security
-            </TabsTrigger>
-            <TabsTrigger
-              value="medical"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#2972fb] data-[state=active]:bg-transparent data-[state=active]:text-[#2972fb]"
-            >
-              Medical Records
-            </TabsTrigger>
-            <TabsTrigger
-              value="assets"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#2972fb] data-[state=active]:bg-transparent data-[state=active]:text-[#2972fb]"
-            >
-              Assets
-            </TabsTrigger>
-            <TabsTrigger
-              value="movement"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#2972fb] data-[state=active]:bg-transparent data-[state=active]:text-[#2972fb]"
-            >
-              Movement
-            </TabsTrigger>
-            <TabsTrigger
-              value="memos"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#2972fb] data-[state=active]:bg-transparent data-[state=active]:text-[#2972fb]"
-            >
-              Memos
-            </TabsTrigger>
-            <TabsTrigger
-              value="trainings"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#2972fb] data-[state=active]:bg-transparent data-[state=active]:text-[#2972fb]"
-            >
-              Trainings
-            </TabsTrigger>
-            <TabsTrigger
-              value="requirements"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#2972fb] data-[state=active]:bg-transparent data-[state=active]:text-[#2972fb]"
-            >
-              Requirements
-            </TabsTrigger>
-            <TabsTrigger
-              value="approvals"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#2972fb] data-[state=active]:bg-transparent data-[state=active]:text-[#2972fb]"
-            >
-              Approval Levels
-            </TabsTrigger>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        {/* Underline tab bar — scrolls horizontally for many tabs */}
+        <div className="overflow-x-auto mb-4">
+          <TabsList className="flex w-max min-w-full bg-transparent h-auto p-0 rounded-none items-end gap-0 border-b-2 border-border">
+            {TABS.map(({ value, label }) => (
+              <TabsTrigger
+                key={value}
+                value={value}
+                className="rounded-none border-b-2 border-transparent mb-[-2px] pb-3 pt-2 px-4 text-sm font-normal whitespace-nowrap text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:font-medium data-[state=active]:bg-transparent data-[state=active]:shadow-none transition-colors"
+              >
+                {label}
+              </TabsTrigger>
+            ))}
           </TabsList>
+        </div>
 
-          <TabsContent value="account" className="mt-6">
-            <AccountInformationTab
-              employee={displayEmployee}
-              departments={departments}
-              positions={positions}
-              locations={locations}
-              isNewEmployee={isNewEmployee}
-            />
-          </TabsContent>
+        <TabsContent value="account" className="mt-0">
+          <AccountInformationTab
+            employee={displayEmployee}
+            departments={departments}
+            positions={positions}
+            locations={locations}
+            isNewEmployee={isNewEmployee}
+          />
+        </TabsContent>
 
-          <TabsContent value="schedule" className="mt-6">
-            <WorkScheduleTab employee={displayEmployee} />
-          </TabsContent>
+        <TabsContent value="schedule" className="mt-0">
+          <WorkScheduleTab employee={displayEmployee} />
+        </TabsContent>
 
-          <TabsContent value="work" className="mt-6">
-            <WorkInformationTab
-              employee={displayEmployee}
-              employeeList={employees?.map((emp: Employee) => ({
-                EmpId: emp.emp_id,
-                TextName: `${emp.emp_last || ""}, ${emp.emp_first || ""} ${
-                  emp.emp_mid || ""
-                }`.trim(),
-              }))}
-            />
-          </TabsContent>
+        <TabsContent value="work" className="mt-0">
+          <WorkInformationTab
+            employee={displayEmployee}
+            employeeList={employees?.map((emp: Employee) => ({
+              EmpId: emp.emp_id,
+              TextName: `${emp.emp_last || ""}, ${emp.emp_first || ""} ${
+                emp.emp_mid || ""
+              }`.trim(),
+            }))}
+          />
+        </TabsContent>
 
-          <TabsContent value="benefits" className="mt-6">
-            <BenefitsAndLeaveTab
-              employee={displayEmployee}
-              isNewEmployee={isNewEmployee}
-            />
-          </TabsContent>
+        <TabsContent value="benefits" className="mt-0">
+          <BenefitsAndLeaveTab
+            employee={displayEmployee}
+            isNewEmployee={isNewEmployee}
+          />
+        </TabsContent>
 
-          <TabsContent value="salary" className="mt-6">
-            <SalaryHistoryTab
-              employee={displayEmployee}
-              positions={positions}
-            />
-          </TabsContent>
+        <TabsContent value="salary" className="mt-0">
+          <SalaryHistoryTab
+            employee={displayEmployee}
+            positions={positions}
+          />
+        </TabsContent>
 
-          <TabsContent value="advances" className="mt-6">
-            <AdvancesAndLoansTab employee={displayEmployee} />
-          </TabsContent>
+        <TabsContent value="advances" className="mt-0">
+          <AdvancesAndLoansTab employee={displayEmployee} />
+        </TabsContent>
 
-          <TabsContent value="security" className="mt-6">
-            <SecurityTab employee={displayEmployee} />
-          </TabsContent>
+        <TabsContent value="security" className="mt-0">
+          <SecurityTab employee={displayEmployee} />
+        </TabsContent>
 
-          <TabsContent value="medical" className="mt-6">
-            {!isNewEmployee && <MedicalRecordsTab empId={empId} />}
-          </TabsContent>
+        <TabsContent value="medical" className="mt-0">
+          {!isNewEmployee && <MedicalRecordsTab empId={empId} />}
+        </TabsContent>
 
-          <TabsContent value="assets" className="mt-6">
-            {!isNewEmployee && <AssetsTab empId={empId} />}
-          </TabsContent>
+        <TabsContent value="assets" className="mt-0">
+          {!isNewEmployee && <AssetsTab empId={empId} />}
+        </TabsContent>
 
-          <TabsContent value="movement" className="mt-6">
-            {!isNewEmployee && <MovementTab empId={empId} />}
-          </TabsContent>
+        <TabsContent value="movement" className="mt-0">
+          {!isNewEmployee && <MovementTab empId={empId} />}
+        </TabsContent>
 
-          <TabsContent value="memos" className="mt-6">
-            {!isNewEmployee && <MemosTab empId={empId} />}
-          </TabsContent>
+        <TabsContent value="memos" className="mt-0">
+          {!isNewEmployee && <MemosTab empId={empId} />}
+        </TabsContent>
 
-          <TabsContent value="trainings" className="mt-6">
-            {!isNewEmployee && <TrainingsTab empId={empId} />}
-          </TabsContent>
+        <TabsContent value="trainings" className="mt-0">
+          {!isNewEmployee && <TrainingsTab empId={empId} />}
+        </TabsContent>
 
-          <TabsContent value="requirements" className="mt-6">
-            {!isNewEmployee && <RequirementsTab empId={empId} />}
-          </TabsContent>
+        <TabsContent value="requirements" className="mt-0">
+          {!isNewEmployee && <RequirementsTab empId={empId} />}
+        </TabsContent>
 
-          <TabsContent value="approvals" className="mt-6">
-            {!isNewEmployee && <ApprovalLevelsTab empId={empId} />}
-          </TabsContent>
-        </Tabs>
-      </div>
+        <TabsContent value="approvals" className="mt-0">
+          {!isNewEmployee && <ApprovalLevelsTab empId={empId} />}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

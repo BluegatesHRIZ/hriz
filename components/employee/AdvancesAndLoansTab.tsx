@@ -206,10 +206,10 @@ export function AdvancesAndLoansTab({ employee }: AdvancesAndLoansTabProps) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 p-4">
       {/* Add Advance Form */}
-      <div>
-        <h4 className="text-lg font-semibold mb-4">Add Advance/Loan</h4>
+      <div className="bg-card rounded-xl border border-border/60 p-5">
+        <h4 className="text-base font-semibold text-foreground mb-4 pb-3 border-b border-border/60">Add Advance/Loan</h4>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <Label htmlFor="adv_type">Loan Type</Label>
@@ -406,11 +406,11 @@ export function AdvancesAndLoansTab({ employee }: AdvancesAndLoansTabProps) {
       </div>
 
       {/* Advances Table */}
-      <div>
-        <h4 className="text-lg font-semibold mb-4">Advances & Loans History</h4>
+      <div className="bg-card rounded-xl border border-border/60 p-5">
+        <h4 className="text-base font-semibold text-foreground mb-4 pb-3 border-b border-border/60">Advances &amp; Loans History</h4>
         {advances.length === 0 ? (
           <div className="text-center py-8 border rounded-lg">
-            <p className="text-gray-600">No advances or loans found.</p>
+            <p className="text-muted-foreground">No advances or loans found.</p>
           </div>
         ) : (
           <div className="border rounded-lg">

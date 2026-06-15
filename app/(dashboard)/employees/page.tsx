@@ -124,9 +124,9 @@ export default function EmployeesPage() {
   }) || []
 
   return (
-    <div className="container mt-4 pb-4 w-full max-w-[1400px]">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Employee Management</h1>
+    <div className="w-full px-4 md:px-6 lg:px-8 pt-5 pb-8">
+      <div className="mb-5 flex items-center justify-between">
+        <h1 className="text-2xl font-semibold text-foreground">Employee Management</h1>
         <Button asChild>
           <Link href="/employees/new">
             <Plus className="mr-2 h-4 w-4" />
@@ -145,7 +145,7 @@ export default function EmployeesPage() {
           {/* Search */}
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search employees..."
                 value={searchTerm}
@@ -166,7 +166,7 @@ export default function EmployeesPage() {
             </div>
           ) : filteredEmployees.length === 0 ? (
             <div className="flex items-center justify-center py-8">
-              <p className="text-gray-500">No employees found</p>
+              <p className="text-muted-foreground">No employees found</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -194,7 +194,7 @@ export default function EmployeesPage() {
                       <TableCell>{emp.emp_loc || "N/A"}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <span className="text-sm text-gray-700">
+                          <span className="text-sm text-foreground">
                             {getStatusLabel(emp.emp_status)}
                           </span>
                           <Select
@@ -266,11 +266,11 @@ export default function EmployeesPage() {
                 <img
                   src={qrCodeDataUrl}
                   alt="QR Code"
-                  className="border rounded-lg p-2 bg-white"
+                  className="border rounded-lg p-2 bg-card"
                   width={300}
                   height={300}
                 />
-                <p className="text-sm text-gray-500 text-center">
+                <p className="text-sm text-muted-foreground text-center">
                   Scan this code with the login page to sign in
                 </p>
               </div>

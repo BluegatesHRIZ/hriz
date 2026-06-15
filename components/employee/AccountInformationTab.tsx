@@ -230,11 +230,11 @@ export function AccountInformationTab({
   const profileImageSrc = employee.files?.profile?.fil_url || null;
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {/* Profile Picture Section */}
-      <div className="flex gap-6">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 p-4">
+      {/* Profile Picture + Basic Information */}
+      <div className="bg-card rounded-xl border border-border/60 p-5 flex gap-6">
         <div className="flex-shrink-0">
-          <div className="relative w-40 h-40 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
+          <div className="relative w-40 h-40 rounded-full overflow-hidden bg-muted flex items-center justify-center">
             {profileImageSrc ? (
               <Image
                 src={profileImageSrc}
@@ -243,7 +243,7 @@ export function AccountInformationTab({
                 className="object-cover"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-gray-400">
+              <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                 <svg
                   className="w-24 h-24"
                   fill="currentColor"
@@ -283,7 +283,7 @@ export function AccountInformationTab({
 
         {/* Basic Information Section */}
         <div className="flex-1">
-          <h4 className="text-lg font-semibold mb-4">Basic Information</h4>
+          <h4 className="text-base font-semibold text-foreground mb-4 pb-3 border-b border-border/60">Basic Information</h4>
           <div className="grid grid-cols-3 gap-4">
             {/* First Name */}
             <div className="space-y-2">
@@ -294,7 +294,7 @@ export function AccountInformationTab({
                 id="EmpFirst"
                 {...register("EmpFirst")}
                 placeholder="Enter first name"
-                className="bg-gray-50"
+                className="bg-muted/30"
               />
               {errors.EmpFirst && (
                 <p className="text-sm text-red-600">
@@ -312,7 +312,7 @@ export function AccountInformationTab({
                 id="EmpLast"
                 {...register("EmpLast")}
                 placeholder="Enter last name"
-                className="bg-gray-50"
+                className="bg-muted/30"
               />
               {errors.EmpLast && (
                 <p className="text-sm text-red-600">{errors.EmpLast.message}</p>
@@ -326,7 +326,7 @@ export function AccountInformationTab({
                 id="EmpMid"
                 {...register("EmpMid")}
                 placeholder="Enter middle name"
-                className="bg-gray-50"
+                className="bg-muted/30"
               />
             </div>
 
@@ -337,7 +337,7 @@ export function AccountInformationTab({
                 id="emp_code"
                 {...register("emp_code")}
                 placeholder="Enter usercode"
-                className="bg-gray-50"
+                className="bg-muted/30"
               />
             </div>
 
@@ -348,7 +348,7 @@ export function AccountInformationTab({
                 id="EmpExternalId"
                 {...register("EmpExternalId")}
                 placeholder="Enter external ID"
-                className="bg-gray-50"
+                className="bg-muted/30"
               />
             </div>
 
@@ -359,7 +359,7 @@ export function AccountInformationTab({
                 id="EmpAccount"
                 {...register("EmpAccount")}
                 placeholder="Enter account number"
-                className="bg-gray-50"
+                className="bg-muted/30"
               />
             </div>
           </div>
@@ -367,8 +367,8 @@ export function AccountInformationTab({
       </div>
 
       {/* Job Position Details Section */}
-      <div className="mt-6">
-        <h4 className="text-lg font-semibold mb-4">Job Position Details</h4>
+      <div className="bg-card rounded-xl border border-border/60 p-5">
+        <h4 className="text-base font-semibold text-foreground mb-4 pb-3 border-b border-border/60">Job Position Details</h4>
         <div className="grid grid-cols-3 gap-4">
           {/* Department */}
           <div className="space-y-2">
@@ -389,7 +389,7 @@ export function AccountInformationTab({
               value={watch("EmpDept")}
               onValueChange={(value) => setValue("EmpDept", value)}
             >
-              <SelectTrigger id="EmpDept" className="bg-gray-50">
+              <SelectTrigger id="EmpDept" className="bg-muted/30">
                 <SelectValue placeholder="Select department" />
               </SelectTrigger>
               <SelectContent>
@@ -424,7 +424,7 @@ export function AccountInformationTab({
               value={watch("EmpPos")}
               onValueChange={(value) => setValue("EmpPos", value)}
             >
-              <SelectTrigger id="EmpPos" className="bg-gray-50">
+              <SelectTrigger id="EmpPos" className="bg-muted/30">
                 <SelectValue placeholder="Select position" />
               </SelectTrigger>
               <SelectContent>
@@ -459,7 +459,7 @@ export function AccountInformationTab({
               value={watch("EmpLoc")}
               onValueChange={(value) => setValue("EmpLoc", value)}
             >
-              <SelectTrigger id="EmpLoc" className="bg-gray-50">
+              <SelectTrigger id="EmpLoc" className="bg-muted/30">
                 <SelectValue placeholder="Select location" />
               </SelectTrigger>
               <SelectContent>
@@ -478,8 +478,8 @@ export function AccountInformationTab({
       </div>
 
       {/* Additional Personal Information Section */}
-      <div className="mt-6">
-        <h4 className="text-lg font-semibold mb-4">
+      <div className="bg-card rounded-xl border border-border/60 p-5">
+        <h4 className="text-base font-semibold text-foreground mb-4 pb-3 border-b border-border/60">
           Additional Personal Information
         </h4>
         <div className="grid grid-cols-2 gap-4">
@@ -492,7 +492,7 @@ export function AccountInformationTab({
               id="EmpAddress"
               {...register("EmpAddress")}
               placeholder="Enter address"
-              className="bg-gray-50"
+              className="bg-muted/30"
             />
             {errors.EmpAddress && (
               <p className="text-sm text-red-600">
@@ -510,7 +510,7 @@ export function AccountInformationTab({
               id="EmpContact1"
               {...register("EmpContact1")}
               placeholder="Enter contact number"
-              className="bg-gray-50"
+              className="bg-muted/30"
             />
             {errors.EmpContact1 && (
               <p className="text-sm text-red-600">
@@ -528,7 +528,7 @@ export function AccountInformationTab({
               id="EmpContact2"
               {...register("EmpContact2")}
               placeholder="Enter contact number"
-              className="bg-gray-50"
+              className="bg-muted/30"
             />
             {errors.EmpContact2 && (
               <p className="text-sm text-red-600">
@@ -545,7 +545,7 @@ export function AccountInformationTab({
               type="email"
               {...register("EmpEmail")}
               placeholder="Enter email"
-              className="bg-gray-50"
+              className="bg-muted/30"
             />
             {errors.EmpEmail && (
               <p className="text-sm text-red-600">{errors.EmpEmail.message}</p>
@@ -564,7 +564,7 @@ export function AccountInformationTab({
                 setValueAs: (value: string) =>
                   value ? new Date(value) : undefined,
               })}
-              className="bg-gray-50"
+              className="bg-muted/30"
             />
             {errors.EmpBirthday && (
               <p className="text-sm text-red-600">
@@ -580,7 +580,7 @@ export function AccountInformationTab({
               value={watch("EmpGender") || ""}
               onValueChange={(value) => setValue("EmpGender", value)}
             >
-              <SelectTrigger id="EmpGender" className="bg-gray-50">
+              <SelectTrigger id="EmpGender" className="bg-muted/30">
                 <SelectValue placeholder="Select gender" />
               </SelectTrigger>
               <SelectContent>
@@ -598,7 +598,7 @@ export function AccountInformationTab({
               value={watch("EmpCivil") || ""}
               onValueChange={(value) => setValue("EmpCivil", value)}
             >
-              <SelectTrigger id="EmpCivil" className="bg-gray-50">
+              <SelectTrigger id="EmpCivil" className="bg-muted/30">
                 <SelectValue placeholder="Select civil status" />
               </SelectTrigger>
               <SelectContent>
@@ -617,7 +617,7 @@ export function AccountInformationTab({
               id="EmpFather"
               {...register("EmpFather")}
               placeholder="Enter father's name"
-              className="bg-gray-50"
+              className="bg-muted/30"
             />
           </div>
 
@@ -628,7 +628,7 @@ export function AccountInformationTab({
               id="EmpMother"
               {...register("EmpMother")}
               placeholder="Enter mother's name"
-              className="bg-gray-50"
+              className="bg-muted/30"
             />
           </div>
 
@@ -639,16 +639,16 @@ export function AccountInformationTab({
               id="EmpSpouse"
               {...register("EmpSpouse")}
               placeholder="Enter spouse name"
-              className="bg-gray-50"
+              className="bg-muted/30"
             />
           </div>
         </div>
       </div>
 
       {/* Dependent List Section */}
-      <div className="mt-6">
-        <div className="flex items-center justify-between mb-4">
-          <h4 className="text-lg font-semibold">Dependents</h4>
+      <div className="bg-card rounded-xl border border-border/60 p-5">
+        <div className="flex items-center justify-between mb-4 pb-3 border-b border-border/60">
+          <h4 className="text-base font-semibold text-foreground">Dependents</h4>
           <Button type="button" variant="outline" size="sm">
             <Plus className="mr-2 h-4 w-4" />
             Add Dependent
@@ -659,7 +659,7 @@ export function AccountInformationTab({
             {employee.EmpDependent.map((dep, idx) => (
               <div key={`dep-${dep.DepId}-${idx}`} className="border-b pb-2">
                 <p className="font-medium">{dep.DepName || "N/A"}</p>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-muted-foreground">
                   {dep.DepRelation} -{" "}
                   {dep.DepBirthday
                     ? new Date(dep.DepBirthday).toLocaleDateString()
@@ -669,14 +669,14 @@ export function AccountInformationTab({
             ))}
           </div>
         ) : (
-          <p className="text-gray-500">No dependents added</p>
+          <p className="text-muted-foreground">No dependents added</p>
         )}
       </div>
 
       {/* Employment History Section */}
-      <div className="mt-6">
-        <div className="flex items-center justify-between mb-4">
-          <h4 className="text-lg font-semibold">Employment History</h4>
+      <div className="bg-card rounded-xl border border-border/60 p-5">
+        <div className="flex items-center justify-between mb-4 pb-3 border-b border-border/60">
+          <h4 className="text-base font-semibold text-foreground">Employment History</h4>
           <Button type="button" variant="outline" size="sm">
             <Plus className="mr-2 h-4 w-4" />
             Add History
@@ -687,7 +687,7 @@ export function AccountInformationTab({
             {employee.EmpHistory.map((his, idx) => (
               <div key={`his-${his.HisId}-${idx}`} className="border-b pb-2">
                 <p className="font-medium">{his.HisCompany || "N/A"}</p>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-muted-foreground">
                   {his.HisPosition} -{" "}
                   {his.HisStartdate
                     ? new Date(his.HisStartdate).toLocaleDateString()
@@ -701,7 +701,7 @@ export function AccountInformationTab({
             ))}
           </div>
         ) : (
-          <p className="text-gray-500">No employment history</p>
+          <p className="text-muted-foreground">No employment history</p>
         )}
       </div>
 

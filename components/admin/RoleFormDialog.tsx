@@ -224,10 +224,10 @@ function RoleFormBody({
           if (groupPermissions.length === 0) return null;
           return (
             <div key={group.title} className="space-y-2">
-              <h4 className="text-sm font-semibold text-gray-700">{group.title}</h4>
+              <h4 className="text-sm font-semibold text-foreground">{group.title}</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2 rounded-md border p-3">
                 {permissionsLoading ? (
-                  <p className="text-sm text-gray-500">Loading permissions...</p>
+                  <p className="text-sm text-muted-foreground">Loading permissions...</p>
                 ) : (
                   groupPermissions.map((perm) => {
                     const checked = selectedPermIds.has(perm.PerId);

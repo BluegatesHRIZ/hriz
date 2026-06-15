@@ -203,10 +203,10 @@ export function SalaryHistoryTab({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 p-4">
       {/* Add Salary Form */}
-      <div>
-        <h4 className="text-lg font-semibold mb-4">Add Salary Entry</h4>
+      <div className="bg-card rounded-xl border border-border/60 p-5">
+        <h4 className="text-base font-semibold text-foreground mb-4 pb-3 border-b border-border/60">Add Salary Entry</h4>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <Label htmlFor="sal_position">Position</Label>
@@ -403,11 +403,11 @@ export function SalaryHistoryTab({
       </div>
 
       {/* Salary History Table */}
-      <div>
-        <h4 className="text-lg font-semibold mb-4">Salary History</h4>
+      <div className="bg-card rounded-xl border border-border/60 p-5">
+        <h4 className="text-base font-semibold text-foreground mb-4 pb-3 border-b border-border/60">Salary History</h4>
         {salaries.length === 0 ? (
           <div className="text-center py-8 border rounded-lg">
-            <p className="text-gray-600">No salary history records found.</p>
+            <p className="text-muted-foreground">No salary history records found.</p>
           </div>
         ) : (
           <div className="border rounded-lg">

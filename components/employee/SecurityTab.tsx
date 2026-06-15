@@ -139,12 +139,12 @@ export function SecurityTab({ employee }: SecurityTabProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 p-4">
       {/* Role Assignment – only available to users with AssignRoles,
           AdministrationRolesAndPermissions, or AllAccess (mirrors C# UI gate). */}
       {canAssignRoles && (
-        <div>
-          <h4 className="text-lg font-semibold mb-4">Assign Role</h4>
+        <div className="bg-card rounded-xl border border-border/60 p-5">
+          <h4 className="text-base font-semibold text-foreground mb-4 pb-3 border-b border-border/60">Assign Role</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl">
             <div>
               <Label htmlFor="EmpRole">Role Type</Label>
@@ -152,7 +152,7 @@ export function SecurityTab({ employee }: SecurityTabProps) {
                 value={selectedRole}
                 onValueChange={(value) => setSelectedRole(value)}
               >
-                <SelectTrigger id="EmpRole" className="bg-gray-50">
+                <SelectTrigger id="EmpRole" className="bg-muted/30">
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent>
@@ -166,7 +166,7 @@ export function SecurityTab({ employee }: SecurityTabProps) {
             </div>
             <div>
               <Label htmlFor="role_description">Description</Label>
-              <p id="role_description" className="text-sm text-gray-600 mt-1">
+              <p id="role_description" className="text-sm text-muted-foreground mt-1">
                 {roles?.find((r) => r.rol_id === selectedRole)?.rol_desc ??
                   "Undefined"}
               </p>
@@ -186,8 +186,8 @@ export function SecurityTab({ employee }: SecurityTabProps) {
       )}
 
       {/* Change Password */}
-      <div>
-        <h4 className="text-lg font-semibold mb-4">Change Password</h4>
+      <div className="bg-card rounded-xl border border-border/60 p-5">
+        <h4 className="text-base font-semibold text-foreground mb-4 pb-3 border-b border-border/60">Change Password</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl">
           <div>
             <Label htmlFor="old_password">Old Password</Label>

@@ -341,7 +341,7 @@ export function WorkScheduleTab({ employee, employeeList }: WorkScheduleTabProps
       <div className="border rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
-            <thead className="bg-gray-50">
+            <thead className="bg-muted/30">
               <tr>
                 <th className="border p-2 text-left min-w-[80px]">Day</th>
                 <th className="border p-2 text-center min-w-[50px]">Rest Day</th>
@@ -357,7 +357,7 @@ export function WorkScheduleTab({ employee, employeeList }: WorkScheduleTabProps
             </thead>
             <tbody>
               {schedules.map((sched, index) => (
-                <tr key={sched.sch_day} className="hover:bg-gray-50">
+                <tr key={sched.sch_day} className="hover:bg-muted/50">
                   <td className="border p-2 font-medium">{formatDayName(sched.sch_day)}</td>
                   <td className="border p-2 text-center">
                     <Checkbox
@@ -376,7 +376,7 @@ export function WorkScheduleTab({ employee, employeeList }: WorkScheduleTabProps
                         }
                       />
                     ) : (
-                      <span className="text-gray-400">-</span>
+                      <span className="text-muted-foreground">-</span>
                     )}
                   </td>
                   <td className="border p-2">
@@ -388,7 +388,7 @@ export function WorkScheduleTab({ employee, employeeList }: WorkScheduleTabProps
                         className="w-full"
                       />
                     ) : (
-                      <span className="text-gray-400">-</span>
+                      <span className="text-muted-foreground">-</span>
                     )}
                   </td>
                   <td className="border p-2">
@@ -400,7 +400,7 @@ export function WorkScheduleTab({ employee, employeeList }: WorkScheduleTabProps
                         className="w-full"
                       />
                     ) : (
-                      <span className="text-gray-400">-</span>
+                      <span className="text-muted-foreground">-</span>
                     )}
                   </td>
                   <td className="border p-2">
@@ -412,7 +412,7 @@ export function WorkScheduleTab({ employee, employeeList }: WorkScheduleTabProps
                         className="w-full"
                       />
                     ) : (
-                      <span className="text-gray-400">-</span>
+                      <span className="text-muted-foreground">-</span>
                     )}
                   </td>
                   <td className="border p-2">
@@ -424,14 +424,14 @@ export function WorkScheduleTab({ employee, employeeList }: WorkScheduleTabProps
                         className="w-full"
                       />
                     ) : (
-                      <span className="text-gray-400">-</span>
+                      <span className="text-muted-foreground">-</span>
                     )}
                   </td>
                   <td className="border p-2 text-center">
                     {sched.sch_shift !== "E" ? (
                       <span className="text-sm">{sched.sch_hrs.toFixed(2)}</span>
                     ) : (
-                      <span className="text-gray-400">-</span>
+                      <span className="text-muted-foreground">-</span>
                     )}
                   </td>
                   <td className="border p-2">

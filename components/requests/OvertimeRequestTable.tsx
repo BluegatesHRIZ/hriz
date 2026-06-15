@@ -168,7 +168,7 @@ export function OvertimeRequestTable({
 
   if (overtimes.length === 0) {
     return (
-      <div className="p-8 text-center text-gray-500">
+      <div className="p-8 text-center text-muted-foreground">
         No {status} overtime requests found.
       </div>
     );
@@ -213,7 +213,7 @@ export function OvertimeRequestTable({
             {overtimes.map((ot) => (
               <TableRow
                 key={ot.otm_id}
-                className={status !== "pending" ? "cursor-pointer hover:bg-gray-50" : ""}
+                className={status !== "pending" ? "cursor-pointer hover:bg-muted/50" : ""}
                 onClick={() => onRowClick(ot)}
               >
                 <TableCell>{formatDate(ot.otm_date)}</TableCell>

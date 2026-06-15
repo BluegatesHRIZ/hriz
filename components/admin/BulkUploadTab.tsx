@@ -174,7 +174,7 @@ export function BulkUploadTab({ type, title, description }: Props) {
       )}
 
       {results && results.length > 0 && (
-        <div className="rounded-md border bg-white shadow-sm">
+        <div className="rounded-md border bg-card shadow-sm">
           <Table>
             <TableHeader>
               <TableRow>

@@ -219,19 +219,19 @@ export function Biolog() {
                               isPrevCutoff ? "opacity-70" : ""
                             } ${
                               canSelect
-                                ? "hover:bg-gray-50 hover:shadow-sm rounded px-2 py-1 -mx-2 -my-1"
+                                ? "hover:bg-muted/50 hover:shadow-sm rounded px-2 py-1 -mx-2 -my-1"
                                 : ""
                             }`}
                           >
                             <div className="flex items-center justify-between">
                               <p className="font-semibold">{dateStr}</p>
                               {isPrevCutoff && (
-                                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                                <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
                                   Previous
                                 </span>
                               )}
                             </div>
-                            <p className="text-gray-600">
+                            <p className="text-muted-foreground">
                               In: {bio.mtin ?? "N/A"} | Out: {bio.mtout ?? "N/A"}
                             </p>
                             {bio.msg && (
@@ -242,7 +242,7 @@ export function Biolog() {
                                     ? "text-red-600"
                                     : bio.msg === "Late"
                                     ? "text-orange-600"
-                                    : "text-gray-500"
+                                    : "text-muted-foreground"
                                 }`}
                               >
                                 {bio.msg}
@@ -254,7 +254,7 @@ export function Biolog() {
                   </div>
                   {biologs.length > ITEMS_PER_PAGE && (
                     <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                      <div className="text-xs text-gray-600">
+                      <div className="text-xs text-muted-foreground">
                         Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to{" "}
                         {Math.min(currentPage * ITEMS_PER_PAGE, biologs.length)}{" "}
                         of {biologs.length} records
@@ -268,7 +268,7 @@ export function Biolog() {
                         >
                           <ChevronLeft className="w-4 h-4" />
                         </Button>
-                        <span className="text-sm text-gray-700">
+                        <span className="text-sm text-foreground">
                           Page {currentPage} of{" "}
                           {Math.ceil(biologs.length / ITEMS_PER_PAGE)}
                         </span>
@@ -294,7 +294,7 @@ export function Biolog() {
                   )}
                 </>
               ) : (
-                <p className="text-gray-500 text-center py-4">
+                <p className="text-muted-foreground text-center py-4">
                   No attendance records
                 </p>
               )}
@@ -327,9 +327,9 @@ export function Biolog() {
                           >
                             <div className="flex items-center justify-between">
                               <p className="font-semibold">{bio.emp_name ?? "N/A"}</p>
-                              <p className="text-xs text-gray-500">{dateStr}</p>
+                              <p className="text-xs text-muted-foreground">{dateStr}</p>
                             </div>
-                            <p className="text-gray-600">
+                            <p className="text-muted-foreground">
                               In: {bio.mtin ?? "N/A"} | Out: {bio.mtout ?? "N/A"}
                             </p>
                             {bio.msg && (
@@ -340,7 +340,7 @@ export function Biolog() {
                                     ? "text-red-600"
                                     : bio.msg === "Late"
                                     ? "text-orange-600"
-                                    : "text-gray-500"
+                                    : "text-muted-foreground"
                                 }`}
                               >
                                 {bio.msg}
@@ -352,7 +352,7 @@ export function Biolog() {
                   </div>
                   {teamBiologs.length > ITEMS_PER_PAGE && (
                     <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                      <div className="text-xs text-gray-600">
+                      <div className="text-xs text-muted-foreground">
                         Showing {(teamPage - 1) * ITEMS_PER_PAGE + 1} to{" "}
                         {Math.min(teamPage * ITEMS_PER_PAGE, teamBiologs.length)}{" "}
                         of {teamBiologs.length} records
@@ -366,7 +366,7 @@ export function Biolog() {
                         >
                           <ChevronLeft className="w-4 h-4" />
                         </Button>
-                        <span className="text-sm text-gray-700">
+                        <span className="text-sm text-foreground">
                           Page {teamPage} of{" "}
                           {Math.ceil(teamBiologs.length / ITEMS_PER_PAGE)}
                         </span>
@@ -392,7 +392,7 @@ export function Biolog() {
                   )}
                 </>
               ) : (
-                <p className="text-gray-500 text-center py-4">
+                <p className="text-muted-foreground text-center py-4">
                   No team attendance records
                 </p>
               )}

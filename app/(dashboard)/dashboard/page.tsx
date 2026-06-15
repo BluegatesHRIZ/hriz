@@ -34,7 +34,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="container mt-4 pb-4 w-full mx-5">
+    <div className="w-full px-4 md:px-6 lg:px-8 pt-5 pb-8">
       {/* Bootstrap-like grid layout: 9 columns left, 3 columns right */}
       <div className="grid grid-cols-12 gap-4">
         {/* Left Column - 9 columns */}

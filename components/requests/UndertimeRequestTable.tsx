@@ -146,7 +146,7 @@ export function UndertimeRequestTable({
 
   if (undertimes.length === 0) {
     return (
-      <div className="p-8 text-center text-gray-500">
+      <div className="p-8 text-center text-muted-foreground">
         No {status} undertime requests found.
       </div>
     );
@@ -190,7 +190,7 @@ export function UndertimeRequestTable({
             {undertimes.map((ut) => (
               <TableRow
                 key={ut.UtmId}
-                className={status === "approved" ? "cursor-pointer hover:bg-gray-50" : ""}
+                className={status === "approved" ? "cursor-pointer hover:bg-muted/50" : ""}
                 onClick={() => handleRowClick(ut)}
               >
                 <TableCell>{formatDate(ut.UtmApplieddate)}</TableCell>

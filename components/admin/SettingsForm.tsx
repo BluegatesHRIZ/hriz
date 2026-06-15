@@ -164,7 +164,7 @@ export function SettingsForm() {
     <div className="space-y-6">
       <h2 className="text-2xl font-semibold">HRIZ Settings</h2>
 
-      <div className="border rounded-lg bg-white shadow-sm">
+      <div className="border rounded-lg bg-card shadow-sm">
         <Tabs defaultValue="company">
           <TabsList className="w-full justify-start rounded-t-lg rounded-b-none border-b px-4 pt-2 h-auto bg-transparent gap-1">
             <TabsTrigger value="company" className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-2">

@@ -146,13 +146,13 @@ export function BenefitsAndLeaveTab({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 p-4">
       {/* Leaves Section */}
-      <div>
-        <h4 className="text-lg font-semibold mb-4">Leaves</h4>
+      <div className="bg-card rounded-xl border border-border/60 p-5">
+        <h4 className="text-base font-semibold text-foreground mb-4 pb-3 border-b border-border/60">Leaves</h4>
         {leaves.length === 0 ? (
           <div className="text-center py-8 border rounded-lg">
-            <p className="text-gray-600 mb-4">
+            <p className="text-muted-foreground mb-4">
               The employee does not have a leave assigned yet.
             </p>
             <Button type="button" variant="outline" onClick={addLeave}>
@@ -227,8 +227,8 @@ export function BenefitsAndLeaveTab({
       </div>
 
       {/* Benefits Section */}
-      <div>
-        <h4 className="text-lg font-semibold mb-4">Benefits</h4>
+      <div className="bg-card rounded-xl border border-border/60 p-5">
+        <h4 className="text-base font-semibold text-foreground mb-4 pb-3 border-b border-border/60">Benefits</h4>
         <div className="space-y-4">
           <div className="grid grid-cols-12 gap-4 font-medium border-b pb-2">
             <div className="col-span-4">Benefit Type</div>

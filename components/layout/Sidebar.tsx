@@ -37,6 +37,7 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { hasAnyPermission, parsePermissionMask } from "@/lib/auth/permissions";
 import { NotificationBell } from "@/components/layout/NotificationBell";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 interface SidebarLinkProps {
   title: string;
@@ -48,33 +49,32 @@ interface SidebarLinkProps {
 function SidebarLink({ title, href, icon, className }: SidebarLinkProps) {
   const pathname = usePathname();
   const isActive = pathname === href || pathname?.startsWith(href + "/");
-  
-  // Don't render link if href is invalid
+
   if (!href || href === "#") {
     return (
       <div
         className={cn(
-          "flex items-center gap-2 py-2 px-4 text-sm opacity-50 cursor-not-allowed",
+          "flex items-center gap-2 py-2 px-4 text-sm text-sidebar-foreground/50 cursor-not-allowed",
           className,
         )}
       >
-        {icon && <span className="w-6 h-6">{icon}</span>}
+        {icon && <span className="w-5 h-5">{icon}</span>}
         <span>{title}</span>
       </div>
     );
   }
-  
+
   return (
     <Link
       href={href}
       className={cn(
-        "flex items-center gap-2 py-2 px-4 text-sm hover:bg-[#002750] transition-colors cursor-pointer",
-        isActive && "bg-[#002750] border-l-4 border-white",
+        "flex items-center gap-2 py-2 px-4 text-sm text-sidebar-foreground hover:bg-sidebar-accent transition-colors cursor-pointer rounded-r-lg",
+        isActive && "bg-sidebar-accent border-l-[3px] border-primary font-medium",
         className,
       )}
-      style={{ pointerEvents: 'auto' }}
+      style={{ pointerEvents: "auto" }}
     >
-      {icon && <span className="w-6 h-6">{icon}</span>}
+      {icon && <span className="w-5 h-5">{icon}</span>}
       <span>{title}</span>
     </Link>
   );
@@ -89,21 +89,20 @@ export function Sidebar() {
 
   if (menusLoading || companyLoading || authMapLoading) {
     return (
-      <div className="min-w-[350px] max-w-[350px] min-h-screen max-h-screen bg-bgc-dark-blue text-white flex flex-col justify-center items-center">
-        <p>Loading...</p>
+      <div className="min-w-[300px] max-w-[300px] min-h-screen max-h-screen bg-sidebar text-sidebar-foreground flex flex-col justify-center items-center">
+        <p className="text-sidebar-foreground/60 text-sm">Loading...</p>
       </div>
     );
   }
 
   if (!menus || !company) {
     return (
-      <div className="min-w-[350px] max-w-[350px] min-h-screen max-h-screen bg-bgc-dark-blue text-white flex flex-col justify-center items-center">
-        <p>Error loading menu</p>
+      <div className="min-w-[300px] max-w-[300px] min-h-screen max-h-screen bg-sidebar text-sidebar-foreground flex flex-col justify-center items-center">
+        <p className="text-sidebar-foreground/60 text-sm">Error loading menu</p>
       </div>
     );
   }
 
-  // Organize menus by category and keep only items user can access.
   const userMask = parsePermissionMask(user?.permissions ?? "0");
   const activeMenus = menus
     .filter((m) => m.mnu_status === 1)
@@ -112,9 +111,7 @@ export function Sidebar() {
       const requiredMask = parsePermissionMask(authMap?.menuPermissions?.[m.mnu_id] ?? "0");
       return hasAnyPermission(userMask, requiredMask);
     });
-  const headerMenus = activeMenus.filter(
-    (m) => m.mnu_id?.substring(0, 1) === "H",
-  );
+  const headerMenus = activeMenus.filter((m) => m.mnu_id?.substring(0, 1) === "H");
   const adminMenus = activeMenus
     .filter((m) => m.mnu_id?.substring(0, 1) === "A")
     .sort((a, b) => (a.mnu_ctr || 0) - (b.mnu_ctr || 0));
@@ -136,24 +133,28 @@ export function Sidebar() {
   };
 
   return (
-    <div className="min-w-[350px] max-w-[350px] min-h-screen max-h-screen bg-bgc-dark-blue text-white flex flex-col justify-between relative">
+    <div className="min-w-[300px] max-w-[300px] min-h-screen max-h-screen bg-sidebar text-sidebar-foreground flex flex-col justify-between relative">
       <div className="overflow-y-auto h-full">
         {/* Company Logo and Name */}
-        <div className="flex flex-col items-center pt-3">
-          <Image
-            src="/logos/client-logo.png"
-            alt="Company Logo"
-            width={88}
-            height={86}
-            className="w-[88px] h-[86px]"
-          />
-          <h1 className="font-bold text-lg mt-2">
+        <div className="flex flex-col items-center pt-6 pb-4">
+          <div className="w-16 h-16 rounded-xl overflow-hidden flex items-center justify-center mb-2">
+            <Image
+              src="/logos/client-logo.png"
+              alt="Company Logo"
+              width={64}
+              height={64}
+              className="w-16 h-16 object-contain"
+            />
+          </div>
+          <h1 className="font-bold text-base text-sidebar-foreground">
             {company.com_name || "Company"}
           </h1>
         </div>
 
+        <div className="mx-4 border-t border-sidebar-border/50 mb-4" />
+
         {/* Menu Items */}
-        <div className="mt-[50px] overflow-y-auto min-h-full px-2">
+        <div className="px-2">
           <Accordion
             type="single"
             collapsible
@@ -165,32 +166,32 @@ export function Sidebar() {
             <SidebarLink
               title="Dashboard"
               href="/dashboard"
-              icon={<Home className="w-6 h-6" />}
-              className="mb-2"
+              icon={<Home className="w-5 h-5" />}
+              className="mb-1"
             />
 
             {/* Requests Accordion */}
             {requestMenus.length > 0 && (
               <AccordionItem value="request" className="border-none">
-                <AccordionTrigger className="py-2 px-4 hover:bg-[#002750]">
-                  <div className="flex items-center gap-2">
-                    <FileText className="w-6 h-6" />
+                <AccordionTrigger className="py-2 px-4 text-sidebar-foreground hover:bg-sidebar-accent rounded-r-lg hover:no-underline">
+                  <div className="flex items-center gap-2 text-sm">
+                    <FileText className="w-5 h-5" />
                     <span>{getHeaderTitle("H3") || "Requests"}</span>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="pb-0" onClick={(e) => e.stopPropagation()}>
                   {requestMenus.map((menu) => {
                     const href = menu.mnu_http || "#";
-                    // Ensure href starts with / if it's a relative path
-                    const normalizedHref = href !== "#" && !href.startsWith("/") && !href.startsWith("http") 
-                      ? `/${href}` 
-                      : href;
+                    const normalizedHref =
+                      href !== "#" && !href.startsWith("/") && !href.startsWith("http")
+                        ? `/${href}`
+                        : href;
                     return (
                       <SidebarLink
                         key={menu.mnu_id}
                         title={menu.mnu_desc || ""}
                         href={normalizedHref}
-                        className="py-[10px] text-sm pl-8"
+                        className="py-2 text-sm pl-8"
                       />
                     );
                   })}
@@ -201,24 +202,25 @@ export function Sidebar() {
             {/* Payroll Accordion */}
             {payrollMenus.length > 0 && (
               <AccordionItem value="payroll" className="border-none">
-                <AccordionTrigger className="py-2 px-4 hover:bg-[#002750]">
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="w-6 h-6" />
+                <AccordionTrigger className="py-2 px-4 text-sidebar-foreground hover:bg-sidebar-accent rounded-r-lg hover:no-underline">
+                  <div className="flex items-center gap-2 text-sm">
+                    <DollarSign className="w-5 h-5" />
                     <span>{getHeaderTitle("H5") || "Payroll"}</span>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="pb-0" onClick={(e) => e.stopPropagation()}>
                   {payrollMenus.map((menu) => {
                     const href = menu.mnu_http || "#";
-                    const normalizedHref = href !== "#" && !href.startsWith("/") && !href.startsWith("http") 
-                      ? `/${href}` 
-                      : href;
+                    const normalizedHref =
+                      href !== "#" && !href.startsWith("/") && !href.startsWith("http")
+                        ? `/${href}`
+                        : href;
                     return (
                       <SidebarLink
                         key={menu.mnu_id}
                         title={menu.mnu_desc || ""}
                         href={normalizedHref}
-                        className="py-[10px] text-sm pl-8"
+                        className="py-2 text-sm pl-8"
                       />
                     );
                   })}
@@ -229,24 +231,25 @@ export function Sidebar() {
             {/* Contributions Accordion */}
             {contriMenus.length > 0 && (
               <AccordionItem value="contributions" className="border-none">
-                <AccordionTrigger className="py-2 px-4 hover:bg-[#002750]">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="w-6 h-6" />
+                <AccordionTrigger className="py-2 px-4 text-sidebar-foreground hover:bg-sidebar-accent rounded-r-lg hover:no-underline">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Building2 className="w-5 h-5" />
                     <span>{getHeaderTitle("H4") || "Contributions"}</span>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="pb-0" onClick={(e) => e.stopPropagation()}>
                   {contriMenus.map((menu) => {
                     const href = menu.mnu_http || "#";
-                    const normalizedHref = href !== "#" && !href.startsWith("/") && !href.startsWith("http") 
-                      ? `/${href}` 
-                      : href;
+                    const normalizedHref =
+                      href !== "#" && !href.startsWith("/") && !href.startsWith("http")
+                        ? `/${href}`
+                        : href;
                     return (
                       <SidebarLink
                         key={menu.mnu_id}
                         title={menu.mnu_desc || ""}
                         href={normalizedHref}
-                        className="py-[10px] text-sm pl-8"
+                        className="py-2 text-sm pl-8"
                       />
                     );
                   })}
@@ -256,28 +259,27 @@ export function Sidebar() {
 
             {/* Reports Accordion */}
             {reportMenus.length > 0 &&
-              headerMenus.some(
-                (h) => h.mnu_id === "H2" && h.mnu_status === 1,
-              ) && (
+              headerMenus.some((h) => h.mnu_id === "H2" && h.mnu_status === 1) && (
                 <AccordionItem value="reports" className="border-none">
-                  <AccordionTrigger className="py-2 px-4 hover:bg-[#002750]">
-                    <div className="flex items-center gap-2">
-                      <FileBarChart className="w-6 h-6" />
+                  <AccordionTrigger className="py-2 px-4 text-sidebar-foreground hover:bg-sidebar-accent rounded-r-lg hover:no-underline">
+                    <div className="flex items-center gap-2 text-sm">
+                      <FileBarChart className="w-5 h-5" />
                       <span>{getHeaderTitle("H2") || "Reports"}</span>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="pb-0" onClick={(e) => e.stopPropagation()}>
                     {reportMenus.map((menu) => {
                       const href = menu.mnu_http || "#";
-                      const normalizedHref = href !== "#" && !href.startsWith("/") && !href.startsWith("http") 
-                        ? `/${href}` 
-                        : href;
+                      const normalizedHref =
+                        href !== "#" && !href.startsWith("/") && !href.startsWith("http")
+                          ? `/${href}`
+                          : href;
                       return (
                         <SidebarLink
                           key={menu.mnu_id}
                           title={menu.mnu_desc || ""}
                           href={normalizedHref}
-                          className="py-[10px] text-sm pl-8"
+                          className="py-2 text-sm pl-8"
                         />
                       );
                     })}
@@ -287,28 +289,27 @@ export function Sidebar() {
 
             {/* Administration Accordion */}
             {adminMenus.length > 0 &&
-              headerMenus.some(
-                (h) => h.mnu_id === "H1" && h.mnu_status === 1,
-              ) && (
+              headerMenus.some((h) => h.mnu_id === "H1" && h.mnu_status === 1) && (
                 <AccordionItem value="admin" className="border-none">
-                  <AccordionTrigger className="py-2 px-4 hover:bg-[#002750]">
-                    <div className="flex items-center gap-2">
-                      <Settings className="w-6 h-6" />
+                  <AccordionTrigger className="py-2 px-4 text-sidebar-foreground hover:bg-sidebar-accent rounded-r-lg hover:no-underline">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Settings className="w-5 h-5" />
                       <span>{getHeaderTitle("H1") || "Administration"}</span>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="pb-0" onClick={(e) => e.stopPropagation()}>
                     {adminMenus.map((menu) => {
                       const href = menu.mnu_http || "#";
-                      const normalizedHref = href !== "#" && !href.startsWith("/") && !href.startsWith("http") 
-                        ? `/${href}` 
-                        : href;
+                      const normalizedHref =
+                        href !== "#" && !href.startsWith("/") && !href.startsWith("http")
+                          ? `/${href}`
+                          : href;
                       return (
                         <SidebarLink
                           key={menu.mnu_id}
                           title={menu.mnu_desc || ""}
                           href={normalizedHref}
-                          className="py-[10px] text-sm pl-8"
+                          className="py-2 text-sm pl-8"
                         />
                       );
                     })}
@@ -320,28 +321,29 @@ export function Sidebar() {
       </div>
 
       {/* Profile Section */}
-      <div className="items-end p-4 border-t border-[#002750]">
+      <div className="p-4 border-t border-sidebar-border">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-bgc-blue-gray flex items-center justify-center">
-            <User className="w-6 h-6" />
+          <div className="w-9 h-9 rounded-full bg-sidebar-accent flex items-center justify-center shrink-0">
+            <User className="w-5 h-5 text-sidebar-foreground" />
           </div>
-          <div className="flex-1">
-            <p className="text-sm font-semibold">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-sidebar-foreground truncate">
               {user?.Firstname} {user?.Lastname}
             </p>
-            <p className="text-xs text-gray-400">{user?.name}</p>
+            <p className="text-xs text-sidebar-foreground/50 truncate">{user?.name}</p>
           </div>
+          <ThemeToggle />
           <NotificationBell />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
-                className="flex items-center justify-center p-1 rounded hover:bg-[#002750] transition-colors outline-none focus:ring-2 focus:ring-white/30 focus:ring-offset-2 focus:ring-offset-bgc-dark-blue"
+                className="flex items-center justify-center p-1 rounded hover:bg-sidebar-accent transition-colors outline-none focus:ring-2 focus:ring-sidebar-foreground/30 focus:ring-offset-1 focus:ring-offset-sidebar"
                 aria-label="Open menu"
               >
-                <ChevronDown className="w-5 h-5" />
+                <ChevronDown className="w-4 h-4 text-sidebar-foreground/70" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48 bg-white text-gray-900 border-gray-200">
+            <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuItem asChild>
                 <Link href="/profile" className="flex items-center gap-2 cursor-pointer">
                   <User className="w-4 h-4" />
@@ -362,7 +364,7 @@ export function Sidebar() {
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                className="text-red-600 focus:text-red-700 focus:bg-red-50 cursor-pointer"
+                className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"
                 onSelect={(e) => {
                   e.preventDefault();
                   logout();

@@ -102,7 +102,7 @@ export function AttendanceChangeRequestTable({
 
   if (coas.length === 0) {
     return (
-      <div className="p-8 text-center text-gray-500">
+      <div className="p-8 text-center text-muted-foreground">
         No {status} attendance change requests found.
       </div>
     )
@@ -147,7 +147,7 @@ export function AttendanceChangeRequestTable({
             {coas.map((coa) => (
               <TableRow
                 key={coa.coa_sid}
-                className={status === "approved" ? "cursor-pointer hover:bg-gray-50" : ""}
+                className={status === "approved" ? "cursor-pointer hover:bg-muted/50" : ""}
                 onClick={() => coa.coa_sid && handleRowClick(coa.coa_sid)}
               >
                 <TableCell>{formatDate(coa.coa_sapplieddate)}</TableCell>

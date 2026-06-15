@@ -466,7 +466,7 @@ export function Approval() {
                           return (
                             <div
                               key={globalIdx}
-                              className="flex items-center gap-2 border-b pb-2 cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
+                              className="flex items-center gap-2 border-b pb-2 cursor-pointer hover:bg-muted/50 rounded px-2 py-1"
                               onClick={() => handleRowClick(item)}
                             >
                               <Checkbox
@@ -476,8 +476,8 @@ export function Approval() {
                               />
                               <div className="flex-1 grid grid-cols-3 gap-4 items-center">
                                 <p className="text-sm font-semibold">{item.Fa_Module || "N/A"}</p>
-                                <p className="text-sm text-gray-700">{item.employee || item.Fa_Emp || "N/A"}</p>
-                                <p className="text-sm text-gray-600 text-right">
+                                <p className="text-sm text-foreground">{item.employee || item.Fa_Emp || "N/A"}</p>
+                                <p className="text-sm text-muted-foreground text-right">
                                   {item.Fa_Datetime
                                     ? new Date(item.Fa_Datetime).toLocaleDateString()
                                     : "N/A"}
@@ -509,7 +509,7 @@ export function Approval() {
                     </div>
                     {approvalItems.length > ITEMS_PER_PAGE && (
                       <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                        <div className="text-xs text-gray-600">
+                        <div className="text-xs text-muted-foreground">
                           Showing {(approvalPage - 1) * ITEMS_PER_PAGE + 1} to{" "}
                           {Math.min(approvalPage * ITEMS_PER_PAGE, approvalItems.length)}{" "}
                           of {approvalItems.length} records
@@ -523,7 +523,7 @@ export function Approval() {
                           >
                             <ChevronLeft className="w-4 h-4" />
                           </Button>
-                          <span className="text-sm text-gray-700">
+                          <span className="text-sm text-foreground">
                             Page {approvalPage} of{" "}
                             {Math.ceil(approvalItems.length / ITEMS_PER_PAGE)}
                           </span>
@@ -549,7 +549,7 @@ export function Approval() {
                     )}
                   </>
                 ) : (
-                  <p className="text-gray-500 text-center py-4">No pending approvals</p>
+                  <p className="text-muted-foreground text-center py-4">No pending approvals</p>
                 )}
               </TabsContent>
               <TabsContent value="discrepancy" className="mt-4">
@@ -568,8 +568,8 @@ export function Approval() {
                               <Checkbox />
                               <div className="flex-1">
                                 <p className="text-sm font-semibold">{item.Fa_Module || "N/A"}</p>
-                                <p className="text-xs text-gray-600">{item.employee || item.Fa_Emp || "N/A"}</p>
-                                <p className="text-xs text-gray-500">
+                                <p className="text-xs text-muted-foreground">{item.employee || item.Fa_Emp || "N/A"}</p>
+                                <p className="text-xs text-muted-foreground">
                                   {item.Fa_Datetime
                                     ? new Date(item.Fa_Datetime).toLocaleDateString()
                                     : "N/A"}
@@ -581,7 +581,7 @@ export function Approval() {
                     </div>
                     {discrepancyItems.length > ITEMS_PER_PAGE && (
                       <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                        <div className="text-xs text-gray-600">
+                        <div className="text-xs text-muted-foreground">
                           Showing {(discrepancyPage - 1) * ITEMS_PER_PAGE + 1} to{" "}
                           {Math.min(discrepancyPage * ITEMS_PER_PAGE, discrepancyItems.length)}{" "}
                           of {discrepancyItems.length} records
@@ -595,7 +595,7 @@ export function Approval() {
                           >
                             <ChevronLeft className="w-4 h-4" />
                           </Button>
-                          <span className="text-sm text-gray-700">
+                          <span className="text-sm text-foreground">
                             Page {discrepancyPage} of{" "}
                             {Math.ceil(discrepancyItems.length / ITEMS_PER_PAGE)}
                           </span>
@@ -621,7 +621,7 @@ export function Approval() {
                     )}
                   </>
                 ) : (
-                  <p className="text-gray-500 text-center py-4">No discrepancies</p>
+                  <p className="text-muted-foreground text-center py-4">No discrepancies</p>
                 )}
               </TabsContent>
             </Tabs>
@@ -721,7 +721,7 @@ export function Approval() {
               )}
             </div>
           ) : (
-            <div className="py-8 text-center text-gray-500">
+            <div className="py-8 text-center text-muted-foreground">
               No details available
             </div>
           )}

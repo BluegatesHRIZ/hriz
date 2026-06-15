@@ -34,7 +34,7 @@ export function ProtectedPage({ routeKey, children }: ProtectedPageProps) {
   }, [allowed, authLoading, mapLoading, router, routeKey, user]);
 
   if (authLoading || mapLoading || !user || (routeKey && !allowed)) {
-    return <div className="p-6 text-sm text-gray-500">Checking permissions...</div>;
+    return <div className="p-6 text-sm text-muted-foreground">Checking permissions...</div>;
   }
 
   return <>{children}</>;

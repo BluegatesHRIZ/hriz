@@ -141,7 +141,7 @@ export function LeaveRequestTable({
 
   if (leaves.length === 0) {
     return (
-      <div className="p-8 text-center text-gray-500">
+      <div className="p-8 text-center text-muted-foreground">
         No {status} leave requests found.
       </div>
     )
@@ -189,7 +189,7 @@ export function LeaveRequestTable({
           {leaves.map((leave) => (
             <TableRow
               key={leave.LeaSid}
-              className={status === "approved" ? "cursor-pointer hover:bg-gray-50" : ""}
+              className={status === "approved" ? "cursor-pointer hover:bg-muted/50" : ""}
               onClick={() => handleRowClick(leave)}
             >
               <TableCell>{formatDate(leave.LeaSapplieddate)}</TableCell>

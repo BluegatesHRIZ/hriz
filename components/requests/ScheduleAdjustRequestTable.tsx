@@ -106,7 +106,7 @@ export function ScheduleAdjustRequestTable({ schedules, isLoading, status }: Pro
   }
 
   if (schedules.length === 0) {
-    return <div className="p-8 text-center text-gray-500">No {status} requests found.</div>;
+    return <div className="p-8 text-center text-muted-foreground">No {status} requests found.</div>;
   }
 
   return (
@@ -144,7 +144,7 @@ export function ScheduleAdjustRequestTable({ schedules, isLoading, status }: Pro
             {schedules.map((sca) => (
               <TableRow
                 key={sca.ScaSid}
-                className={status !== "pending" ? "cursor-pointer hover:bg-gray-50" : ""}
+                className={status !== "pending" ? "cursor-pointer hover:bg-muted/50" : ""}
                 onClick={() => {
                   if (!sca.ScaSid) return;
                   if (status === "pending") router.push(`/request/schedule-change/${sca.ScaSid}`);

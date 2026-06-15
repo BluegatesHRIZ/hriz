@@ -100,7 +100,7 @@ export function LoanRequestTable({ loans, isLoading, status }: LoanRequestTableP
   }
 
   if (loans.length === 0) {
-    return <div className="p-8 text-center text-gray-500">No {status} loan requests found.</div>;
+    return <div className="p-8 text-center text-muted-foreground">No {status} loan requests found.</div>;
   }
 
   return (
@@ -141,7 +141,7 @@ export function LoanRequestTable({ loans, isLoading, status }: LoanRequestTableP
             {loans.map((loan) => (
               <TableRow
                 key={loan.LoaId}
-                className={status === "approved" ? "cursor-pointer hover:bg-gray-50" : ""}
+                className={status === "approved" ? "cursor-pointer hover:bg-muted/50" : ""}
                 onClick={() => {
                   if (!loan.LoaId) return;
                   if (status === "pending") {

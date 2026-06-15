@@ -268,12 +268,14 @@ export function WorkInformationTab({
   );
 
   return (
-    <div className="space-y-6">
-      {/* Work Information */}
-      <div>
-        <h4 className="text-lg font-semibold mb-4">Work Information</h4>
+    <div className="space-y-4 p-4">
+      {/* Employment Details */}
+      <div className="bg-card rounded-xl border border-border/60 p-5">
+        <h4 className="text-base font-semibold text-foreground mb-4 pb-3 border-b border-border/60">
+          Employment Details
+        </h4>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div>
+          <div className="space-y-1.5">
             <Label htmlFor="emp_code">Employee Code</Label>
             <Input
               id="emp_code"
@@ -282,7 +284,7 @@ export function WorkInformationTab({
               placeholder="Employee code"
             />
           </div>
-          <div>
+          <div className="space-y-1.5">
             <Label htmlFor="emp_type">Employment Type</Label>
             <Select
               value={String(emp_type)}
@@ -300,7 +302,7 @@ export function WorkInformationTab({
               </SelectContent>
             </Select>
           </div>
-          <div>
+          <div className="space-y-1.5">
             <Label>Date Hired</Label>
             <Popover>
               <PopoverTrigger asChild>
@@ -324,7 +326,7 @@ export function WorkInformationTab({
               </PopoverContent>
             </Popover>
           </div>
-          <div>
+          <div className="space-y-1.5">
             <Label>Date Expiry</Label>
             <Popover>
               <PopoverTrigger asChild>
@@ -348,7 +350,7 @@ export function WorkInformationTab({
               </PopoverContent>
             </Popover>
           </div>
-          <div>
+          <div className="space-y-1.5">
             <Label>Date Regularized</Label>
             <Popover>
               <PopoverTrigger asChild>
@@ -372,7 +374,7 @@ export function WorkInformationTab({
               </PopoverContent>
             </Popover>
           </div>
-          <div>
+          <div className="space-y-1.5">
             <Label htmlFor="emp_supervisor">Supervisor</Label>
             <Select value={emp_supervisor} onValueChange={setEmpSupervisor}>
               <SelectTrigger id="emp_supervisor">
@@ -388,7 +390,7 @@ export function WorkInformationTab({
               </SelectContent>
             </Select>
           </div>
-          <div className="md:col-span-2 lg:col-span-3">
+          <div className="md:col-span-2 lg:col-span-3 space-y-1.5">
             <Label htmlFor="emp_remarks">Remarks</Label>
             <Textarea
               id="emp_remarks"
@@ -398,7 +400,16 @@ export function WorkInformationTab({
               placeholder="Remarks"
             />
           </div>
-          <div>
+        </div>
+      </div>
+
+      {/* Government IDs */}
+      <div className="bg-card rounded-xl border border-border/60 p-5">
+        <h4 className="text-base font-semibold text-foreground mb-4 pb-3 border-b border-border/60">
+          Government IDs &amp; Tax
+        </h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="space-y-1.5">
             <Label htmlFor="emp_sss">SSS</Label>
             <Input
               id="emp_sss"
@@ -407,7 +418,7 @@ export function WorkInformationTab({
               placeholder="SSS number"
             />
           </div>
-          <div>
+          <div className="space-y-1.5">
             <Label htmlFor="emp_philhealth">PhilHealth</Label>
             <Input
               id="emp_philhealth"
@@ -416,7 +427,7 @@ export function WorkInformationTab({
               placeholder="PhilHealth number"
             />
           </div>
-          <div>
+          <div className="space-y-1.5">
             <Label htmlFor="emp_pagibig">Pag-IBIG</Label>
             <Input
               id="emp_pagibig"
@@ -425,7 +436,7 @@ export function WorkInformationTab({
               placeholder="Pag-IBIG number"
             />
           </div>
-          <div>
+          <div className="space-y-1.5">
             <Label htmlFor="emp_tin">TIN</Label>
             <Input
               id="emp_tin"
@@ -434,7 +445,7 @@ export function WorkInformationTab({
               placeholder="Tax identification number"
             />
           </div>
-          <div>
+          <div className="space-y-1.5">
             <Label htmlFor="emp_taxstat">Tax Status</Label>
             <Input
               id="emp_taxstat"
@@ -443,7 +454,7 @@ export function WorkInformationTab({
               placeholder="e.g. S, ME1"
             />
           </div>
-          <div>
+          <div className="space-y-1.5">
             <Label htmlFor="emp_rdo">RDO</Label>
             <Input
               id="emp_rdo"
@@ -452,7 +463,7 @@ export function WorkInformationTab({
               placeholder="Revenue district office"
             />
           </div>
-          <div>
+          <div className="space-y-1.5">
             <Label htmlFor="emp_passport">Passport</Label>
             <Input
               id="emp_passport"
@@ -461,7 +472,7 @@ export function WorkInformationTab({
               placeholder="Passport number"
             />
           </div>
-          <div>
+          <div className="space-y-1.5">
             <Label htmlFor="emp_prc">PRC</Label>
             <Input
               id="emp_prc"
@@ -474,16 +485,17 @@ export function WorkInformationTab({
       </div>
 
       {/* Approval Levels */}
-      <div>
-        <h4 className="text-lg font-semibold mb-4">Approval Levels</h4>
+      <div className="bg-card rounded-xl border border-border/60 p-5">
+        <h4 className="text-base font-semibold text-foreground mb-4 pb-3 border-b border-border/60">
+          Approval Levels
+        </h4>
         <div className="space-y-4">
           {approvalLevels.length === 0 ? (
-            <div className="text-center text-muted-foreground py-4 border rounded-lg">
-              <p>The employee doesn&apos;t have an approval level assigned.</p>
+            <div className="text-center text-muted-foreground py-6 border border-dashed border-border/60 rounded-lg">
+              <p className="mb-3">The employee doesn&apos;t have an approval level assigned.</p>
               <Button
                 type="button"
                 variant="outline"
-                className="mt-2"
                 onClick={addApprovalLevel}
               >
                 <Plus className="mr-2 h-4 w-4" />

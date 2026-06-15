@@ -32,19 +32,19 @@ export function PasswordInput({
           type={showPassword ? "text" : "password"}
           {...register}
           placeholder=""
-          className="border-[.5px] border-black rounded-md w-full bg-bgc-gray py-[3px] px-[4.5px]"
+          className="rounded-md w-full"
           disabled={disabled}
         />
         <button
           type="button"
           onClick={() => setShowPassword(!showPassword)}
-          className="w-max text-right text-[#9ca1a5] border-none bg-transparent"
+          className="w-max text-right text-muted-foreground border-none bg-transparent"
           disabled={disabled}
         >
           {showPassword ? (
-            <EyeOff className="w-6 h-6" stroke="#9ca1a5" />
+            <EyeOff className="w-5 h-5" />
           ) : (
-            <Eye className="w-6 h-6" stroke="#9ca1a5" />
+            <Eye className="w-5 h-5" />
           )}
         </button>
       </div>

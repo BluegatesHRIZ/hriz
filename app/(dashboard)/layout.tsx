@@ -18,7 +18,7 @@ export default function DashboardLayout({
       <Button
         variant="ghost"
         size="icon"
-        className="lg:hidden fixed top-4 left-4 z-50 bg-bgc-dark-blue text-white"
+        className="lg:hidden fixed top-4 left-4 z-50 bg-sidebar text-sidebar-foreground"
         onClick={() => setSidebarOpen(!sidebarOpen)}
       >
         {sidebarOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -48,7 +48,7 @@ export default function DashboardLayout({
       )}
 
       {/* Main Content */}
-      <div className="overflow-y-auto h-screen flex justify-center w-full lg:ml-0">
+      <div className="overflow-y-auto h-screen w-full lg:ml-0">
         {children}
       </div>
     </div>

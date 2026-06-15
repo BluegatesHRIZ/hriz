@@ -194,7 +194,7 @@ export default function LoginPage() {
   }, [qrScannerOpen])
 
   return (
-    <div className="relative h-screen w-screen bg-bgc-gray flex items-center justify-center">
+    <div className="relative h-screen w-screen bg-background flex items-center justify-center">
       {/* BGC Logo in top-left */}
       <div className="flex items-center absolute top-0 left-0 gap-2 pl-3 mt-2">
         <BGCLogo className="w-[55px]" />
@@ -204,7 +204,7 @@ export default function LoginPage() {
       {/* Login Form Card */}
       <form
         onSubmit={handleSubmit(onSubmit)}
-        className="shadow-bgc-card flex flex-col items-center w-[430px] gap-3 pt-4 px-4 bg-white rounded-md"
+        className="shadow-md flex flex-col items-center w-[430px] gap-3 pt-4 px-4 bg-card rounded-xl border border-border/60"
       >
         {/* Client Logo */}
         <div className="w-[85px]">
@@ -227,17 +227,11 @@ export default function LoginPage() {
             }
             className="w-[80%]"
           >
-            <TabsList className="grid w-full grid-cols-2 bg-[#D9D9D9]">
-              <TabsTrigger
-                value="time"
-                className="data-[state=active]:bg-white data-[state=active]:text-[#333333] data-[state=active]:shadow-md rounded-lg"
-              >
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="time" className="rounded-lg">
                 Time
               </TabsTrigger>
-              <TabsTrigger
-                value="pay"
-                className="data-[state=active]:bg-white data-[state=active]:text-[#333333] data-[state=active]:shadow-md rounded-lg"
-              >
+              <TabsTrigger value="pay" className="rounded-lg">
                 Pay
               </TabsTrigger>
             </TabsList>
@@ -254,7 +248,7 @@ export default function LoginPage() {
               id="hris_username"
               {...register("EmpId")}
               placeholder=""
-              className="border-[.5px] border-black rounded-md bg-bgc-gray py-[3px] px-[4.5px]"
+              className="rounded-md"
               disabled={loginMutation.isPending}
             />
             {errors.EmpId && (
@@ -301,24 +295,23 @@ export default function LoginPage() {
               <QrCode className="mr-2 h-4 w-4" />
               Login with QR
             </Button>
-            <button
+            <Button
               type="submit"
-              className="w-max bg-bgc-blue-gray font-bold px-5 py-2 rounded-md text-white disabled:opacity-50"
               disabled={loginMutation.isPending}
             >
               {loginMutation.isPending ? "Please wait" : "Login"}
-            </button>
+            </Button>
           </div>
 
           {/* Copyright */}
-          <p className="text-[13px] text-[#828282] text-center pb-2">
+          <p className="text-[13px] text-muted-foreground text-center pb-2">
             © 2023 Bluegates Cube Inc. All Rights Reserved
           </p>
         </div>
 
         {/* Error Message */}
         {error && (
-          <div className="rounded-md bg-red-50 p-3 text-sm text-red-800 w-full">
+          <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive w-full">
             {error}
           </div>
         )}
@@ -336,11 +329,11 @@ export default function LoginPage() {
           <div className="flex flex-col items-center gap-4 py-4">
             <div
               ref={scannerRef}
-              className="w-full max-w-sm min-h-[300px] flex items-center justify-center bg-gray-100 rounded-lg overflow-hidden"
+              className="w-full max-w-sm min-h-[300px] flex items-center justify-center bg-muted rounded-lg overflow-hidden"
               style={{ position: "relative" }}
             >
               {scannerError && (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg">
+                <div className="absolute inset-0 flex items-center justify-center bg-muted rounded-lg">
                   <p className="text-sm text-gray-600 text-center p-4">{scannerError}</p>
                 </div>
               )}

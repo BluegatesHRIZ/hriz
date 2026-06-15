@@ -139,10 +139,10 @@ export function FileUpload({
             {files.map((file) => (
               <div
                 key={file.fil_id}
-                className="flex items-center justify-between p-2 border rounded hover:bg-gray-50"
+                className="flex items-center justify-between p-2 border rounded hover:bg-muted/50"
               >
                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <File className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                  <File className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                   <span className="text-sm truncate">{file.fil_name || file.name}</span>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">

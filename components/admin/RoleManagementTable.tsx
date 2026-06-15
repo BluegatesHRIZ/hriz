@@ -73,7 +73,7 @@ export function RoleManagementTable() {
         <div className="flex items-center gap-2 mb-3">
           <h3 className="text-lg font-semibold">Default Roles</h3>
           <span
-            className="text-gray-500"
+            className="text-muted-foreground"
             title="These are default roles bundled with the system. They cannot be edited or deleted, but their permissions can be copied when creating a new role."
           >
             <Info className="w-4 h-4" />
@@ -81,7 +81,7 @@ export function RoleManagementTable() {
           <Badge variant="secondary">Read-only</Badge>
         </div>
         {defaultRoles.length === 0 ? (
-          <p className="text-sm text-gray-500">No default roles configured.</p>
+          <p className="text-sm text-muted-foreground">No default roles configured.</p>
         ) : (
           <div className="overflow-x-auto rounded-md border">
             <Table>
@@ -99,7 +99,7 @@ export function RoleManagementTable() {
                     </TableCell>
                     <TableCell>
                       {role.RolesAndPermissionNav.length === 0 ? (
-                        <span className="text-gray-500">No permissions assigned.</span>
+                        <span className="text-muted-foreground">No permissions assigned.</span>
                       ) : (
                         <div className="flex flex-wrap gap-1">
                           {role.RolesAndPermissionNav.map((perm) => (
@@ -120,7 +120,7 @@ export function RoleManagementTable() {
             </Table>
           </div>
         )}
-        <p className="text-xs text-gray-500 mt-2">
+        <p className="text-xs text-muted-foreground mt-2">
           Default roles cannot be edited or deleted.
         </p>
       </section>
@@ -128,7 +128,7 @@ export function RoleManagementTable() {
       <section>
         <h3 className="text-lg font-semibold mb-3">Custom Roles</h3>
         {customRoles.length === 0 ? (
-          <div className="rounded-md border p-6 text-center text-sm text-gray-500">
+          <div className="rounded-md border p-6 text-center text-sm text-muted-foreground">
             <p>The system does not have a custom role yet besides the defaults.</p>
             <p>Click &quot;Add Role&quot; above to create one.</p>
           </div>
@@ -148,7 +148,7 @@ export function RoleManagementTable() {
                   return (
                     <Fragment key={role.RolId}>
                       <TableRow
-                        className="cursor-pointer hover:bg-gray-50"
+                        className="cursor-pointer hover:bg-muted/50"
                         onClick={() =>
                           setExpandedRoleId(isExpanded ? null : role.RolId)
                         }
@@ -183,11 +183,11 @@ export function RoleManagementTable() {
                         </TableCell>
                       </TableRow>
                       {isExpanded && (
-                        <TableRow className="bg-gray-50">
+                        <TableRow className="bg-muted/30">
                           <TableCell colSpan={3}>
                             <h4 className="text-sm font-semibold mb-2">Permissions</h4>
                             {role.RolesAndPermissionNav.length === 0 ? (
-                              <p className="text-sm text-gray-500">
+                              <p className="text-sm text-muted-foreground">
                                 No permissions assigned.
                               </p>
                             ) : (
