@@ -73,12 +73,12 @@ export async function PUT(request: NextRequest) {
       Reason || null,
       LoaEmp,
       EmpAdtype || "",
-      new Date(EmpAddate),
+      EmpAddate ? new Date(EmpAddate) : new Date(),
       EmpAdamt,
       EmpAdaddedamt || 0,
       EmpAdpaypermonth || 0,
       EmpAdpaycutoff || null,
-      new Date(EmpAdstart),
+      EmpAdstart ? new Date(EmpAdstart) : new Date(),
       EmpAdamtperpay || 0,
       approver
     );

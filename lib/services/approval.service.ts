@@ -72,6 +72,8 @@ export async function approvalStatus(params: {
         ? "Undertime"
         : modtype === "SCA"
         ? "Schedule Change"
+        : modtype === "LOA"
+        ? "Loan"
         : "";
     if (modname) {
       await prisma.notification.create({
@@ -152,6 +154,16 @@ async function updateModuleStatus(
           sca_sstatus: appStatus,
           sca_sapprovedby: approver,
           sca_sapproveddate: now,
+        },
+      });
+      break;
+    case "LOA":
+      await prisma.loan.update({
+        where: { loa_id: taskId },
+        data: {
+          loa_status: appStatus,
+          loa_approvedby: approver,
+          loa_approveddate: now,
         },
       });
       break;

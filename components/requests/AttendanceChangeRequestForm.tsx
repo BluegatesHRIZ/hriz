@@ -50,6 +50,7 @@ const attendanceChangeSchema = z.object({
   CoaStype: z.string().min(1, "Type of change is required"),
   CoaSreason: z
     .string()
+    .min(1, "Explanation is required")
     .max(200, "Explanation must be less than 200 characters"),
 });
 
@@ -445,19 +446,10 @@ export function AttendanceChangeRequestForm({
       return;
     }
 
-    if (selectedCoaType === "C5" && !data.CoaSreason) {
+    if (isOthers && !customTypeDetail.trim()) {
       toast({
         title: "Error",
-        description: "Type of change requires an explanation",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (data.CoaSreason && data.CoaSreason.length > 200) {
-      toast({
-        title: "Error",
-        description: "Explanation must be less than 200 characters",
+        description: "Custom type detail is required",
         variant: "destructive",
       });
       return;

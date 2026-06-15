@@ -96,6 +96,10 @@ export function AnnouncementFormDialog({ open, onClose, existing }: Props) {
       toast({ title: "Please fill in all required fields.", variant: "destructive" });
       return;
     }
+    if (endDate < startDate) {
+      toast({ title: "End date cannot be before start date.", variant: "destructive" });
+      return;
+    }
 
     const payload: AnnouncementFormData = {
       an_headline: headline.trim(),

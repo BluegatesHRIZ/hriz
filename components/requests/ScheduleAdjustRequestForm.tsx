@@ -41,7 +41,10 @@ import {
 const schema = z.object({
   ScaSdatefrom: z.date({ message: "From date is required" }),
   ScaSdateto: z.date({ message: "To date is required" }),
-  ScaSreason: z.string().max(200, "Reason must be less than 200 characters"),
+  ScaSreason: z
+    .string()
+    .min(1, "Reason is required")
+    .max(200, "Reason must be less than 200 characters"),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -352,6 +355,15 @@ export function ScheduleAdjustRequestForm({ empId, scaId, onSuccess }: Props) {
       return;
     }
 
+    if (details.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "No details",
+        description: "Please add at least one schedule detail row.",
+      });
+      return;
+    }
+
     const payload: SchedAdjustRequestDTO = {
       ScaSid: scaId,
       ScaSemp: empId,
@@ -463,14 +475,23 @@ export function ScheduleAdjustRequestForm({ empId, scaId, onSuccess }: Props) {
           </div>
 
           <div className="space-y-2">
-            <Label>Reason</Label>
+            <Label>Reason <span className="text-red-500">*</span></Label>
             <Textarea
               value={form.watch("ScaSreason")}
               onChange={(e) =>
-                form.setValue("ScaSreason", e.target.value, { shouldDirty: true })
+                form.setValue("ScaSreason", e.target.value, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
               }
               rows={3}
+              className={form.formState.errors.ScaSreason ? "border-red-500" : ""}
             />
+            {form.formState.errors.ScaSreason && (
+              <p className="text-sm text-red-500">
+                {form.formState.errors.ScaSreason.message}
+              </p>
+            )}
           </div>
 
           <div className="overflow-x-auto">

@@ -61,8 +61,16 @@ export function ChangePasswordForm() {
     e.preventDefault();
     setError(null);
 
+    if (!oldPswd) {
+      setError("Old password is required.");
+      return;
+    }
     if (newPswd.length < 5) {
       setError("New password must be at least 5 characters.");
+      return;
+    }
+    if (!confirmPswd) {
+      setError("Please confirm your new password.");
       return;
     }
     if (newPswd !== confirmPswd) {

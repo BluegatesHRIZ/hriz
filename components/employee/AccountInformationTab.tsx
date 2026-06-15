@@ -38,15 +38,11 @@ const accountSchema = z.object({
   EmpRole: z.string().optional(),
   EmpExternalId: z.string().optional(),
   // Personal Information
-  EmpAddress: z
-    .string()
-    .min(1, "Address is required")
-    .optional()
-    .or(z.literal("")),
-  EmpContact1: z.string().optional(),
+  EmpAddress: z.string().min(1, "Address is required"),
+  EmpContact1: z.string().min(1, "Contact #1 is required"),
   EmpContact2: z.string().optional(),
   EmpEmail: z.string().email("Invalid email").optional().or(z.literal("")),
-  EmpBirthday: z.date().optional(),
+  EmpBirthday: z.date({ message: "Birthday is required" }),
   EmpGender: z.string().optional(),
   EmpCivil: z.string().optional(),
   EmpFather: z.string().optional(),

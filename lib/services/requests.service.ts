@@ -203,7 +203,7 @@ export async function leaveInsertSummary(
   // SP: SET _Lea_Ctr = ((select count(Lea_Semp) from leave_summary WHERE Lea_Semp = _lea_semp) + 1);
   // SP: SET _Lea_Sid = CONCAT("LEA-", datenow ,_Lea_Semp,_Lea_Ctr);
   // We use UUID instead: keep "LEA-" prefix for compatibility
-  const lea_sid = `LEA-${randomUUID()}`;
+  const lea_sid = `LEA-${randomUUID().replace(/-/g, "").substring(0, 16)}`;
   
   // SP: INSERT INTO leave_summary (Lea_Sid, Lea_sCtr, Lea_Stype, Lea_Sfrom, Lea_Sto, Lea_Sreason, Lea_Swithpay, Lea_Swithoutpay, Lea_Semp, Lea_Sapplieddate)
   // SP: VALUES (_Lea_Sid, _Lea_Ctr, _Lea_Stype, _Lea_Sfrom, _Lea_Sto, _Lea_Sreason, _Lea_Swithpay, _Lea_Swithoutpay, _Lea_Semp, now());
@@ -252,20 +252,12 @@ export async function leaveInsertDetails(
     select: { lea_dctr: true },
   });
   const counter = (last?.lea_dctr ?? 0) + 1;
-  
-  // SP: SET _Lea_Dpk = CONCAT(_Lea_Did,_Lev_Dctr);
-  const lea_dpk_value = `${lea_dpk}${counter}`; // Summary ID + counter (e.g., "LEA-2026021100001321")
-  
-  // SP: INSERT INTO leave_detail (Lea_Did, Lea_Dpk, ...) VALUES (_Lea_Did, _Lea_Dpk, ...);
-  // SP uses _Lea_Did (summary ID) for lea_did, but lea_did is PRIMARY KEY VARCHAR(20) and must be unique.
-  // Since summary ID + counter can exceed 20 chars, use a short UUID (16 hex chars) for lea_did.
-  // Keep lea_dpk as summary ID + counter for the parent relationship.
   const lea_did = randomUUID().replace(/-/g, "").substring(0, 16); // 16 chars fits VARCHAR(20)
-  
+
   await prisma.leave_detail.create({
     data: {
       lea_did,
-      lea_dpk: lea_dpk_value,
+      lea_dpk, // raw summary ID — downstream queries filter by this value
       lea_dctr: counter,
       lea_ddate,
       lea_dtype,
@@ -371,7 +363,7 @@ export async function otInsertOtRequest(
 ) {
   // SP: counter = count(otm_emp) + 1; id = "OVT-" + yyyymmdd + emp + counter
   // We use UUID: keep "OVT-" prefix for compatibility
-  const otm_id = `OVT-${randomUUID()}`;
+  const otm_id = `OVT-${randomUUID().replace(/-/g, "").substring(0, 16)}`;
 
   await prisma.overtime.create({
     data: {
@@ -437,7 +429,7 @@ export async function undertimeInsertSummary(
   utm_reason: string
 ) {
   // SP uses counter-based ID; we use UUID: keep "UNT-" prefix for compatibility
-  const utm_id = `UNT-${randomUUID()}`;
+  const utm_id = `UNT-${randomUUID().replace(/-/g, "").substring(0, 16)}`;
   await prisma.undertime.create({
     data: {
       utm_id,
@@ -633,7 +625,7 @@ export async function loanInsertRequest(
 ) {
   // SP: get last loa_ctr for today, counter = last + 1; id = "LOA-" + yyyymmdd + emp + counter
   // We use UUID: keep "LOA-" prefix for compatibility
-  const loa_id = `LOA-${randomUUID()}`;
+  const loa_id = `LOA-${randomUUID().replace(/-/g, "").substring(0, 16)}`;
   await prisma.loan.create({
     data: {
       loa_id,
@@ -646,6 +638,7 @@ export async function loanInsertRequest(
       loa_applieddate: new Date(),
     },
   });
+  await addForApproval(loa_id, LoaEmp);
 }
 
 export async function loanUpdateRequest(
@@ -809,7 +802,7 @@ export async function schedAdjustInsertSummary(
 ): Promise<string> {
   // SP: get last sca_sctr for today, counter = last + 1; id = "SCA-" + yyyymmdd + emp + counter
   // We use UUID: keep "SCA-" prefix for compatibility
-  const sca_sid = `SCA-${randomUUID()}`;
+  const sca_sid = `SCA-${randomUUID().replace(/-/g, "").substring(0, 16)}`;
   await prisma.schedadjust_summary.create({
     data: {
       sca_sid,

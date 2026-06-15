@@ -34,8 +34,8 @@ const undertimeSchema = z.object({
   UtmToTime: z.string().min(1, "To time is required"),
   UtmReason: z
     .string()
-    .max(200, "Reason must be less than 200 characters")
-    .optional(),
+    .min(1, "Reason is required")
+    .max(200, "Reason must be less than 200 characters"),
 });
 
 type UndertimeFormValues = z.infer<typeof undertimeSchema>;
@@ -220,6 +220,11 @@ export function UndertimeRequestForm({
                   })
                 }
               />
+              {form.formState.errors.UtmFromTime && (
+                <p className="text-sm text-red-500">
+                  {form.formState.errors.UtmFromTime.message}
+                </p>
+              )}
             </div>
 
             <div className="flex flex-col space-y-2">
@@ -235,11 +240,16 @@ export function UndertimeRequestForm({
                   })
                 }
               />
+              {form.formState.errors.UtmToTime && (
+                <p className="text-sm text-red-500">
+                  {form.formState.errors.UtmToTime.message}
+                </p>
+              )}
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label>Reason</Label>
+            <Label>Reason <span className="text-red-500">*</span></Label>
             <Textarea
               rows={3}
               value={form.watch("UtmReason") || ""}
@@ -250,7 +260,13 @@ export function UndertimeRequestForm({
                 })
               }
               placeholder="Explain your undertime request"
+              className={form.formState.errors.UtmReason ? "border-red-500" : ""}
             />
+            {form.formState.errors.UtmReason && (
+              <p className="text-sm text-red-500">
+                {form.formState.errors.UtmReason.message}
+              </p>
+            )}
           </div>
 
           <div className="flex justify-end">

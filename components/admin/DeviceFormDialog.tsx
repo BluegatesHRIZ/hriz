@@ -80,6 +80,20 @@ export function DeviceFormDialog({ open, onOpenChange, editTarget }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    if (!form.ter_code.trim()) {
+      setError("Device code is required.");
+      return;
+    }
+    if (!form.ter_id.trim()) {
+      setError("Device name is required.");
+      return;
+    }
+    if (form.ter_ip && !/^(\d{1,3}\.){3}\d{1,3}$/.test(form.ter_ip.trim())) {
+      setError("IP address format is invalid (e.g. 192.168.1.100).");
+      return;
+    }
+
     try {
       if (isEdit) {
         await update.mutateAsync({
