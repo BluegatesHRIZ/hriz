@@ -59,7 +59,7 @@ export function News() {
           <p className="text-gray-500">No announcements</p>
         </div>
       ) : (
-        <Carousel className="w-full">
+        <Carousel className="w-full px-12">
           <CarouselContent>
             {announcements.map((announcement, index) => (
               <CarouselItem key={announcement.an_id}>
