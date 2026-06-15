@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { authorizeApiRequest } from "@/lib/auth/authorization";
 import { parseEmployeeExcel, bulkCreateEmployees } from "@/lib/services/bulkUpload.service";
 
-export const config = { api: { bodyParser: false } };
-
 /**
  * POST /api/admin/bulk-upload/employees
  * Accepts a multipart .xlsx file, parses employee rows, creates records.
