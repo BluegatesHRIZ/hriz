@@ -8,13 +8,14 @@ import { authorizeApiRequest } from "@/lib/auth/authorization";
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const auth = await authorizeApiRequest(request, "apiAdminAnnouncements");
     if (!auth.ok) return auth.response;
 
-    const id = Number(params.id);
+    const { id: idParam } = await params;
+    const id = Number(idParam);
     if (isNaN(id)) return NextResponse.json({ message: "Invalid id" }, { status: 400 });
 
     const body = await request.json() as {
@@ -58,13 +59,14 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const auth = await authorizeApiRequest(request, "apiAdminAnnouncements");
     if (!auth.ok) return auth.response;
 
-    const id = Number(params.id);
+    const { id: idParam } = await params;
+    const id = Number(idParam);
     if (isNaN(id)) return NextResponse.json({ message: "Invalid id" }, { status: 400 });
 
     await prisma.announce.delete({ where: { an_id: id } });

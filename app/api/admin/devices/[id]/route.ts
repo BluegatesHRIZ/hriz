@@ -8,12 +8,13 @@ import { authorizeApiRequest } from "@/lib/auth/authorization";
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const auth = await authorizeApiRequest(request, "apiAdminDevices");
     if (!auth.ok) return auth.response;
 
+    const { id } = await params;
     const body = await request.json() as {
       ter_id?: string;
       ter_ip?: string;
@@ -25,7 +26,7 @@ export async function PUT(
 
     // Enforce limits when authorizing (status → 1)
     if (body.ter_status === 1) {
-      const existing = await prisma.terminal.findUnique({ where: { ter_code: params.id } });
+      const existing = await prisma.terminal.findUnique({ where: { ter_code: id } });
       const settings = await prisma.settings_tab.findFirst();
       if (settings && existing) {
         if (existing.ter_type === 0) {
@@ -44,7 +45,7 @@ export async function PUT(
     }
 
     const updated = await prisma.terminal.update({
-      where: { ter_code: params.id },
+      where: { ter_code: id },
       data: {
         ter_id: body.ter_id,
         ter_ip: body.ter_ip,
@@ -68,14 +69,15 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const auth = await authorizeApiRequest(request, "apiAdminDevices");
     if (!auth.ok) return auth.response;
 
+    const { id } = await params;
     await prisma.terminal.update({
-      where: { ter_code: params.id },
+      where: { ter_code: id },
       data: { ter_status: 2 },
     });
 

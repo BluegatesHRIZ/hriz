@@ -4,12 +4,13 @@ import { authorizeApiRequest } from "@/lib/auth/authorization";
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const auth = await authorizeApiRequest(request, "apiAdminHolidays");
     if (!auth.ok) return auth.response;
 
+    const { id } = await params;
     const body = await request.json() as {
       hol_date: string;
       hol_name: string;
@@ -20,7 +21,7 @@ export async function PUT(
     };
 
     const updated = await prisma.holiday.update({
-      where: { hol_id: params.id },
+      where: { hol_id: id },
       data: {
         hol_date: new Date(body.hol_date),
         hol_name: body.hol_name,
@@ -43,13 +44,14 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const auth = await authorizeApiRequest(request, "apiAdminHolidays");
     if (!auth.ok) return auth.response;
 
-    await prisma.holiday.delete({ where: { hol_id: params.id } });
+    const { id } = await params;
+    await prisma.holiday.delete({ where: { hol_id: id } });
 
     return NextResponse.json({ message: "Deleted" });
   } catch (error) {

@@ -4,16 +4,17 @@ import { authorizeApiRequest } from "@/lib/auth/authorization";
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const auth = await authorizeApiRequest(request, "apiAdminMasterfile");
     if (!auth.ok) return auth.response;
 
+    const { id } = await params;
     const body = await request.json() as { pst_desc: string; pst_Status: number };
 
     const updated = await prisma.position.update({
-      where: { pst_id: params.id },
+      where: { pst_id: id },
       data: { pst_desc: body.pst_desc, pst_Status: body.pst_Status },
     });
 
@@ -26,13 +27,14 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const auth = await authorizeApiRequest(request, "apiAdminMasterfile");
     if (!auth.ok) return auth.response;
 
-    await prisma.position.delete({ where: { pst_id: params.id } });
+    const { id } = await params;
+    await prisma.position.delete({ where: { pst_id: id } });
     return NextResponse.json({ message: "Deleted" });
   } catch (error) {
     console.error("Positions DELETE error:", error);
