@@ -27,17 +27,17 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    const dateParam = request.nextUrl.searchParams.get("date")
+    const today = dateParam
+      ? new Date(dateParam + "T00:00:00.000Z")
+      : (() => { const d = new Date(); d.setUTCHours(0, 0, 0, 0); return d })()
 
-    const announcements = await prisma.announce.findMany({
+
+    const allActive = await prisma.announce.findMany({
       where: {
         an_status: 1,
         an_startdate: {
           lte: today,
-        },
-        an_enddate: {
-          gte: today,
         },
       },
       select: {
@@ -56,6 +56,30 @@ export async function GET(request: NextRequest) {
       orderBy: {
         an_logdate: "desc",
       },
+    })
+
+    const announcements = allActive.filter((a) => {
+      const repeat = a.an_repeat ?? 0
+      const start = a.an_startdate ? new Date(a.an_startdate) : null
+      const end = a.an_enddate ? new Date(a.an_enddate) : null
+
+      switch (repeat) {
+        case 0: // Once — must be within date range
+          return end ? end >= today : false
+        case 1: // Daily — always show once started
+          return true
+        case 2: // Weekly — show on the same day of the week as startdate
+          return start ? today.getUTCDay() === start.getUTCDay() : false
+        case 3: // Monthly — show on the same day of the month as startdate
+          return start ? today.getUTCDate() === start.getUTCDate() : false
+        case 4: // Yearly — show on the same month and day as startdate
+          return start
+            ? today.getUTCMonth() === start.getUTCMonth() &&
+                today.getUTCDate() === start.getUTCDate()
+            : false
+        default:
+          return end ? end >= today : false
+      }
     })
 
     return NextResponse.json(announcements)

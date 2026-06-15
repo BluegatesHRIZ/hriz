@@ -29,7 +29,8 @@ export function useNews() {
         throw new ApiError("No token found", 401)
       }
 
-      return apiFetch<AnnouncementDTO[]>("/announcements", {
+      const localDate = new Date().toLocaleDateString("en-CA") // "YYYY-MM-DD" in client's timezone
+      return apiFetch<AnnouncementDTO[]>(`/announcements?date=${localDate}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

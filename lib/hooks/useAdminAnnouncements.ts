@@ -52,7 +52,10 @@ export function useCreateAnnouncement() {
         headers: { ...authHeader(), "Content-Type": "application/json" },
         body: JSON.stringify(data),
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: [...QK] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [...QK] });
+      qc.invalidateQueries({ queryKey: ["news"] });
+    },
   });
 }
 
@@ -65,7 +68,10 @@ export function useUpdateAnnouncement() {
         headers: { ...authHeader(), "Content-Type": "application/json" },
         body: JSON.stringify(data),
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: [...QK] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [...QK] });
+      qc.invalidateQueries({ queryKey: ["news"] });
+    },
   });
 }
 
@@ -77,6 +83,9 @@ export function useDeleteAnnouncement() {
         method: "DELETE",
         headers: authHeader(),
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: [...QK] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [...QK] });
+      qc.invalidateQueries({ queryKey: ["news"] });
+    },
   });
 }
