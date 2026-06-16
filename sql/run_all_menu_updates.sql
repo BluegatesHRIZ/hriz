@@ -16,6 +16,12 @@ UPDATE menu SET mnu_http = '/reports/overtime'         WHERE mnu_id = 'R3';
 UPDATE menu SET mnu_http = '/reports/payroll'          WHERE mnu_id = 'R4';
 UPDATE menu SET mnu_http = '/reports/dailylog'         WHERE mnu_id = 'R5';
 UPDATE menu SET mnu_http = '/reports/undertime'        WHERE mnu_id = 'R6';
-UPDATE menu SET mnu_http = '/reports/schedule-change'  WHERE mnu_id = 'R7';
+UPDATE menu SET mnu_http = '/reports/schedule-change'    WHERE mnu_id = 'R7';
+UPDATE menu SET mnu_http = '/reports/attendance-change'  WHERE mnu_id = 'R8';
+UPDATE menu SET mnu_http = '/reports/biolog'             WHERE mnu_id = 'R9';
+
+UPDATE menu SET mnu_http = '/contributions/sss'  WHERE mnu_id = 'C1';
+UPDATE menu SET mnu_http = '/contributions/hdmf' WHERE mnu_id = 'C2';
+UPDATE menu SET mnu_http = '/contributions/phic' WHERE mnu_id = 'C3';
 
 SELECT mnu_id, mnu_desc, mnu_http FROM menu ORDER BY mnu_id;
