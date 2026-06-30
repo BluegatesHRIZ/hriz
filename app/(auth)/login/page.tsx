@@ -23,6 +23,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { QrCode } from "lucide-react"
+import { ThemeToggle } from "@/components/ui/theme-toggle"
 import Image from "next/image"
 
 const loginSchema = z.object({
@@ -193,158 +194,244 @@ export default function LoginPage() {
     }
   }, [qrScannerOpen])
 
+  const year = new Date().getFullYear()
+
+  // Track the cursor by writing CSS vars straight to the DOM — no re-renders.
+  const handlePanelMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = e.currentTarget
+    const rect = el.getBoundingClientRect()
+    el.style.setProperty("--mx", `${e.clientX - rect.left}px`)
+    el.style.setProperty("--my", `${e.clientY - rect.top}px`)
+  }
+
   return (
-    <div className="relative h-screen w-screen bg-background flex items-center justify-center">
-      {/* BGC Logo in top-left */}
-      <div className="flex items-center absolute top-0 left-0 gap-2 pl-3 mt-2">
-        <BGCLogo className="w-[55px]" />
-        <h1 className="font-bold text-[28px]">HRIZ.</h1>
+    <div className="min-h-[100dvh] w-full lg:grid lg:grid-cols-[1fr_1.05fr]">
+      {/* Left: form */}
+      <div className="relative flex min-h-[100dvh] flex-col px-6 py-8 sm:px-10 lg:px-14">
+        {/* Brand mark + theme toggle */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <BGCLogo className="w-9" />
+            <span className="text-xl font-semibold tracking-tight">HRIZ</span>
+          </div>
+          <ThemeToggle className="text-muted-foreground" />
+        </div>
+
+        {/* Form, vertically centered */}
+        <div className="flex flex-1 items-center justify-center py-10">
+          <form
+            onSubmit={handleSubmit(onSubmit)}
+            className="w-full max-w-[380px] animate-rise"
+          >
+            {/* Client Logo */}
+            <div className="mb-6 flex justify-center">
+              <Image
+                src="/logos/client-logo.png"
+                alt="Company logo"
+                width={72}
+                height={72}
+                className="h-16 w-auto"
+                priority
+              />
+            </div>
+
+            <div className="mb-6 text-center">
+              <h1 className="text-2xl font-semibold tracking-tight">Sign in</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Enter your credentials to access your dashboard.
+              </p>
+            </div>
+
+            {/* Time/Pay Tabs (if set_includes === 2) */}
+            {setIncludes === 2 && (
+              <Tabs
+                value={includeTabIndex === 0 ? "time" : "pay"}
+                onValueChange={(value: string) =>
+                  setIncludeTabIndex(value === "time" ? 0 : 1)
+                }
+                className="mb-5 w-full"
+              >
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="time">Time</TabsTrigger>
+                  <TabsTrigger value="pay">Pay</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            )}
+
+            <div className="flex flex-col gap-4">
+              {/* Username Field */}
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="hris_username">Username</Label>
+                <Input
+                  id="hris_username"
+                  {...register("EmpId")}
+                  autoComplete="username"
+                  disabled={loginMutation.isPending}
+                />
+                {errors.EmpId && (
+                  <p className="text-sm text-destructive">{errors.EmpId.message}</p>
+                )}
+                {settings?.set_extid === 1 && (
+                  <label
+                    htmlFor="external_id"
+                    className="mt-1 flex items-center justify-end gap-2 text-sm text-muted-foreground"
+                  >
+                    <input
+                      type="checkbox"
+                      id="external_id"
+                      {...register("external_id", {
+                        setValueAs: (value: unknown) =>
+                          value === true || value === "on",
+                      })}
+                      className="h-4 w-4 rounded border-input accent-primary"
+                    />
+                    Use External ID
+                  </label>
+                )}
+              </div>
+
+              {/* Password Field */}
+              <PasswordInput
+                id="hris_password"
+                label="Password"
+                register={register("EmpPswd")}
+                error={errors.EmpPswd?.message}
+                disabled={loginMutation.isPending}
+              />
+
+              {/* Error Message */}
+              {error && (
+                <div className="rounded-md border border-destructive/20 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
+                  {error}
+                </div>
+              )}
+
+              {/* Submit */}
+              <Button
+                type="submit"
+                className="mt-1 w-full"
+                size="lg"
+                disabled={loginMutation.isPending}
+              >
+                {loginMutation.isPending ? "Signing in…" : "Sign in"}
+              </Button>
+
+              {/* Divider */}
+              <div className="flex items-center gap-3 py-1 text-xs text-muted-foreground">
+                <span className="h-px flex-1 bg-border" />
+                or
+                <span className="h-px flex-1 bg-border" />
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                className="w-full"
+                onClick={() => setQrScannerOpen(true)}
+                disabled={loginMutation.isPending || loginQrMutation.isPending}
+              >
+                <QrCode className="mr-2 h-4 w-4" />
+                Sign in with QR code
+              </Button>
+            </div>
+          </form>
+        </div>
+
+        {/* Copyright */}
+        <p className="text-center text-xs text-muted-foreground">
+          © {year} Bluegates Cube Inc. All rights reserved.
+        </p>
       </div>
 
-      {/* Login Form Card */}
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="shadow-md flex flex-col items-center w-[430px] gap-3 pt-4 px-4 bg-card rounded-xl border border-border/60"
+      {/* Right: brand panel */}
+      <div
+        onMouseMove={handlePanelMouseMove}
+        className="group relative hidden overflow-hidden bg-sidebar text-sidebar-foreground [--mx:50%] [--my:40%] lg:flex lg:flex-col lg:justify-center lg:p-14"
       >
-        {/* Client Logo */}
-        <div className="w-[85px]">
-          <Image
-            src="/logos/client-logo.png"
-            alt="Client Logo"
-            width={85}
-            height={85}
-            className="w-full"
-            priority
+        {/* Ambient depth */}
+        <div aria-hidden className="pointer-events-none absolute inset-0">
+          <div className="absolute -right-24 -top-24 h-[28rem] w-[28rem] rounded-full bg-sidebar-ring/20 blur-3xl" />
+          <div className="absolute -bottom-32 -left-16 h-[26rem] w-[26rem] rounded-full bg-primary/25 blur-3xl" />
+
+          {/* Base dotted grid (dim) */}
+          <div
+            className="absolute inset-0 opacity-[0.05]"
+            style={{
+              backgroundImage:
+                "radial-gradient(hsl(var(--sidebar-foreground)) 1px, transparent 1px)",
+              backgroundSize: "22px 22px",
+            }}
+          />
+
+          {/* Dotted grid brightened only around the cursor */}
+          <div
+            className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+            style={{
+              backgroundImage:
+                "radial-gradient(hsl(var(--sidebar-ring)) 1px, transparent 1px)",
+              backgroundSize: "22px 22px",
+              WebkitMaskImage:
+                "radial-gradient(220px circle at var(--mx) var(--my), black 0%, transparent 70%)",
+              maskImage:
+                "radial-gradient(220px circle at var(--mx) var(--my), black 0%, transparent 70%)",
+            }}
+          />
+
+          {/* Soft glow that follows the cursor */}
+          <div
+            className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+            style={{
+              background:
+                "radial-gradient(480px circle at var(--mx) var(--my), hsl(var(--sidebar-ring) / 0.16), transparent 45%)",
+            }}
           />
         </div>
 
-        {/* Time/Pay Tabs (if set_includes === 2) */}
-        {setIncludes === 2 && (
-          <Tabs
-            value={includeTabIndex === 0 ? "time" : "pay"}
-            onValueChange={(value: string) =>
-              setIncludeTabIndex(value === "time" ? 0 : 1)
-            }
-            className="w-[80%]"
-          >
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="time" className="rounded-lg">
-                Time
-              </TabsTrigger>
-              <TabsTrigger value="pay" className="rounded-lg">
-                Pay
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        )}
-
-        <div className="w-full flex flex-col gap-3">
-          {/* Username Field */}
-          <div className="flex flex-col">
-            <Label htmlFor="hris_username" className="text-[0.9rem]">
-              Username
-            </Label>
-            <Input
-              id="hris_username"
-              {...register("EmpId")}
-              placeholder=""
-              className="rounded-md"
-              disabled={loginMutation.isPending}
-            />
-            {errors.EmpId && (
-              <p className="text-sm text-red-600 mt-1">{errors.EmpId.message}</p>
-            )}
-            {settings?.set_extid === 1 && (
-              <div className="right-control flex justify-end w-full text-gray-500 mt-1">
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="external_id"
-                    {...register("external_id", {
-                      setValueAs: (value: unknown) =>
-                        value === true || value === "on",
-                    })}
-                    className="h-4 w-4 rounded border-gray-300"
-                  />
-                  <Label htmlFor="external_id" className="text-sm font-normal">
-                    Use External ID
-                  </Label>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Password Field */}
-          <PasswordInput
-            id="hris_password"
-            label="Password"
-            register={register("EmpPswd")}
-            error={errors.EmpPswd?.message}
-            disabled={loginMutation.isPending}
-          />
-
-          {/* Login Button */}
-          <div className="flex justify-between items-center mt-7 mb-7">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setQrScannerOpen(true)}
-              disabled={loginMutation.isPending || loginQrMutation.isPending}
-              className="text-sm"
-            >
-              <QrCode className="mr-2 h-4 w-4" />
-              Login with QR
-            </Button>
-            <Button
-              type="submit"
-              disabled={loginMutation.isPending}
-            >
-              {loginMutation.isPending ? "Please wait" : "Login"}
-            </Button>
-          </div>
-
-          {/* Copyright */}
-          <p className="text-[13px] text-muted-foreground text-center pb-2">
-            © 2023 Bluegates Cube Inc. All Rights Reserved
+        <div className="relative max-w-md">
+          <h2 className="text-3xl font-semibold leading-tight tracking-tight xl:text-4xl">
+            Your workday, in one place.
+          </h2>
+          <p className="mt-4 leading-relaxed text-sidebar-muted">
+            Clock in, file requests, track attendance, and view your payslips —
+            all from a single dashboard.
           </p>
         </div>
 
-        {/* Error Message */}
-        {error && (
-          <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive w-full">
-            {error}
-          </div>
-        )}
-      </form>
+        <p className="absolute bottom-14 left-14 text-sm text-sidebar-muted">
+          Human Resource Information System
+        </p>
+      </div>
 
       {/* QR Scanner Dialog */}
       <Dialog open={qrScannerOpen} onOpenChange={setQrScannerOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Scan QR Code</DialogTitle>
+            <DialogTitle>Scan QR code</DialogTitle>
             <DialogDescription>
-              Point your camera at the QR code to sign in
+              Point your camera at the QR code to sign in.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col items-center gap-4 py-4">
             <div
               ref={scannerRef}
-              className="w-full max-w-sm min-h-[300px] flex items-center justify-center bg-muted rounded-lg overflow-hidden"
-              style={{ position: "relative" }}
+              className="relative flex min-h-[300px] w-full max-w-sm items-center justify-center overflow-hidden rounded-lg bg-muted"
             >
               {scannerError && (
-                <div className="absolute inset-0 flex items-center justify-center bg-muted rounded-lg">
-                  <p className="text-sm text-gray-600 text-center p-4">{scannerError}</p>
+                <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-muted">
+                  <p className="p-4 text-center text-sm text-muted-foreground">
+                    {scannerError}
+                  </p>
                 </div>
               )}
             </div>
             {scannerError && (
-              <div className="rounded-md bg-red-50 p-3 text-sm text-red-800 w-full">
+              <div className="w-full rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
                 {scannerError}
               </div>
             )}
             {loginQrMutation.isPending && (
-              <p className="text-sm text-gray-600">Logging in...</p>
+              <p className="text-sm text-muted-foreground">Signing in…</p>
             )}
             <Button
               variant="outline"

@@ -16,6 +16,7 @@ import {
 import { AnnouncementDTO, useAdminAnnouncements } from "@/lib/hooks/useAdminAnnouncements";
 import { AnnouncementFormDialog } from "@/components/admin/AnnouncementFormDialog";
 import { DeleteAnnouncementDialog } from "@/components/admin/DeleteAnnouncementDialog";
+import { Pagination } from "@/components/ui/Pagination";
 
 const REPEAT_LABELS: Record<number, string> = {
   0: "Once",
@@ -31,7 +32,10 @@ function formatDate(val: string | null | undefined) {
 }
 
 export function AnnouncementManagementTable() {
-  const { data: announcements = [], isLoading } = useAdminAnnouncements();
+  const [page, setPage] = useState(1);
+  const { data, isLoading } = useAdminAnnouncements(page);
+  const announcements = data?.data ?? [];
+  const meta = data?.meta;
   const [editTarget, setEditTarget] = useState<AnnouncementDTO | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AnnouncementDTO | null>(null);
   const [showAdd, setShowAdd] = useState(false);
@@ -106,6 +110,11 @@ export function AnnouncementManagementTable() {
             )}
           </TableBody>
         </Table>
+        {meta && (
+          <div className="px-4 pb-4">
+            <Pagination meta={meta} onPageChange={setPage} />
+          </div>
+        )}
       </div>
 
       <AnnouncementFormDialog

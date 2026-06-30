@@ -1,23 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeApiRequest } from "@/lib/auth/authorization";
 import { buildDailyLogXlsx } from "@/lib/services/reports.excel";
-import type { DailyLogRow } from "@/lib/services/reports.service";
+import { listDailyLog } from "@/lib/services/reports.service";
 
 interface ExportBody {
-  rows: DailyLogRow[];
+  date?: string;
+  emp?: string;
   filename?: string;
 }
 
+/** Independent export: re-fetches the FULL daily log report for the filters. */
 export async function POST(request: NextRequest) {
   const auth = await authorizeApiRequest(request, "apiDailylogReport");
   if (!auth.ok) return auth.response;
 
   try {
     const body = (await request.json()) as ExportBody;
-    if (!Array.isArray(body.rows)) {
-      return NextResponse.json({ message: "rows is required" }, { status: 400 });
+    if (!body.date) {
+      return NextResponse.json({ message: "date is required" }, { status: 400 });
     }
-    const buffer = await buildDailyLogXlsx(body.rows);
+    const rows = await listDailyLog(body.date, body.emp ?? "All");
+    const buffer = await buildDailyLogXlsx(rows);
     const filename = body.filename || "DailyLogReport.xlsx";
     return new NextResponse(buffer, {
       status: 200,

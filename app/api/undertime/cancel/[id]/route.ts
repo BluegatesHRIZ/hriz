@@ -19,9 +19,9 @@ export async function PUT(
     await requestProcedures.cancelRequest(utId, username);
 
     // Fetch updated undertime requests
-    const result = await requestProcedures.displayGrid("UNT", username);
+    const { data } = await requestProcedures.displayGrid("UNT", username);
 
-    return NextResponse.json(result);
+    return NextResponse.json(data);
   } catch (error) {
     console.error("Cancel undertime error:", error);
     return NextResponse.json(

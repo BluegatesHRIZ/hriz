@@ -5,10 +5,10 @@ import { format } from "date-fns";
 import {
   useDownloadReportXlsx,
   useOvertimeReport,
-  type OvertimeReportRow,
 } from "@/lib/hooks/useReports";
 import { ReportPageShell } from "@/components/reports/ReportPageShell";
 import { DateRangeFilter } from "@/components/reports/DateRangeFilter";
+import { Pagination } from "@/components/ui/Pagination";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -33,14 +33,10 @@ function today(): string {
 export function OvertimeReportTable() {
   const [from, setFrom] = useState<string>(firstOfMonth());
   const [to, setTo] = useState<string>(today());
-  const [rows, setRows] = useState<OvertimeReportRow[]>([]);
+  const [submitted, setSubmitted] = useState<{ from: string; to: string } | null>(null);
 
   const { toast } = useToast();
   const overtime = useOvertimeReport({
-    onSuccess: (data) => {
-      setRows(data);
-      toast({ title: "Report ready", description: `${data.length} rows` });
-    },
     onError: (err) =>
       toast({
         title: "Failed to load report",
@@ -49,6 +45,19 @@ export function OvertimeReportTable() {
       }),
   });
   const downloader = useDownloadReportXlsx();
+
+  const rows = overtime.data?.data ?? [];
+  const meta = overtime.data?.meta;
+
+  const generate = () => {
+    const f = { from, to };
+    setSubmitted(f);
+    overtime.mutate({ ...f, page: 1 });
+  };
+  const goToPage = (p: number) => {
+    if (!submitted) return;
+    overtime.mutate({ ...submitted, page: p });
+  };
 
   return (
     <ReportPageShell
@@ -64,20 +73,18 @@ export function OvertimeReportTable() {
             disabled={overtime.isPending}
           />
           <div className="flex flex-wrap gap-2">
-            <Button
-              onClick={() => overtime.mutate({ from, to })}
-              disabled={overtime.isPending}
-            >
+            <Button onClick={generate} disabled={overtime.isPending}>
               <Send className="mr-2 h-4 w-4" /> Generate Report
             </Button>
             <Button
               variant="outline"
-              disabled={downloader.isPending || rows.length === 0}
+              disabled={downloader.isPending || !submitted}
               onClick={() =>
+                submitted &&
                 downloader.mutate({
                   endpoint: "/reports/overtime/export",
-                  rows,
-                  filename: `Overtime Report (${from} to ${to}).xlsx`,
+                  body: submitted,
+                  filename: `Overtime Report (${submitted.from} to ${submitted.to}).xlsx`,
                 })
               }
             >
@@ -90,9 +97,13 @@ export function OvertimeReportTable() {
     >
       {overtime.isPending ? (
         <p className="py-8 text-center text-sm text-muted-foreground">Loading...</p>
-      ) : rows.length === 0 ? (
+      ) : !submitted ? (
         <p className="py-8 text-center text-sm text-muted-foreground">
           No data loaded.
+        </p>
+      ) : rows.length === 0 ? (
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          No rows for the selected range.
         </p>
       ) : (
         <div className="overflow-x-auto">
@@ -112,8 +123,8 @@ export function OvertimeReportTable() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((row) => (
-                <TableRow key={row.otm_id ?? Math.random().toString()}>
+              {rows.map((row, i) => (
+                <TableRow key={row.otm_id ?? `ot-${i}`}>
                   <TableCell>{row.otm_id}</TableCell>
                   <TableCell>{row.name}</TableCell>
                   <TableCell>{row.department}</TableCell>
@@ -128,6 +139,7 @@ export function OvertimeReportTable() {
               ))}
             </TableBody>
           </Table>
+          {meta && <Pagination meta={meta} onPageChange={goToPage} />}
         </div>
       )}
     </ReportPageShell>

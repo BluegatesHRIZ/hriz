@@ -5,9 +5,9 @@ import { format } from "date-fns";
 import {
   useDailyLogReport,
   useDownloadReportXlsx,
-  type DailyLogRow,
 } from "@/lib/hooks/useReports";
 import { ReportPageShell } from "@/components/reports/ReportPageShell";
+import { Pagination } from "@/components/ui/Pagination";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,14 +28,10 @@ function today(): string {
 
 export function DailyLogReportTable() {
   const [date, setDate] = useState<string>(today());
-  const [rows, setRows] = useState<DailyLogRow[]>([]);
+  const [submitted, setSubmitted] = useState<{ date: string } | null>(null);
   const { toast } = useToast();
 
   const dailyLog = useDailyLogReport({
-    onSuccess: (data) => {
-      setRows(data);
-      toast({ title: "Report ready", description: `${data.length} rows` });
-    },
     onError: (err) =>
       toast({
         title: "Failed to load report",
@@ -44,6 +40,19 @@ export function DailyLogReportTable() {
       }),
   });
   const downloader = useDownloadReportXlsx();
+
+  const rows = dailyLog.data?.data ?? [];
+  const meta = dailyLog.data?.meta;
+
+  const generate = () => {
+    const f = { date };
+    setSubmitted(f);
+    dailyLog.mutate({ ...f, page: 1 });
+  };
+  const goToPage = (p: number) => {
+    if (!submitted) return;
+    dailyLog.mutate({ ...submitted, page: p });
+  };
 
   return (
     <ReportPageShell
@@ -61,20 +70,18 @@ export function DailyLogReportTable() {
             />
           </div>
           <div className="flex items-end gap-2">
-            <Button
-              onClick={() => dailyLog.mutate({ date })}
-              disabled={dailyLog.isPending}
-            >
+            <Button onClick={generate} disabled={dailyLog.isPending}>
               <Send className="mr-2 h-4 w-4" /> Generate Report
             </Button>
             <Button
               variant="outline"
-              disabled={downloader.isPending || rows.length === 0}
+              disabled={downloader.isPending || !submitted}
               onClick={() =>
+                submitted &&
                 downloader.mutate({
                   endpoint: "/reports/dailylog/export",
-                  rows,
-                  filename: `Daily Log (${date}).xlsx`,
+                  body: submitted,
+                  filename: `Daily Log (${submitted.date}).xlsx`,
                 })
               }
             >
@@ -87,9 +94,13 @@ export function DailyLogReportTable() {
     >
       {dailyLog.isPending ? (
         <p className="py-8 text-center text-sm text-muted-foreground">Loading...</p>
-      ) : rows.length === 0 ? (
+      ) : !submitted ? (
         <p className="py-8 text-center text-sm text-muted-foreground">
           No data loaded.
+        </p>
+      ) : rows.length === 0 ? (
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          No rows for the selected day.
         </p>
       ) : (
         <div className="overflow-x-auto">
@@ -129,6 +140,7 @@ export function DailyLogReportTable() {
               ))}
             </TableBody>
           </Table>
+          {meta && <Pagination meta={meta} onPageChange={goToPage} />}
         </div>
       )}
     </ReportPageShell>

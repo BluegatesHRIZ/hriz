@@ -4,56 +4,87 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 211 100% 10%;
+    /* Cool paper neutrals, tuned to one consistent hue family (~213) so they
+       sit quietly under the navy accent. Text is off-black, never #000. */
+    --background: 213 28% 98%;
+    --foreground: 213 32% 13%;
     --card: 0 0% 100%;
-    --card-foreground: 211 100% 10%;
+    --card-foreground: 213 32% 13%;
     --popover: 0 0% 100%;
-    --popover-foreground: 211 100% 10%;
-    --primary: 205 65% 33%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 210 30% 93%;
-    --secondary-foreground: 211 80% 18%;
-    --muted: 210 30% 93%;
-    --muted-foreground: 210 18% 48%;
-    --accent: 205 50% 88%;
-    --accent-foreground: 205 65% 28%;
-    --destructive: 0 84.2% 60.2%;
+    --popover-foreground: 213 32% 13%;
+
+    /* Single accent: a deep, desaturated navy. One color, used everywhere. */
+    --primary: 211 48% 27%;
+    --primary-foreground: 210 30% 98%;
+
+    --secondary: 213 22% 95%;
+    --secondary-foreground: 213 28% 22%;
+    --muted: 213 22% 95%;
+    --muted-foreground: 213 12% 44%;
+    --accent: 211 30% 93%;
+    --accent-foreground: 211 48% 24%;
+
+    --destructive: 0 64% 48%;
     --destructive-foreground: 0 0% 98%;
-    --border: 210 22% 87%;
-    --input: 210 22% 87%;
-    --ring: 205 65% 33%;
-    --radius: 0.625rem;
-    --sidebar: 211 100% 12%;
-    --sidebar-foreground: 210 40% 95%;
-    --sidebar-accent: 211 100% 16%;
-    --sidebar-border: 211 100% 8%;
+    --success: 152 38% 36%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 70% 44%;
+    --warning-foreground: 0 0% 100%;
+
+    /* Hairline borders — lighter and quieter than before. */
+    --border: 213 20% 90%;
+    --input: 213 20% 89%;
+    --ring: 211 48% 34%;
+    --radius: 0.5rem;
+
+    /* Tinted shadow: navy-hued, not pure black, very low opacity. */
+    --shadow-color: 213 40% 22%;
+
+    --sidebar: 213 44% 15%;
+    --sidebar-foreground: 210 24% 86%;
+    --sidebar-muted: 211 16% 62%;
+    --sidebar-accent: 213 38% 21%;
+    --sidebar-border: 213 38% 11%;
+    --sidebar-ring: 205 68% 60%;
   }
 
   .dark {
-    --background: 214 35% 7%;
-    --foreground: 210 40% 93%;
-    --card: 214 30% 11%;
-    --card-foreground: 210 40% 93%;
-    --popover: 214 30% 11%;
-    --popover-foreground: 210 40% 93%;
-    --primary: 205 68% 58%;
-    --primary-foreground: 211 100% 10%;
-    --secondary: 214 25% 15%;
-    --secondary-foreground: 210 40% 85%;
-    --muted: 214 25% 15%;
-    --muted-foreground: 210 14% 54%;
-    --accent: 205 38% 20%;
-    --accent-foreground: 205 68% 72%;
-    --destructive: 0 62.8% 45%;
+    --background: 214 32% 8%;
+    --foreground: 210 28% 92%;
+    --card: 214 28% 11%;
+    --card-foreground: 210 28% 92%;
+    --popover: 214 28% 11%;
+    --popover-foreground: 210 28% 92%;
+
+    --primary: 205 58% 58%;
+    --primary-foreground: 214 40% 10%;
+
+    --secondary: 214 22% 16%;
+    --secondary-foreground: 210 24% 84%;
+    --muted: 214 22% 16%;
+    --muted-foreground: 210 12% 56%;
+    --accent: 205 30% 22%;
+    --accent-foreground: 205 60% 74%;
+
+    --destructive: 0 56% 50%;
     --destructive-foreground: 0 0% 98%;
-    --border: 214 22% 17%;
-    --input: 214 22% 17%;
-    --ring: 205 68% 58%;
-    --sidebar: 214 40% 4%;
-    --sidebar-foreground: 210 35% 88%;
-    --sidebar-accent: 214 35% 8%;
-    --sidebar-border: 214 35% 6%;
+    --success: 152 36% 50%;
+    --success-foreground: 214 40% 10%;
+    --warning: 38 66% 56%;
+    --warning-foreground: 214 40% 10%;
+
+    --border: 214 20% 18%;
+    --input: 214 20% 19%;
+    --ring: 205 58% 58%;
+
+    --shadow-color: 214 60% 3%;
+
+    --sidebar: 214 38% 6%;
+    --sidebar-foreground: 210 22% 84%;
+    --sidebar-muted: 211 14% 54%;
+    --sidebar-accent: 214 30% 12%;
+    --sidebar-border: 214 30% 9%;
+    --sidebar-ring: 205 60% 56%;
   }
 }
 
@@ -61,37 +92,150 @@
   * {
     @apply border-border;
   }
+  html {
+    scroll-behavior: smooth;
+  }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "cv01", "ss01";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  /* Tighten display headings; let body wrap nicely. */
+  h1, h2, h3 {
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  /* All numeric/tabular data lines up. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+  ::selection {
+    background: hsl(var(--primary) / 0.18);
   }
 }
 
 @layer utilities {
+  /* Tinted, soft elevation — replaces generic black box-shadows. */
+  .shadow-card {
+    box-shadow:
+      0 1px 2px hsl(var(--shadow-color) / 0.06),
+      0 1px 1px hsl(var(--shadow-color) / 0.04);
+  }
+  .shadow-card-hover {
+    box-shadow:
+      0 4px 16px hsl(var(--shadow-color) / 0.08),
+      0 2px 4px hsl(var(--shadow-color) / 0.05);
+  }
+
+  /* Quiet scroll-entry, staggered via inline --i. */
+  .animate-rise {
+    opacity: 0;
+    animation: rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation-delay: calc(var(--i, 0) * 60ms);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .animate-rise {
+      opacity: 1;
+      animation: none;
+    }
+    html {
+      scroll-behavior: auto;
+    }
+  }
+
+  /* Legacy helpers kept for existing markup. */
   .card-header-custom {
     @apply flex items-center justify-between p-4 border-b;
   }
-
   .card-header-custom h6 {
     @apply font-semibold text-base m-0;
   }
-
   .header-icon {
     @apply w-6 h-6;
   }
-
   .flex-container {
     @apply flex items-center justify-between;
   }
-
   .flex-col-container {
     @apply flex flex-col gap-2;
   }
-
   .status-item {
     @apply mb-4;
   }
-
   .status-item-header {
     @apply font-bold mb-2;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Circular reveal for theme switching (View Transitions API).
+   Animation is CSS-driven (via --vt-x/y/r vars) so the first frame is correct
+   the instant the snapshot appears — no JS-timing flash. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+/* Expand-out: the incoming theme grows from the click point, on top. */
+html.vt-expand::view-transition-old(root) {
+  z-index: 0;
+}
+html.vt-expand::view-transition-new(root) {
+  z-index: 1;
+  animation: vt-grow 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Contract-in: the outgoing theme shrinks into the click point, on top. */
+html.vt-contract::view-transition-new(root) {
+  z-index: 0;
+}
+html.vt-contract::view-transition-old(root) {
+  z-index: 1;
+  animation: vt-shrink 0.5s cubic-bezier(0.5, 0, 0.75, 0) forwards;
+}
+
+@keyframes vt-grow {
+  from {
+    clip-path: circle(0 at var(--vt-x, 50%) var(--vt-y, 50%));
+  }
+  to {
+    clip-path: circle(var(--vt-r, 150%) at var(--vt-x, 50%) var(--vt-y, 50%));
+  }
+}
+@keyframes vt-shrink {
+  from {
+    clip-path: circle(var(--vt-r, 150%) at var(--vt-x, 50%) var(--vt-y, 50%));
+  }
+  to {
+    clip-path: circle(0 at var(--vt-x, 50%) var(--vt-y, 50%));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.vt-expand::view-transition-new(root),
+  html.vt-contract::view-transition-old(root) {
+    animation: none !important;
+  }
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
   }
 }

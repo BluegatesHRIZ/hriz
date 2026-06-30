@@ -32,6 +32,7 @@ import {
 import { DeviceFormDialog } from "./DeviceFormDialog";
 import { apiFetch } from "@/lib/api/client";
 import { useToast } from "@/lib/hooks/use-toast";
+import { Pagination } from "@/components/ui/Pagination";
 
 const TYPE_LABEL: Record<number, string> = { 0: "Standard", 1: "Biometric" };
 
@@ -44,7 +45,9 @@ function StatusBadge({ status }: { status: number | null }) {
 }
 
 export function DeviceManagementTable() {
-  const { data: devices = [], isLoading } = useAdminDevices();
+  const [page, setPage] = useState(1);
+  const { data: devicesPage, isLoading } = useAdminDevices(page);
+  const devices = devicesPage?.data ?? [];
   const updateDevice = useUpdateDevice();
   const deleteDevice = useDeleteDevice();
   const { toast } = useToast();
@@ -157,7 +160,7 @@ export function DeviceManagementTable() {
                     <TableCell className="font-mono text-sm">{d.ter_code}</TableCell>
                     <TableCell>{d.ter_id ?? "—"}</TableCell>
                     <TableCell className="font-mono text-sm">{d.ter_ip ?? "—"}</TableCell>
-                    <TableCell>{d.ter_loc ?? "—"}</TableCell>
+                    <TableCell>{d.ter_loc_desc ?? d.ter_loc ?? "—"}</TableCell>
                     <TableCell>{TYPE_LABEL[d.ter_type ?? 0] ?? "—"}</TableCell>
                     <TableCell>
                       <StatusBadge status={d.ter_status} />
@@ -224,6 +227,11 @@ export function DeviceManagementTable() {
               )}
             </TableBody>
           </Table>
+          {devicesPage?.meta && (
+            <div className="px-4 pb-4">
+              <Pagination meta={devicesPage.meta} onPageChange={setPage} />
+            </div>
+          )}
         </CardContent>
       </Card>
 

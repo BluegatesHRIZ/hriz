@@ -1,23 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeApiRequest } from "@/lib/auth/authorization";
 import { buildLeaveXlsx } from "@/lib/services/reports.excel";
-import type { LeaveReportRow } from "@/lib/services/reports.service";
+import { listLeaveReport } from "@/lib/services/reports.service";
 
 interface ExportBody {
-  rows: LeaveReportRow[];
+  from?: string;
+  to?: string;
+  emp?: string;
   filename?: string;
 }
 
+/**
+ * Independent export: re-fetches the FULL leave report for the given filters
+ * (ignoring any client-side pagination) and returns the .xlsx.
+ */
 export async function POST(request: NextRequest) {
   const auth = await authorizeApiRequest(request, "apiLeaveReport");
   if (!auth.ok) return auth.response;
 
   try {
     const body = (await request.json()) as ExportBody;
-    if (!Array.isArray(body.rows)) {
-      return NextResponse.json({ message: "rows is required" }, { status: 400 });
+    if (!body.from || !body.to) {
+      return NextResponse.json({ message: "from and to are required" }, { status: 400 });
     }
-    const buffer = await buildLeaveXlsx(body.rows);
+    const rows = await listLeaveReport(body.from, body.to, body.emp ?? "All");
+    const buffer = await buildLeaveXlsx(rows);
     const filename = body.filename || "LeaveReport.xlsx";
     return new NextResponse(buffer, {
       status: 200,

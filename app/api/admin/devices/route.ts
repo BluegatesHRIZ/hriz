@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { authorizeApiRequest } from "@/lib/auth/authorization";
+import { parsePagination, paginate } from "@/lib/pagination";
 
 /**
  * GET /api/admin/devices
@@ -11,12 +12,31 @@ export async function GET(request: NextRequest) {
     const auth = await authorizeApiRequest(request, "apiAdminDevices");
     if (!auth.ok) return auth.response;
 
-    const devices = await prisma.terminal.findMany({
-      where: { ter_status: { not: 2 } },
-      orderBy: { ter_logdate: "desc" },
-    });
+    const { page, limit, skip, take } = parsePagination(request.nextUrl.searchParams);
 
-    return NextResponse.json(devices);
+    const where = { ter_status: { not: 2 } };
+    const [total, devices] = await Promise.all([
+      prisma.terminal.count({ where }),
+      prisma.terminal.findMany({
+        where,
+        orderBy: { ter_logdate: "desc" },
+        skip,
+        take,
+      }),
+    ]);
+
+    // Enrich location codes with human-readable descriptions
+    const locations = await prisma.location.findMany({
+      select: { loc_id: true, loc_desc: true },
+    });
+    const locMap = new Map(locations.map((l) => [l.loc_id, l.loc_desc]));
+
+    const enriched = devices.map((d) => ({
+      ...d,
+      ter_loc_desc: d.ter_loc ? locMap.get(d.ter_loc) ?? null : null,
+    }));
+
+    return NextResponse.json(paginate(enriched, total, page, limit));
   } catch (error) {
     console.error("Admin devices GET error:", error);
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });

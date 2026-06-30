@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { verifyToken } from "@/lib/auth/jwt-edge";
 import { serializeForJson } from "@/lib/utils";
+import { parsePagination, paginate } from "@/lib/pagination";
 
 /**
  * GET /api/approval
@@ -24,6 +25,8 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const { page, limit, skip, take } = parsePagination(request.nextUrl.searchParams);
 
     // Mirror get_approvals SP exactly:
     // SELECT p1.* FROM forapproval p1
@@ -55,7 +58,7 @@ export async function GET(request: NextRequest) {
 
     if (taskIds.length === 0) {
       console.log(`Get approval: No pending approvals found (fa_appstat=0 AND fa_status=0)`);
-      return NextResponse.json([]);
+      return NextResponse.json(paginate([], 0, page, limit));
     }
 
     // Get ALL approvals at the minimum level for each taskid (matching SP - no filter by approver yet)
@@ -133,7 +136,12 @@ export async function GET(request: NextRequest) {
       Fa_Level: a.fa_level,
     }));
 
-    return NextResponse.json(serializeForJson(result));
+    // Approver filtering happens in memory (can't be pushed to SQL), so paginate
+    // the resolved list; total reflects the full filtered count.
+    const pageItems = result.slice(skip, skip + take);
+    return NextResponse.json(
+      paginate(serializeForJson(pageItems) as typeof pageItems, result.length, page, limit)
+    );
   } catch (error) {
     console.error("Get approval error:", error);
     return NextResponse.json(

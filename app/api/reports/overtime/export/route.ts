@@ -1,23 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeApiRequest } from "@/lib/auth/authorization";
 import { buildOvertimeXlsx } from "@/lib/services/reports.excel";
-import type { OvertimeReportRow } from "@/lib/services/reports.service";
+import { listOvertimeReport } from "@/lib/services/reports.service";
 
 interface ExportBody {
-  rows: OvertimeReportRow[];
+  from?: string;
+  to?: string;
+  emp?: string;
   filename?: string;
 }
 
+/** Independent export: re-fetches the FULL overtime report for the filters. */
 export async function POST(request: NextRequest) {
   const auth = await authorizeApiRequest(request, "apiOvertimeReport");
   if (!auth.ok) return auth.response;
 
   try {
     const body = (await request.json()) as ExportBody;
-    if (!Array.isArray(body.rows)) {
-      return NextResponse.json({ message: "rows is required" }, { status: 400 });
+    if (!body.from || !body.to) {
+      return NextResponse.json({ message: "from and to are required" }, { status: 400 });
     }
-    const buffer = await buildOvertimeXlsx(body.rows);
+    const rows = await listOvertimeReport(body.from, body.to, body.emp ?? "All");
+    const buffer = await buildOvertimeXlsx(rows);
     const filename = body.filename || "OvertimeReport.xlsx";
     return new NextResponse(buffer, {
       status: 200,

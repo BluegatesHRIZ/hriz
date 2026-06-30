@@ -10,30 +10,27 @@ import { Button } from "@/components/ui/button"
 import { Plus, Hourglass, CheckCircle2, XCircle } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { LeaveRequestTable } from "@/components/requests/LeaveRequestTable"
-import { useAuth } from "@/lib/auth/context"
+import { Pagination } from "@/components/ui/Pagination"
 import { ProtectedPage } from "@/components/auth/ProtectedPage"
+import type { RequestStatusGroup } from "@/lib/requests/status"
 
 export default function LeaveListPage() {
   const router = useRouter()
-  const { user } = useAuth()
-  const { data: leaveGrid, isLoading } = useLeaveGrid()
-  const [activeTab, setActiveTab] = useState("pending")
+  const [activeTab, setActiveTab] = useState<RequestStatusGroup>("pending")
+  const [page, setPage] = useState(1)
+  // Status filtering and pagination happen server-side; each tab fetches its own page.
+  const { data, isLoading } = useLeaveGrid(activeTab, page)
+  const rows = data?.data ?? []
+  const meta = data?.meta
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value as RequestStatusGroup)
+    setPage(1)
+  }
 
   const handleAddLeave = () => {
     router.push("/request/leave/apply")
   }
-
-  // Filter leaves by status - use empty array if data not loaded yet
-  const pendingLeaves = leaveGrid ? leaveGrid.filter(
-    (lv) => lv.LeaSstatus === 0 || lv.LeaSstatus === 4
-  ) : []
-  const approvedLeaves = leaveGrid ? leaveGrid.filter((lv) => lv.LeaSstatus === 1) : []
-  const rejectedLeaves = leaveGrid ? leaveGrid.filter(
-    (lv) => lv.LeaSstatus === 2 || lv.LeaSstatus === 3
-  ) : []
-
-  // Show loading if data is not yet available
-  const showLoading = leaveGrid === undefined || isLoading
 
   return (
     <ProtectedPage routeKey="requestLeave">
@@ -52,7 +49,7 @@ export default function LeaveListPage() {
         </div>
 
         <Card className="mt-4">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="pending" className="flex items-center gap-2">
                 <Hourglass className="w-4 h-4" />
@@ -68,28 +65,14 @@ export default function LeaveListPage() {
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="pending" className="mt-4">
+            {/* Only the active tab is rendered/visible; it holds the fetched page. */}
+            <TabsContent value={activeTab} className="mt-4">
               <LeaveRequestTable
-                leaves={pendingLeaves}
-                isLoading={showLoading}
-                status="pending"
+                leaves={rows}
+                isLoading={isLoading}
+                status={activeTab}
               />
-            </TabsContent>
-
-            <TabsContent value="approved" className="mt-4">
-              <LeaveRequestTable
-                leaves={approvedLeaves}
-                isLoading={showLoading}
-                status="approved"
-              />
-            </TabsContent>
-
-            <TabsContent value="rejected" className="mt-4">
-              <LeaveRequestTable
-                leaves={rejectedLeaves}
-                isLoading={showLoading}
-                status="rejected"
-              />
+              {meta && <Pagination meta={meta} onPageChange={setPage} />}
             </TabsContent>
           </Tabs>
         </Card>

@@ -1,23 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeApiRequest } from "@/lib/auth/authorization";
 import { buildSssContributionXlsx } from "@/lib/services/contributions.excel";
-import type { SssContributionRow } from "@/lib/services/contributions.service";
+import { listSssContribution } from "@/lib/services/contributions.service";
 
 interface ExportBody {
-  rows: SssContributionRow[];
+  year?: string | number;
+  emp?: string;
   filename?: string;
 }
 
+/** Independent export: re-fetches the FULL SSS contributions for the year. */
 export async function POST(request: NextRequest) {
   const auth = await authorizeApiRequest(request, "apiContributionSss");
   if (!auth.ok) return auth.response;
 
   try {
     const body = (await request.json()) as ExportBody;
-    if (!Array.isArray(body.rows)) {
-      return NextResponse.json({ message: "rows is required" }, { status: 400 });
+    if (!body.year) {
+      return NextResponse.json({ message: "year is required" }, { status: 400 });
     }
-    const buffer = await buildSssContributionXlsx(body.rows);
+    const rows = await listSssContribution(Number(body.year), body.emp ?? "All");
+    const buffer = await buildSssContributionXlsx(rows);
     const filename = body.filename || "SSS Contributions.xlsx";
     return new NextResponse(buffer, {
       status: 200,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { authorizeApiRequest } from "@/lib/auth/authorization";
+import { parsePagination, paginate } from "@/lib/pagination";
 
 /**
  * GET /api/admin/announcements
@@ -11,11 +12,18 @@ export async function GET(request: NextRequest) {
     const auth = await authorizeApiRequest(request, "apiAdminAnnouncements");
     if (!auth.ok) return auth.response;
 
-    const list = await prisma.announce.findMany({
-      orderBy: { an_startdate: "desc" },
-    });
+    const { page, limit, skip, take } = parsePagination(request.nextUrl.searchParams);
 
-    return NextResponse.json(list);
+    const [total, list] = await Promise.all([
+      prisma.announce.count(),
+      prisma.announce.findMany({
+        orderBy: { an_startdate: "desc" },
+        skip,
+        take,
+      }),
+    ]);
+
+    return NextResponse.json(paginate(list, total, page, limit));
   } catch (error) {
     console.error("Admin announcements GET error:", error);
     return NextResponse.json(

@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { apiFetch, ApiError } from "@/lib/api/client"
+import type { Paginated } from "@/lib/pagination"
 
 export interface AnnouncementDTO {
   an_id: number
@@ -30,11 +31,16 @@ export function useNews() {
       }
 
       const localDate = new Date().toLocaleDateString("en-CA") // "YYYY-MM-DD" in client's timezone
-      return apiFetch<AnnouncementDTO[]>(`/announcements?date=${localDate}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
+      // Endpoint is server-side paginated; the news widget shows the first page.
+      const res = await apiFetch<Paginated<AnnouncementDTO>>(
+        `/announcements?date=${localDate}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+      return res.data
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     enabled: typeof window !== "undefined" && !!localStorage.getItem("auth_token"),

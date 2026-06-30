@@ -16,8 +16,8 @@ export async function PUT(
     const username = payload.name;
 
     await requestProcedures.cancelRequest(loanId, username);
-    const result = await requestProcedures.displayGrid("LOA", username);
-    return NextResponse.json(result);
+    const { data } = await requestProcedures.displayGrid("LOA", username);
+    return NextResponse.json(data);
   } catch (error) {
     console.error("Cancel loan error:", error);
     return NextResponse.json(

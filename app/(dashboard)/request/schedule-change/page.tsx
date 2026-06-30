@@ -10,16 +10,23 @@ import { Button } from "@/components/ui/button";
 import { Plus, Hourglass, CheckCircle2, XCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { ScheduleAdjustRequestTable } from "@/components/requests/ScheduleAdjustRequestTable";
+import { Pagination } from "@/components/ui/Pagination";
 import { ProtectedPage } from "@/components/auth/ProtectedPage";
+import type { RequestStatusGroup } from "@/lib/requests/status";
 
 export default function ScheduleChangeListPage() {
   const router = useRouter();
-  const { data: list, isLoading } = useScheduleAdjustList();
-  const [activeTab, setActiveTab] = useState("pending");
+  const [activeTab, setActiveTab] = useState<RequestStatusGroup>("pending");
+  const [page, setPage] = useState(1);
+  // Status filtering and pagination happen server-side; each tab fetches its own page.
+  const { data, isLoading } = useScheduleAdjustList(activeTab, page);
+  const rows = data?.data ?? [];
+  const meta = data?.meta;
 
-  const pending = list ? list.filter((r) => r.ScaSstatus === 0 || r.ScaSstatus === 4) : [];
-  const approved = list ? list.filter((r) => r.ScaSstatus === 1) : [];
-  const rejected = list ? list.filter((r) => r.ScaSstatus === 2 || r.ScaSstatus === 3) : [];
+  const handleTabChange = (value: string) => {
+    setActiveTab(value as RequestStatusGroup);
+    setPage(1);
+  };
 
   return (
     <ProtectedPage routeKey="requestScheduleChange">
@@ -34,7 +41,7 @@ export default function ScheduleChangeListPage() {
         </div>
 
         <Card className="mt-4">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="pending" className="flex items-center gap-2">
                 <Hourglass className="w-4 h-4" />
@@ -50,26 +57,14 @@ export default function ScheduleChangeListPage() {
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="pending" className="mt-4">
+            {/* Only the active tab is rendered/visible; it holds the fetched page. */}
+            <TabsContent value={activeTab} className="mt-4">
               <ScheduleAdjustRequestTable
-                schedules={pending}
-                isLoading={isLoading || list === undefined}
-                status="pending"
+                schedules={rows}
+                isLoading={isLoading}
+                status={activeTab}
               />
-            </TabsContent>
-            <TabsContent value="approved" className="mt-4">
-              <ScheduleAdjustRequestTable
-                schedules={approved}
-                isLoading={isLoading || list === undefined}
-                status="approved"
-              />
-            </TabsContent>
-            <TabsContent value="rejected" className="mt-4">
-              <ScheduleAdjustRequestTable
-                schedules={rejected}
-                isLoading={isLoading || list === undefined}
-                status="rejected"
-              />
+              {meta && <Pagination meta={meta} onPageChange={setPage} />}
             </TabsContent>
           </Tabs>
         </Card>
@@ -78,4 +73,3 @@ export default function ScheduleChangeListPage() {
     </ProtectedPage>
   );
 }
-

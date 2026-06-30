@@ -2,6 +2,7 @@
 
 import { useStatus } from "@/lib/hooks/useStatus"
 import { CardWithHeader } from "@/components/cards/CardWithHeader"
+import { Skeleton } from "@/components/ui/skeleton"
 import { CheckCircle } from "lucide-react"
 
 export function Status() {
@@ -10,38 +11,44 @@ export function Status() {
   const statusMinutes = status?.statusMinutes || {}
   const leaveCredits = status?.leaveCredits || []
 
+  const sectionLabel =
+    "text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground mb-2.5"
+  const row =
+    "flex items-center justify-between py-1.5 border-b border-border/60 last:border-0 text-sm"
+
   return (
     <CardWithHeader
       title="My Status"
       icon={<CheckCircle className="w-6 h-6" />}
-      iconColor="#abdd64"
-      className="mb-4"
+      iconColor="hsl(var(--success))"
     >
       {isLoading ? (
-        <div className="flex items-center justify-center py-4">
-          <p>Loading...</p>
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-5 w-full" />
+          ))}
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-5">
           {/* Attendance Summary */}
           <div>
-            <h6 className="font-bold mb-2">Attendance Summary</h6>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span>Overtime:</span>
-                <span className="font-semibold">{statusMinutes.Overtime || 0} hrs</span>
+            <h6 className={sectionLabel}>Attendance Summary</h6>
+            <div>
+              <div className={row}>
+                <span className="text-muted-foreground">Overtime</span>
+                <span className="font-medium tabular">{statusMinutes.Overtime || 0} hrs</span>
               </div>
-              <div className="flex justify-between">
-                <span>Undertime:</span>
-                <span className="font-semibold">{statusMinutes.Undertime || 0} hrs</span>
+              <div className={row}>
+                <span className="text-muted-foreground">Undertime</span>
+                <span className="font-medium tabular">{statusMinutes.Undertime || 0} hrs</span>
               </div>
-              <div className="flex justify-between">
-                <span>Late:</span>
-                <span className="font-semibold">{statusMinutes.Late || 0} times</span>
+              <div className={row}>
+                <span className="text-muted-foreground">Late</span>
+                <span className="font-medium tabular">{statusMinutes.Late || 0} times</span>
               </div>
-              <div className="flex justify-between">
-                <span>Absences:</span>
-                <span className="font-semibold">{statusMinutes.Absences || 0} days</span>
+              <div className={row}>
+                <span className="text-muted-foreground">Absences</span>
+                <span className="font-medium tabular">{statusMinutes.Absences || 0} days</span>
               </div>
             </div>
           </div>
@@ -49,13 +56,14 @@ export function Status() {
           {/* Leave Balance */}
           {leaveCredits.length > 0 && (
             <div>
-              <h6 className="font-bold mb-2">Leave Balance</h6>
-              <div className="space-y-2 text-sm">
+              <h6 className={sectionLabel}>Leave Balance</h6>
+              <div>
                 {leaveCredits.map((leave, idx) => (
-                  <div key={idx} className="flex justify-between">
-                    <span>{leave.el_leave || "N/A"}:</span>
-                    <span className="font-semibold">
-                      {leave.el_balance || 0} / {leave.el_credit || 0}
+                  <div key={idx} className={row}>
+                    <span className="text-muted-foreground">{leave.el_leave || "N/A"}</span>
+                    <span className="font-medium tabular">
+                      {leave.el_balance || 0}
+                      <span className="text-muted-foreground"> / {leave.el_credit || 0}</span>
                     </span>
                   </div>
                 ))}

@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   useDownloadReportXlsx,
   usePayrollReport,
 } from "@/lib/hooks/useReports";
 import { ReportPageShell } from "@/components/reports/ReportPageShell";
+import { Pagination } from "@/components/ui/Pagination";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,11 +24,18 @@ export function PayrollReportTable() {
   const currentYear = new Date().getFullYear().toString();
   const [yearInput, setYearInput] = useState<string>(currentYear);
   const [appliedYear, setAppliedYear] = useState<string | null>(currentYear);
+  const [page, setPage] = useState(1);
 
-  const payroll = usePayrollReport(appliedYear);
+  const payroll = usePayrollReport(appliedYear, page);
   const downloader = useDownloadReportXlsx();
 
-  const rows = useMemo(() => payroll.data ?? [], [payroll.data]);
+  const rows = payroll.data?.data ?? [];
+  const meta = payroll.data?.meta;
+
+  const loadYear = () => {
+    setAppliedYear(yearInput || null);
+    setPage(1);
+  };
 
   return (
     <ReportPageShell
@@ -45,20 +53,18 @@ export function PayrollReportTable() {
             />
           </div>
           <div className="flex items-end gap-2">
-            <Button
-              onClick={() => setAppliedYear(yearInput || null)}
-              disabled={payroll.isLoading}
-            >
+            <Button onClick={loadYear} disabled={payroll.isLoading}>
               Load Year
             </Button>
             <Button
               variant="outline"
-              disabled={downloader.isPending || rows.length === 0}
+              disabled={downloader.isPending || !appliedYear || rows.length === 0}
               onClick={() =>
+                appliedYear &&
                 downloader.mutate({
                   endpoint: "/reports/payroll/export",
-                  rows,
-                  filename: `Payroll Report (${appliedYear ?? "year"}).xlsx`,
+                  body: { year: appliedYear },
+                  filename: `Payroll Report (${appliedYear}).xlsx`,
                 })
               }
             >
@@ -96,8 +102,8 @@ export function PayrollReportTable() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((row) => (
-                <TableRow key={row.Payreport.PyhCode ?? Math.random().toString()}>
+              {rows.map((row, i) => (
+                <TableRow key={row.Payreport.PyhCode ?? `pay-${i}`}>
                   <TableCell>{row.Payreport.PyhCode}</TableCell>
                   <TableCell>{row.Payreport.PyhDesc}</TableCell>
                   <TableCell className="text-right">
@@ -137,6 +143,7 @@ export function PayrollReportTable() {
               ))}
             </TableBody>
           </Table>
+          {meta && <Pagination meta={meta} onPageChange={setPage} />}
         </div>
       )}
     </ReportPageShell>

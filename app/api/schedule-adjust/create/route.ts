@@ -63,8 +63,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const result = await requestProcedures.displayGrid("SCA", username);
-    return NextResponse.json(result?.[0] ?? body);
+    const { data } = await requestProcedures.displayGrid("SCA", username);
+    return NextResponse.json(data?.[0] ?? body);
   } catch (error) {
     console.error("Create schedule adjustment error:", error);
     return NextResponse.json(

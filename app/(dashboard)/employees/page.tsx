@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog"
 import Link from "next/link"
 import { Plus, Search } from "lucide-react"
+import { Pagination } from "@/components/ui/Pagination"
 import {
   Select,
   SelectContent,
@@ -39,7 +40,9 @@ import {
 export default function EmployeesPage() {
   const router = useRouter()
   const { isAuthenticated, isLoading: authLoading } = useAuth()
-  const { data: employees, isLoading, error } = useEmployees()
+  const [page, setPage] = useState(1)
+  const { data: employeesPage, isLoading, error } = useEmployees(page)
+  const employees = employeesPage?.data
   const [searchTerm, setSearchTerm] = useState("")
   const manageStatusMutation = useManageEmployeeStatus()
   const generateQrMutation = useGenerateQrToken()
@@ -119,7 +122,10 @@ export default function EmployeesPage() {
       emp.emp_first?.toLowerCase().includes(search) ||
       emp.emp_last?.toLowerCase().includes(search) ||
       emp.emp_dept?.toLowerCase().includes(search) ||
-      emp.emp_pos?.toLowerCase().includes(search)
+      emp.emp_pos?.toLowerCase().includes(search) ||
+      emp.emp_dept_desc?.toLowerCase().includes(search) ||
+      emp.emp_pos_desc?.toLowerCase().includes(search) ||
+      emp.emp_loc_desc?.toLowerCase().includes(search)
     )
   }) || []
 
@@ -189,9 +195,9 @@ export default function EmployeesPage() {
                       <TableCell>
                         {emp.emp_first} {emp.emp_mid} {emp.emp_last}
                       </TableCell>
-                      <TableCell>{emp.emp_dept || "N/A"}</TableCell>
-                      <TableCell>{emp.emp_pos || "N/A"}</TableCell>
-                      <TableCell>{emp.emp_loc || "N/A"}</TableCell>
+                      <TableCell>{emp.emp_dept_desc || emp.emp_dept || "N/A"}</TableCell>
+                      <TableCell>{emp.emp_pos_desc || emp.emp_pos || "N/A"}</TableCell>
+                      <TableCell>{emp.emp_loc_desc || emp.emp_loc || "N/A"}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <span className="text-sm text-foreground">
@@ -238,6 +244,10 @@ export default function EmployeesPage() {
                 </TableBody>
               </Table>
             </div>
+          )}
+
+          {employeesPage?.meta && (
+            <Pagination meta={employeesPage.meta} onPageChange={setPage} />
           )}
         </div>
       </CardWithHeader>

@@ -1,23 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeApiRequest } from "@/lib/auth/authorization";
 import { buildPhicContributionXlsx } from "@/lib/services/contributions.excel";
-import type { PhicContributionRow } from "@/lib/services/contributions.service";
+import { listPhicContribution } from "@/lib/services/contributions.service";
 
 interface ExportBody {
-  rows: PhicContributionRow[];
+  year?: string | number;
+  emp?: string;
   filename?: string;
 }
 
+/** Independent export: re-fetches the FULL PHIC contributions for the year. */
 export async function POST(request: NextRequest) {
   const auth = await authorizeApiRequest(request, "apiContributionPhic");
   if (!auth.ok) return auth.response;
 
   try {
     const body = (await request.json()) as ExportBody;
-    if (!Array.isArray(body.rows)) {
-      return NextResponse.json({ message: "rows is required" }, { status: 400 });
+    if (!body.year) {
+      return NextResponse.json({ message: "year is required" }, { status: 400 });
     }
-    const buffer = await buildPhicContributionXlsx(body.rows);
+    const rows = await listPhicContribution(Number(body.year), body.emp ?? "All");
+    const buffer = await buildPhicContributionXlsx(rows);
     const filename = body.filename || "PHIC Contributions.xlsx";
     return new NextResponse(buffer, {
       status: 200,

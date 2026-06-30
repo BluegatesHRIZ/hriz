@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useSssContribution } from "@/lib/hooks/useContributions";
 import { useDownloadReportXlsx } from "@/lib/hooks/useReports";
 import { ReportPageShell } from "@/components/reports/ReportPageShell";
 import { YearFilter } from "@/components/contributions/YearFilter";
+import { Pagination } from "@/components/ui/Pagination";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -25,10 +26,17 @@ export function SssContributionTable() {
   const currentYear = new Date().getFullYear().toString();
   const [yearInput, setYearInput] = useState(currentYear);
   const [appliedYear, setAppliedYear] = useState<string | null>(currentYear);
+  const [page, setPage] = useState(1);
 
-  const query = useSssContribution(appliedYear);
+  const query = useSssContribution(appliedYear, "All", page);
   const downloader = useDownloadReportXlsx();
-  const rows = useMemo(() => query.data ?? [], [query.data]);
+  const rows = query.data?.data ?? [];
+  const meta = query.data?.meta;
+
+  const loadYear = () => {
+    setAppliedYear(yearInput || null);
+    setPage(1);
+  };
 
   return (
     <ReportPageShell
@@ -39,16 +47,17 @@ export function SssContributionTable() {
           <YearFilter
             year={yearInput}
             onYearChange={setYearInput}
-            onLoad={() => setAppliedYear(yearInput || null)}
+            onLoad={loadYear}
             loading={query.isLoading}
           />
           <Button
             variant="outline"
-            disabled={downloader.isPending || rows.length === 0}
+            disabled={downloader.isPending || !appliedYear || rows.length === 0}
             onClick={() =>
+              appliedYear &&
               downloader.mutate({
                 endpoint: "/contributions/sss/export",
-                rows,
+                body: { year: appliedYear },
                 filename: `SSS Contributions (${appliedYear}).xlsx`,
               })
             }
@@ -117,6 +126,7 @@ export function SssContributionTable() {
               ))}
             </TableBody>
           </Table>
+          {meta && <Pagination meta={meta} onPageChange={setPage} />}
         </div>
       )}
     </ReportPageShell>

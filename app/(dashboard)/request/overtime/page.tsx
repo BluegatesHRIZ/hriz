@@ -10,30 +10,29 @@ import { Button } from "@/components/ui/button";
 import { Plus, Hourglass, CheckCircle2, XCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { OvertimeRequestTable } from "@/components/requests/OvertimeRequestTable";
+import { Pagination } from "@/components/ui/Pagination";
 import { useAuth } from "@/lib/auth/context";
 import { ProtectedPage } from "@/components/auth/ProtectedPage";
+import type { RequestStatusGroup } from "@/lib/requests/status";
 
 export default function OvertimeListPage() {
   const router = useRouter();
   const { user } = useAuth();
-  const { data: overtimeList, isLoading } = useOvertimeList();
-  const [activeTab, setActiveTab] = useState("pending");
+  const [activeTab, setActiveTab] = useState<RequestStatusGroup>("pending");
+  const [page, setPage] = useState(1);
+  // Status filtering and pagination happen server-side; each tab fetches its own page.
+  const { data, isLoading } = useOvertimeList(activeTab, page);
+  const rows = data?.data ?? [];
+  const meta = data?.meta;
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value as RequestStatusGroup);
+    setPage(1);
+  };
 
   const handleAddOvertime = () => {
     router.push("/request/overtime/apply");
   };
-
-  const pendingOt = overtimeList
-    ? overtimeList.filter((ot) => ot.otm_status === 0 || ot.otm_status === 4)
-    : [];
-  const approvedOt = overtimeList
-    ? overtimeList.filter((ot) => ot.otm_status === 1)
-    : [];
-  const rejectedOt = overtimeList
-    ? overtimeList.filter((ot) => ot.otm_status === 2 || ot.otm_status === 3)
-    : [];
-
-  const showLoading = overtimeList === undefined || isLoading;
 
   return (
     <ProtectedPage routeKey="requestOvertime">
@@ -54,7 +53,7 @@ export default function OvertimeListPage() {
         </div>
 
         <Card className="mt-4">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="pending" className="flex items-center gap-2">
                 <Hourglass className="w-4 h-4" />
@@ -70,29 +69,15 @@ export default function OvertimeListPage() {
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="pending" className="mt-4">
+            {/* Only the active tab is rendered/visible; it holds the fetched page. */}
+            <TabsContent value={activeTab} className="mt-4">
               <OvertimeRequestTable
-                overtimes={pendingOt}
-                isLoading={showLoading}
-                status="pending"
+                overtimes={rows}
+                isLoading={isLoading}
+                status={activeTab}
                 userId={user?.name || ""}
               />
-            </TabsContent>
-            <TabsContent value="approved" className="mt-4">
-              <OvertimeRequestTable
-                overtimes={approvedOt}
-                isLoading={showLoading}
-                status="approved"
-                userId={user?.name || ""}
-              />
-            </TabsContent>
-            <TabsContent value="rejected" className="mt-4">
-              <OvertimeRequestTable
-                overtimes={rejectedOt}
-                isLoading={showLoading}
-                status="rejected"
-                userId={user?.name || ""}
-              />
+              {meta && <Pagination meta={meta} onPageChange={setPage} />}
             </TabsContent>
           </Tabs>
         </Card>
@@ -101,4 +86,3 @@ export default function OvertimeListPage() {
     </ProtectedPage>
   );
 }
-

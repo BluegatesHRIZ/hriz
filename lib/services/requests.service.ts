@@ -963,23 +963,47 @@ export async function cancelRequest(taskId: string, employee: string) {
 // Matches stored procedure display_grid - returns grid data with joins
 export async function displayGrid(
   menu: "OVT" | "LEA" | "UNT" | "COA" | "SCA" | "LOA",
-  employee: string
-): Promise<unknown[]> {
+  employee: string,
+  pagination?: { skip?: number; take?: number; statuses?: number[] }
+): Promise<{ data: unknown[]; total: number }> {
+  const skip = pagination?.skip ?? 0;
+  const take = pagination?.take;
+  const statuses = pagination?.statuses;
   switch (menu) {
-    case "OVT":
-      return prisma.overtime.findMany({
-        where: { otm_emp: employee },
-        orderBy: { otm_applieddate: "desc" },
-      });
-    case "COA":
+    case "OVT": {
+      const ovtWhere = {
+        otm_emp: employee,
+        ...(statuses ? { otm_status: { in: statuses } } : {}),
+      };
+      const [ovtTotal, ovtData] = await Promise.all([
+        prisma.overtime.count({ where: ovtWhere }),
+        prisma.overtime.findMany({
+          where: ovtWhere,
+          orderBy: { otm_applieddate: "desc" },
+          skip,
+          take,
+        }),
+      ]);
+      return { data: ovtData, total: ovtTotal };
+    }
+    case "COA": {
       // Match stored procedure: join with coa_summary, employee, and fapreason
-      const coas = await prisma.coa_summary.findMany({
-        where: { coa_semp: employee },
-        orderBy: [
-          { coa_sapproveddate: "desc" },
-          { coa_sapplieddate: "desc" },
-        ],
-      });
+      const coaWhere = {
+        coa_semp: employee,
+        ...(statuses ? { coa_sstatus: { in: statuses } } : {}),
+      };
+      const [coaTotal, coas] = await Promise.all([
+        prisma.coa_summary.count({ where: coaWhere }),
+        prisma.coa_summary.findMany({
+          where: coaWhere,
+          orderBy: [
+            { coa_sapproveddate: "desc" },
+            { coa_sapplieddate: "desc" },
+          ],
+          skip,
+          take,
+        }),
+      ]);
 
       // Get approver names
       const coaApproverIds = coas
@@ -1018,7 +1042,7 @@ export async function displayGrid(
       }
 
       // Build result matching stored procedure output
-      return coas.map((coa) => {
+      const coaData = coas.map((coa) => {
         const approver = coaApprovers.find((a) => a.emp_id === coa.coa_sapprovedby);
         const fapReason = latestCoaFapreasons.get(coa.coa_sid || "") || null;
 
@@ -1037,15 +1061,26 @@ export async function displayGrid(
             : null,
         };
       });
-    case "LEA":
+      return { data: coaData, total: coaTotal };
+    }
+    case "LEA": {
       // Match stored procedure: join with leave, employee, and fapreason
-      const leaves = await prisma.leave_summary.findMany({
-        where: { lea_semp: employee },
-        orderBy: [
-          { lea_sapproveddate: "desc" },
-          { lea_sapplieddate: "desc" },
-        ],
-      });
+      const leaWhere = {
+        lea_semp: employee,
+        ...(statuses ? { lea_sstatus: { in: statuses } } : {}),
+      };
+      const [leaTotal, leaves] = await Promise.all([
+        prisma.leave_summary.count({ where: leaWhere }),
+        prisma.leave_summary.findMany({
+          where: leaWhere,
+          orderBy: [
+            { lea_sapproveddate: "desc" },
+            { lea_sapplieddate: "desc" },
+          ],
+          skip,
+          take,
+        }),
+      ]);
 
       // Get leave type descriptions
       const leaveIds = leaves.map((l) => l.lea_stype).filter(Boolean) as string[];
@@ -1094,7 +1129,7 @@ export async function displayGrid(
       }
 
       // Build result matching stored procedure output
-      return leaves.map((leave) => {
+      const leaData = leaves.map((leave) => {
         const leaveType = leaveTypes.find((lt) => lt.lev_id === leave.lea_stype);
         const approver = approvers.find((a) => a.emp_id === leave.lea_sapprovedby);
         const fapReason = latestFapreasons.get(leave.lea_sid || "") || null;
@@ -1117,15 +1152,26 @@ export async function displayGrid(
           LevDesc: leaveType?.lev_desc || null,
         };
       });
-    case "UNT":
+      return { data: leaData, total: leaTotal };
+    }
+    case "UNT": {
       // Match stored procedure style output with approver name and latest fapreason
-      const undertimes = await prisma.undertime.findMany({
-        where: { utm_emp: employee },
-        orderBy: [
-          { utm_approveddate: "desc" },
-          { utm_applieddate: "desc" },
-        ],
-      });
+      const untWhere = {
+        utm_emp: employee,
+        ...(statuses ? { utm_status: { in: statuses } } : {}),
+      };
+      const [untTotal, undertimes] = await Promise.all([
+        prisma.undertime.count({ where: untWhere }),
+        prisma.undertime.findMany({
+          where: untWhere,
+          orderBy: [
+            { utm_approveddate: "desc" },
+            { utm_applieddate: "desc" },
+          ],
+          skip,
+          take,
+        }),
+      ]);
 
       const utApproverIds = undertimes
         .map((u) => u.utm_approvedby)
@@ -1156,7 +1202,7 @@ export async function displayGrid(
         }
       }
 
-      return undertimes.map((ut) => {
+      const untData = undertimes.map((ut) => {
         const approver = utApprovers.find((a) => a.emp_id === ut.utm_approvedby);
         return {
           UtmId: ut.utm_id,
@@ -1174,11 +1220,22 @@ export async function displayGrid(
           fap_reason: latestUtFapreasons.get(ut.utm_id || "") || null,
         };
       });
-    case "SCA":
-      const scas = await prisma.schedadjust_summary.findMany({
-        where: { sca_semp: employee },
-        orderBy: [{ sca_sapproveddate: "desc" }, { sca_sapplieddate: "desc" }],
-      });
+      return { data: untData, total: untTotal };
+    }
+    case "SCA": {
+      const scaWhere = {
+        sca_semp: employee,
+        ...(statuses ? { sca_sstatus: { in: statuses } } : {}),
+      };
+      const [scaTotal, scas] = await Promise.all([
+        prisma.schedadjust_summary.count({ where: scaWhere }),
+        prisma.schedadjust_summary.findMany({
+          where: scaWhere,
+          orderBy: [{ sca_sapproveddate: "desc" }, { sca_sapplieddate: "desc" }],
+          skip,
+          take,
+        }),
+      ]);
 
       const scaApproverIds = scas
         .map((s) => s.sca_sapprovedby)
@@ -1207,7 +1264,7 @@ export async function displayGrid(
         }
       }
 
-      return scas.map((sca) => {
+      const scaData = scas.map((sca) => {
         const approver = scaApprovers.find((a) => a.emp_id === sca.sca_sapprovedby);
         return {
           ScaSid: sca.sca_sid,
@@ -1223,11 +1280,22 @@ export async function displayGrid(
           FapReason: latestScaFapreasons.get(sca.sca_sid || "") || null,
         };
       });
-    case "LOA":
-      const loans = await prisma.loan.findMany({
-        where: { loa_emp: employee },
-        orderBy: [{ loa_approveddate: "desc" }, { loa_applieddate: "desc" }],
-      });
+      return { data: scaData, total: scaTotal };
+    }
+    case "LOA": {
+      const loaWhere = {
+        loa_emp: employee,
+        ...(statuses ? { loa_status: { in: statuses } } : {}),
+      };
+      const [loaTotal, loans] = await Promise.all([
+        prisma.loan.count({ where: loaWhere }),
+        prisma.loan.findMany({
+          where: loaWhere,
+          orderBy: [{ loa_approveddate: "desc" }, { loa_applieddate: "desc" }],
+          skip,
+          take,
+        }),
+      ]);
 
       const loanApproverIds = loans
         .map((l) => l.loa_approvedby)
@@ -1256,7 +1324,7 @@ export async function displayGrid(
         }
       }
 
-      return loans.map((loan) => {
+      const loaData = loans.map((loan) => {
         const approver = loanApprovers.find((a) => a.emp_id === loan.loa_approvedby);
         return {
           LoaId: loan.loa_id,
@@ -1274,8 +1342,10 @@ export async function displayGrid(
           FapReason: latestLoanFapreasons.get(loan.loa_id || "") || null,
         };
       });
+      return { data: loaData, total: loaTotal };
+    }
     default:
-      return [];
+      return { data: [], total: 0 };
   }
 }
 

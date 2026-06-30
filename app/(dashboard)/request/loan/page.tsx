@@ -10,22 +10,23 @@ import { Button } from "@/components/ui/button";
 import { Plus, Hourglass, CheckCircle2, XCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { LoanRequestTable } from "@/components/requests/LoanRequestTable";
+import { Pagination } from "@/components/ui/Pagination";
 import { ProtectedPage } from "@/components/auth/ProtectedPage";
+import type { RequestStatusGroup } from "@/lib/requests/status";
 
 export default function LoanListPage() {
   const router = useRouter();
-  const { data: loanList, isLoading } = useLoanList();
-  const [activeTab, setActiveTab] = useState("pending");
+  const [activeTab, setActiveTab] = useState<RequestStatusGroup>("pending");
+  const [page, setPage] = useState(1);
+  // Status filtering and pagination happen server-side; each tab fetches its own page.
+  const { data, isLoading } = useLoanList(activeTab, page);
+  const rows = data?.data ?? [];
+  const meta = data?.meta;
 
-  const pending = loanList
-    ? loanList.filter((loan) => loan.LoaStatus === 0 || loan.LoaStatus === 4)
-    : [];
-  const approved = loanList ? loanList.filter((loan) => loan.LoaStatus === 1) : [];
-  const rejected = loanList
-    ? loanList.filter((loan) => loan.LoaStatus === 2 || loan.LoaStatus === 3)
-    : [];
-
-  const showLoading = loanList === undefined || isLoading;
+  const handleTabChange = (value: string) => {
+    setActiveTab(value as RequestStatusGroup);
+    setPage(1);
+  };
 
   return (
     <ProtectedPage routeKey="requestLoan">
@@ -40,7 +41,7 @@ export default function LoanListPage() {
         </div>
 
         <Card className="mt-4">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="pending" className="flex items-center gap-2">
                 <Hourglass className="w-4 h-4" />
@@ -56,14 +57,10 @@ export default function LoanListPage() {
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="pending" className="mt-4">
-              <LoanRequestTable loans={pending} isLoading={showLoading} status="pending" />
-            </TabsContent>
-            <TabsContent value="approved" className="mt-4">
-              <LoanRequestTable loans={approved} isLoading={showLoading} status="approved" />
-            </TabsContent>
-            <TabsContent value="rejected" className="mt-4">
-              <LoanRequestTable loans={rejected} isLoading={showLoading} status="rejected" />
+            {/* Only the active tab is rendered/visible; it holds the fetched page. */}
+            <TabsContent value={activeTab} className="mt-4">
+              <LoanRequestTable loans={rows} isLoading={isLoading} status={activeTab} />
+              {meta && <Pagination meta={meta} onPageChange={setPage} />}
             </TabsContent>
           </Tabs>
         </Card>
@@ -72,4 +69,3 @@ export default function LoanListPage() {
     </ProtectedPage>
   );
 }
-

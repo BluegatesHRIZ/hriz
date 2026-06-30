@@ -52,8 +52,7 @@ export function News() {
     <CardWithHeader
       title={currentDate}
       icon={<Calendar className="w-6 h-6" />}
-      iconColor="#8db7ff"
-      className="mb-4"
+      iconColor="hsl(var(--primary))"
     >
       {isLoading ? (
         <div className="flex items-center justify-center h-[180px]">

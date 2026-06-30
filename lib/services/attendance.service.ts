@@ -539,13 +539,17 @@ export async function insertUserAttendance(params: {
 export async function getAttendance(empId: string): Promise<BioGridRow[]> {
   const today = dateOnly(new Date());
   const todayTime = today.getTime();
-  const dayOfMonth = today.getDate();
+  const dayOfMonth = today.getUTCDate();
   const isFirstHalf = dayOfMonth <= 15;
 
-  const year = today.getFullYear();
-  const month = today.getMonth();
-  const firstOfMonth = new Date(year, month, 1);
-  const lastOfMonth = new Date(year, month + 1, 0);
+  // Attendance rows are stored at UTC midnight (see dateOnly()), so month
+  // boundaries must also be UTC midnight. Using local midnight (new Date(y,m,d))
+  // clips the last day of the month on positive-offset timezones (e.g. UTC+8),
+  // which hides today's row from the grid even after a successful clock-in.
+  const year = today.getUTCFullYear();
+  const month = today.getUTCMonth();
+  const firstOfMonth = new Date(Date.UTC(year, month, 1));
+  const lastOfMonth = new Date(Date.UTC(year, month + 1, 0));
 
   // Settings: flex
   const settings = await prisma.settings_tab.findUnique({
@@ -558,14 +562,11 @@ export async function getAttendance(empId: string): Promise<BioGridRow[]> {
   // If today is Feb 5 (first half), @today - 15 days = Jan 21, so previous cutoff is January
   // If today is Feb 20 (second half), @today - 15 days = Feb 5, so previous cutoff is February (first half)
   const fifteenDaysAgo = new Date(today);
-  fifteenDaysAgo.setDate(today.getDate() - 15);
-  const prevCutoffYear = fifteenDaysAgo.getFullYear();
-  const prevCutoffMonth = fifteenDaysAgo.getMonth();
-  const prevCutoffFirst = new Date(prevCutoffYear, prevCutoffMonth, 1);
-  const prevCutoffLast = new Date(prevCutoffYear, prevCutoffMonth + 1, 0);
-
-  const prevMonth = new Date(year, month - 1, 1);
-  const prevLast = new Date(year, month, 0);
+  fifteenDaysAgo.setUTCDate(today.getUTCDate() - 15);
+  const prevCutoffYear = fifteenDaysAgo.getUTCFullYear();
+  const prevCutoffMonth = fifteenDaysAgo.getUTCMonth();
+  const prevCutoffFirst = new Date(Date.UTC(prevCutoffYear, prevCutoffMonth, 1));
+  const prevCutoffLast = new Date(Date.UTC(prevCutoffYear, prevCutoffMonth + 1, 0));
 
   const [
     attCurrent,
@@ -689,7 +690,7 @@ export async function getAttendance(empId: string): Promise<BioGridRow[]> {
   // Current cutoff: this month, filter by first/second half
   const currentCutoffAtt = attCurrent.filter((a) => {
     const d = dateOnly(a.att_date);
-    const day = d.getDate();
+    const day = d.getUTCDate();
     if (isFirstHalf) return d.getTime() <= todayTime;
     return day > 15 && d.getTime() <= todayTime;
   });
@@ -714,7 +715,7 @@ export async function getAttendance(empId: string): Promise<BioGridRow[]> {
   // SP filters by: IF (@is_first_half = 1, DAYOFMONTH(date_field) > 15, DAYOFMONTH(date_field) <= 15)
   // Then filters results: msg IS NOT NULL AND msg != "Rest Day" AND msg != "Leave Approved" AND msg != "" AND msg != "Attendance Changed" AND msg != "Undertime Approved" AND hol_name IS NULL
   const prevCutoffAtt = attPrevCutoff.filter((a) => {
-    const day = dateOnly(a.att_date).getDate();
+    const day = dateOnly(a.att_date).getUTCDate();
     if (isFirstHalf) {
       // If first half of current month, previous cutoff is days > 15 of previous cutoff month
       return day > 15;

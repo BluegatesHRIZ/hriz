@@ -49,8 +49,8 @@ export async function POST(
       UtmReason || ""
     );
 
-    const result = await requestProcedures.displayGrid("UNT", empId);
-    return NextResponse.json(result?.[0] ?? body);
+    const { data } = await requestProcedures.displayGrid("UNT", empId);
+    return NextResponse.json(data?.[0] ?? body);
   } catch (error) {
     console.error("Create undertime error:", error);
     return NextResponse.json(

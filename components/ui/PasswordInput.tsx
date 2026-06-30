@@ -48,7 +48,7 @@ export function PasswordInput({
           )}
         </button>
       </div>
-      {error && <p className="text-sm text-red-600 mt-1">{error}</p>}
+      {error && <p className="text-sm text-destructive mt-1">{error}</p>}
     </div>
   )
 }

@@ -1,7 +1,9 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { ApiError, apiFetch } from "@/lib/api/client";
+import type { Paginated } from "@/lib/pagination";
+import { DEFAULT_LIMIT } from "@/lib/pagination";
 
 function authHeader(): Record<string, string> {
   const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
@@ -13,6 +15,7 @@ export interface DeviceDTO {
   ter_code: string;
   ter_id: string | null;
   ter_loc: string | null;
+  ter_loc_desc: string | null;
   ter_ip: string | null;
   ter_status: number | null;
   ter_biopass: string | null;
@@ -36,11 +39,15 @@ export interface DeviceFormData {
 
 const QK = ["admin", "devices"] as const;
 
-export function useAdminDevices() {
-  return useQuery<DeviceDTO[], ApiError>({
-    queryKey: [...QK],
+export function useAdminDevices(page = 1, limit = DEFAULT_LIMIT) {
+  return useQuery<Paginated<DeviceDTO>, ApiError>({
+    queryKey: [...QK, page, limit],
     queryFn: () =>
-      apiFetch<DeviceDTO[]>("/admin/devices", { headers: authHeader() }),
+      apiFetch<Paginated<DeviceDTO>>(
+        `/admin/devices?page=${page}&limit=${limit}`,
+        { headers: authHeader() }
+      ),
+    placeholderData: keepPreviousData,
   });
 }
 

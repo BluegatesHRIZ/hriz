@@ -7,6 +7,7 @@ import { useTeamBiolog } from "@/lib/hooks/useTeamBiolog";
 import { useSettings } from "@/lib/hooks/useSettings";
 import { useClockAttendance } from "@/lib/hooks/useAttendance";
 import { CardWithHeader } from "@/components/cards/CardWithHeader";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Clock, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -135,25 +136,34 @@ export function Biolog() {
     <CardWithHeader
       title="Attendance"
       icon={<Clock className="w-6 h-6" />}
-      iconColor="#ee8fcb"
-      className="mb-4"
+      iconColor="hsl(var(--primary))"
     >
       {isLoading ? (
-        <div className="flex items-center justify-center py-4">
-          <p>Loading...</p>
+        <div className="flex flex-col gap-3">
+          <div className="flex gap-2">
+            <Skeleton className="h-10 flex-1" />
+            <Skeleton className="h-10 flex-1" />
+          </div>
+          <Skeleton className="h-9 w-full mt-2" />
+          <div className="space-y-2">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-12 w-full" />
+            ))}
+          </div>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
           <div className="flex gap-2">
             <Button
-              className="flex-1 bg-green-600 hover:bg-green-700"
+              className="flex-1 bg-success text-success-foreground hover:bg-success/90"
               onClick={() => handleClock("I")}
               disabled={!isEnabled || clockMutation.isPending}
             >
               Clock in
             </Button>
             <Button
-              className="flex-1 bg-red-600 hover:bg-red-700"
+              variant="outline"
+              className="flex-1 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40"
               onClick={() => handleClock("O")}
               disabled={!isEnabled || clockMutation.isPending}
             >
@@ -164,14 +174,16 @@ export function Biolog() {
           {showBreakButtons && (
             <div className="flex gap-2">
               <Button
-                className="flex-1 bg-yellow-600 hover:bg-yellow-700"
+                variant="outline"
+                className="flex-1 border-warning/30 text-warning hover:bg-warning/10 hover:text-warning hover:border-warning/40"
                 onClick={() => handleClock("BI")}
                 disabled={!isEnabled || clockMutation.isPending}
               >
                 Break in
               </Button>
               <Button
-                className="flex-1 bg-orange-600 hover:bg-orange-700"
+                variant="outline"
+                className="flex-1 border-warning/30 text-warning hover:bg-warning/10 hover:text-warning hover:border-warning/40"
                 onClick={() => handleClock("BO")}
                 disabled={!isEnabled || clockMutation.isPending}
               >
@@ -239,9 +251,9 @@ export function Biolog() {
                                 className={`text-xs mt-1 ${
                                   bio.msg === "Absent" ||
                                   bio.msg.includes("Missing Log")
-                                    ? "text-red-600"
+                                    ? "text-destructive"
                                     : bio.msg === "Late"
-                                    ? "text-orange-600"
+                                    ? "text-warning"
                                     : "text-muted-foreground"
                                 }`}
                               >
@@ -337,9 +349,9 @@ export function Biolog() {
                                 className={`text-xs mt-1 ${
                                   bio.msg === "Absent" ||
                                   bio.msg.includes("Missing Log")
-                                    ? "text-red-600"
+                                    ? "text-destructive"
                                     : bio.msg === "Late"
-                                    ? "text-orange-600"
+                                    ? "text-warning"
                                     : "text-muted-foreground"
                                 }`}
                               >

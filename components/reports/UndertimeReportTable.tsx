@@ -5,10 +5,10 @@ import { format } from "date-fns";
 import {
   useDownloadReportXlsx,
   useUndertimeReport,
-  type UndertimeReportRow,
 } from "@/lib/hooks/useReports";
 import { ReportPageShell } from "@/components/reports/ReportPageShell";
 import { DateRangeFilter } from "@/components/reports/DateRangeFilter";
+import { Pagination } from "@/components/ui/Pagination";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -33,13 +33,9 @@ function today(): string {
 export function UndertimeReportTable() {
   const [from, setFrom] = useState(firstOfMonth());
   const [to, setTo] = useState(today());
-  const [rows, setRows] = useState<UndertimeReportRow[]>([]);
+  const [submitted, setSubmitted] = useState<{ from: string; to: string } | null>(null);
   const { toast } = useToast();
   const report = useUndertimeReport({
-    onSuccess: (data) => {
-      setRows(data);
-      toast({ title: "Report ready", description: `${data.length} rows` });
-    },
     onError: (err) => {
       toast({
         title: "Failed to load report",
@@ -49,6 +45,19 @@ export function UndertimeReportTable() {
     },
   });
   const downloader = useDownloadReportXlsx();
+
+  const rows = report.data?.data ?? [];
+  const meta = report.data?.meta;
+
+  const generate = () => {
+    const f = { from, to };
+    setSubmitted(f);
+    report.mutate({ ...f, page: 1 });
+  };
+  const goToPage = (p: number) => {
+    if (!submitted) return;
+    report.mutate({ ...submitted, page: p });
+  };
 
   return (
     <ReportPageShell
@@ -64,17 +73,18 @@ export function UndertimeReportTable() {
             disabled={report.isPending}
           />
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => report.mutate({ from, to })} disabled={report.isPending}>
+            <Button onClick={generate} disabled={report.isPending}>
               <Send className="mr-2 h-4 w-4" /> Generate Report
             </Button>
             <Button
               variant="outline"
-              disabled={downloader.isPending || rows.length === 0}
+              disabled={downloader.isPending || !submitted}
               onClick={() =>
+                submitted &&
                 downloader.mutate({
                   endpoint: "/reports/undertime/export",
-                  rows,
-                  filename: `Undertime Report (${from} to ${to}).xlsx`,
+                  body: submitted,
+                  filename: `Undertime Report (${submitted.from} to ${submitted.to}).xlsx`,
                 })
               }
             >
@@ -87,8 +97,12 @@ export function UndertimeReportTable() {
     >
       {report.isPending ? (
         <p className="py-8 text-center text-sm text-muted-foreground">Loading...</p>
-      ) : rows.length === 0 ? (
+      ) : !submitted ? (
         <p className="py-8 text-center text-sm text-muted-foreground">No data loaded.</p>
+      ) : rows.length === 0 ? (
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          No rows for the selected range.
+        </p>
       ) : (
         <div className="overflow-x-auto">
           <Table>
@@ -105,8 +119,8 @@ export function UndertimeReportTable() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((row) => (
-                <TableRow key={row.utm_id ?? Math.random().toString()}>
+              {rows.map((row, i) => (
+                <TableRow key={row.utm_id ?? `ut-${i}`}>
                   <TableCell>{row.utm_id}</TableCell>
                   <TableCell>{row.name}</TableCell>
                   <TableCell>{row.utm_date}</TableCell>
@@ -119,6 +133,7 @@ export function UndertimeReportTable() {
               ))}
             </TableBody>
           </Table>
+          {meta && <Pagination meta={meta} onPageChange={goToPage} />}
         </div>
       )}
     </ReportPageShell>

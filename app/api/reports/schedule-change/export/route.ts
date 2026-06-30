@@ -1,23 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeApiRequest } from "@/lib/auth/authorization";
 import { buildScheduleChangeReportXlsx } from "@/lib/services/reports.excel";
-import type { ScheduleChangeReportRow } from "@/lib/services/reports.service";
+import { listScheduleChangeReport } from "@/lib/services/reports.service";
 
 interface ExportBody {
-  rows: ScheduleChangeReportRow[];
+  from?: string;
+  to?: string;
+  emp?: string;
   filename?: string;
 }
 
+/** Independent export: re-fetches the FULL schedule change report for the filters. */
 export async function POST(request: NextRequest) {
   const auth = await authorizeApiRequest(request, "apiScheduleChangeReport");
   if (!auth.ok) return auth.response;
 
   try {
     const body = (await request.json()) as ExportBody;
-    if (!Array.isArray(body.rows)) {
-      return NextResponse.json({ message: "rows is required" }, { status: 400 });
+    if (!body.from || !body.to) {
+      return NextResponse.json({ message: "from and to are required" }, { status: 400 });
     }
-    const buffer = await buildScheduleChangeReportXlsx(body.rows);
+    const rows = await listScheduleChangeReport(body.from, body.to, body.emp ?? "All");
+    const buffer = await buildScheduleChangeReportXlsx(rows);
     const filename = body.filename || "ScheduleChangeReport.xlsx";
     return new NextResponse(buffer, {
       status: 200,

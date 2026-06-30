@@ -1,8 +1,18 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { queryKeys } from "./queries";
+import type { Paginated } from "@/lib/pagination";
+import { DEFAULT_LIMIT } from "@/lib/pagination";
+import type { RequestStatusGroup } from "@/lib/requests/status";
+
+/** Build a "?page=&limit=&status=" query string for a paginated request grid. */
+function gridQuery(page: number, limit: number, status?: RequestStatusGroup): string {
+  const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+  if (status) params.set("status", status);
+  return params.toString();
+}
 
 // ==================== LEAVE REQUESTS ====================
 
@@ -121,16 +131,20 @@ export function useLeaveSummary(id: string) {
   });
 }
 
-export function useUserLeaves(empId: string) {
-  return useQuery<LeaveRequestDTO[], ApiError>({
-    queryKey: queryKeys.leave.user(empId),
+export function useUserLeaves(empId: string, page = 1, limit = DEFAULT_LIMIT) {
+  return useQuery<Paginated<LeaveRequestDTO>, ApiError>({
+    queryKey: [...queryKeys.leave.user(empId), page, limit],
     queryFn: async () => {
       const token = localStorage.getItem("auth_token");
       if (!token) throw new ApiError("No token found", 401);
-      return apiFetch<LeaveRequestDTO[]>(`/leave/user/${empId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      return apiFetch<Paginated<LeaveRequestDTO>>(
+        `/leave/user/${empId}?page=${page}&limit=${limit}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
     },
+    placeholderData: keepPreviousData,
     enabled:
       !!empId &&
       typeof window !== "undefined" &&
@@ -252,17 +266,21 @@ export interface LeaveGrid {
   [key: string]: any;
 }
 
-export function useLeaveGrid() {
-  return useQuery<LeaveGrid[], ApiError>({
-    queryKey: queryKeys.leave.grid(),
+export function useLeaveGrid(status?: RequestStatusGroup, page = 1, limit = DEFAULT_LIMIT) {
+  return useQuery<Paginated<LeaveGrid>, ApiError>({
+    queryKey: [...queryKeys.leave.grid(), status ?? "all", page, limit],
     queryFn: async () => {
       const token = localStorage.getItem("auth_token");
       if (!token) throw new ApiError("No token found", 401);
-      return apiFetch<LeaveGrid[]>("/leave/grid", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      return apiFetch<Paginated<LeaveGrid>>(
+        `/leave/grid?${gridQuery(page, limit, status)}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
     },
     staleTime: 2 * 60 * 1000,
+    placeholderData: keepPreviousData,
     enabled:
       typeof window !== "undefined" && !!localStorage.getItem("auth_token"),
   });
@@ -411,17 +429,21 @@ export function useOvertimeYear() {
   });
 }
 
-export function useOvertimeList() {
-  return useQuery<OvertimeRequestDTO[], ApiError>({
-    queryKey: queryKeys.overtime.list(),
+export function useOvertimeList(status?: RequestStatusGroup, page = 1, limit = DEFAULT_LIMIT) {
+  return useQuery<Paginated<OvertimeRequestDTO>, ApiError>({
+    queryKey: [...queryKeys.overtime.list(), status ?? "all", page, limit],
     queryFn: async () => {
       const token = localStorage.getItem("auth_token");
       if (!token) throw new ApiError("No token found", 401);
-      return apiFetch<OvertimeRequestDTO[]>("/overtime/list", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      return apiFetch<Paginated<OvertimeRequestDTO>>(
+        `/overtime/list?${gridQuery(page, limit, status)}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
     },
     staleTime: 2 * 60 * 1000,
+    placeholderData: keepPreviousData,
     enabled:
       typeof window !== "undefined" && !!localStorage.getItem("auth_token"),
   });
@@ -532,17 +554,21 @@ export interface UndertimeRequestDTO {
   [key: string]: any;
 }
 
-export function useUndertimeList() {
-  return useQuery<UndertimeRequestDTO[], ApiError>({
-    queryKey: queryKeys.undertime.list(),
+export function useUndertimeList(status?: RequestStatusGroup, page = 1, limit = DEFAULT_LIMIT) {
+  return useQuery<Paginated<UndertimeRequestDTO>, ApiError>({
+    queryKey: [...queryKeys.undertime.list(), status ?? "all", page, limit],
     queryFn: async () => {
       const token = localStorage.getItem("auth_token");
       if (!token) throw new ApiError("No token found", 401);
-      return apiFetch<UndertimeRequestDTO[]>("/undertime/list", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      return apiFetch<Paginated<UndertimeRequestDTO>>(
+        `/undertime/list?${gridQuery(page, limit, status)}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
     },
     staleTime: 2 * 60 * 1000,
+    placeholderData: keepPreviousData,
     enabled:
       typeof window !== "undefined" && !!localStorage.getItem("auth_token"),
   });
@@ -652,17 +678,21 @@ export interface SchedAdjustDetailDTO {
   [key: string]: any;
 }
 
-export function useScheduleAdjustList() {
-  return useQuery<SchedAdjustRequestDTO[], ApiError>({
-    queryKey: queryKeys.scheduleAdjust.list(),
+export function useScheduleAdjustList(status?: RequestStatusGroup, page = 1, limit = DEFAULT_LIMIT) {
+  return useQuery<Paginated<SchedAdjustRequestDTO>, ApiError>({
+    queryKey: [...queryKeys.scheduleAdjust.list(), status ?? "all", page, limit],
     queryFn: async () => {
       const token = localStorage.getItem("auth_token");
       if (!token) throw new ApiError("No token found", 401);
-      return apiFetch<SchedAdjustRequestDTO[]>("/schedule-adjust/list", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      return apiFetch<Paginated<SchedAdjustRequestDTO>>(
+        `/schedule-adjust/list?${gridQuery(page, limit, status)}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
     },
     staleTime: 2 * 60 * 1000,
+    placeholderData: keepPreviousData,
     enabled:
       typeof window !== "undefined" && !!localStorage.getItem("auth_token"),
   });
@@ -859,17 +889,21 @@ export interface CoaGrid {
   coa_sapproveddate?: Date | string | null;
 }
 
-export function useCoaGrid() {
-  return useQuery<CoaGrid[], ApiError>({
-    queryKey: queryKeys.coa.grid(),
+export function useCoaGrid(status?: RequestStatusGroup, page = 1, limit = DEFAULT_LIMIT) {
+  return useQuery<Paginated<CoaGrid>, ApiError>({
+    queryKey: [...queryKeys.coa.grid(), status ?? "all", page, limit],
     queryFn: async () => {
       const token = localStorage.getItem("auth_token");
       if (!token) throw new ApiError("No token found", 401);
-      return apiFetch<CoaGrid[]>("/coa/grid", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      return apiFetch<Paginated<CoaGrid>>(
+        `/coa/grid?${gridQuery(page, limit, status)}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
     },
     staleTime: 2 * 60 * 1000,
+    placeholderData: keepPreviousData,
     enabled:
       typeof window !== "undefined" && !!localStorage.getItem("auth_token"),
   });
@@ -942,17 +976,21 @@ export function useLoanManagementList() {
   });
 }
 
-export function useLoanList() {
-  return useQuery<LoanDTO[], ApiError>({
-    queryKey: queryKeys.loan.list(),
+export function useLoanList(status?: RequestStatusGroup, page = 1, limit = DEFAULT_LIMIT) {
+  return useQuery<Paginated<LoanDTO>, ApiError>({
+    queryKey: [...queryKeys.loan.list(), status ?? "all", page, limit],
     queryFn: async () => {
       const token = localStorage.getItem("auth_token");
       if (!token) throw new ApiError("No token found", 401);
-      return apiFetch<LoanDTO[]>("/loan", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      return apiFetch<Paginated<LoanDTO>>(
+        `/loan?${gridQuery(page, limit, status)}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
     },
     staleTime: 2 * 60 * 1000,
+    placeholderData: keepPreviousData,
     enabled:
       typeof window !== "undefined" && !!localStorage.getItem("auth_token"),
   });

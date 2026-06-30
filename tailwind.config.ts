@@ -40,14 +40,24 @@ const config: Config = {
   				DEFAULT: 'hsl(var(--destructive))',
   				foreground: 'hsl(var(--destructive-foreground))'
   			},
+  			success: {
+  				DEFAULT: 'hsl(var(--success))',
+  				foreground: 'hsl(var(--success-foreground))'
+  			},
+  			warning: {
+  				DEFAULT: 'hsl(var(--warning))',
+  				foreground: 'hsl(var(--warning-foreground))'
+  			},
   			border: 'hsl(var(--border))',
   			input: 'hsl(var(--input))',
   			ring: 'hsl(var(--ring))',
   			sidebar: {
   				DEFAULT: 'hsl(var(--sidebar))',
   				foreground: 'hsl(var(--sidebar-foreground))',
+  				muted: 'hsl(var(--sidebar-muted))',
   				accent: 'hsl(var(--sidebar-accent))',
   				border: 'hsl(var(--sidebar-border))',
+  				ring: 'hsl(var(--sidebar-ring))',
   			},
   			bgc: {
   				gray: '#F2F2F2',
@@ -71,6 +81,9 @@ const config: Config = {
   		boxShadow: {
   			'bgc-card': '0px 2px 8.3px rgba(0,0,0,0.27)'
   		},
+  		transitionTimingFunction: {
+  			'out-expo': 'cubic-bezier(0.16, 1, 0.3, 1)'
+  		},
   		keyframes: {
   			'accordion-down': {
   				from: {
@@ -87,11 +100,15 @@ const config: Config = {
   				to: {
   					height: '0'
   				}
+  			},
+  			shimmer: {
+  				'100%': { transform: 'translateX(100%)' }
   			}
   		},
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
-  			'accordion-up': 'accordion-up 0.2s ease-out'
+  			'accordion-up': 'accordion-up 0.2s ease-out',
+  			shimmer: 'shimmer 1.6s infinite'
   		}
   	}
   },

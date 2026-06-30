@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth/jwt-edge";
 import { prisma } from "@/lib/db/prisma";
+import { parsePagination, paginate } from "@/lib/pagination";
 
 export interface UserPayslipDTO {
   pyd_pk: string;
@@ -44,14 +45,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: "Invalid token payload" }, { status: 401 });
     }
 
-    // Fetch all pay_details rows for this employee
-    const details = await prisma.pay_details.findMany({
-      where: { pyd_emp: empId },
-      orderBy: { pyd_code: "desc" },
-    });
+    const { page, limit, skip, take } = parsePagination(request.nextUrl.searchParams);
+
+    // Fetch a page of pay_details rows for this employee
+    const where = { pyd_emp: empId };
+    const [total, details] = await Promise.all([
+      prisma.pay_details.count({ where }),
+      prisma.pay_details.findMany({
+        where,
+        orderBy: { pyd_code: "desc" },
+        skip,
+        take,
+      }),
+    ]);
 
     if (details.length === 0) {
-      return NextResponse.json([]);
+      return NextResponse.json(paginate<UserPayslipDTO>([], total, page, limit));
     }
 
     // Collect all unique payroll codes to batch-fetch headers and amounts
@@ -104,7 +113,7 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return NextResponse.json(result);
+    return NextResponse.json(paginate(result, total, page, limit));
   } catch (error) {
     console.error("Payslips GET error:", error);
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });

@@ -44,8 +44,8 @@ export async function POST(request: NextRequest) {
 
     // Fetch and return the created overtime request
     const employee = payload.name;
-    const result = await requestProcedures.displayGrid("OVT", employee);
-    const createdOt = result?.[0] || null;
+    const { data } = await requestProcedures.displayGrid("OVT", employee);
+    const createdOt = data?.[0] || null;
 
     return NextResponse.json(createdOt);
   } catch (error) {

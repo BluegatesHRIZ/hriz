@@ -10,24 +10,23 @@ import { Button } from "@/components/ui/button";
 import { Plus, Hourglass, CheckCircle2, XCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { UndertimeRequestTable } from "@/components/requests/UndertimeRequestTable";
+import { Pagination } from "@/components/ui/Pagination";
 import { ProtectedPage } from "@/components/auth/ProtectedPage";
+import type { RequestStatusGroup } from "@/lib/requests/status";
 
 export default function UndertimeListPage() {
   const router = useRouter();
-  const { data: undertimeList, isLoading } = useUndertimeList();
-  const [activeTab, setActiveTab] = useState("pending");
+  const [activeTab, setActiveTab] = useState<RequestStatusGroup>("pending");
+  const [page, setPage] = useState(1);
+  // Status filtering and pagination happen server-side; each tab fetches its own page.
+  const { data, isLoading } = useUndertimeList(activeTab, page);
+  const rows = data?.data ?? [];
+  const meta = data?.meta;
 
-  const pending = undertimeList
-    ? undertimeList.filter((ut) => ut.UtmStatus === 0 || ut.UtmStatus === 4)
-    : [];
-  const approved = undertimeList
-    ? undertimeList.filter((ut) => ut.UtmStatus === 1)
-    : [];
-  const rejected = undertimeList
-    ? undertimeList.filter((ut) => ut.UtmStatus === 2 || ut.UtmStatus === 3)
-    : [];
-
-  const showLoading = undertimeList === undefined || isLoading;
+  const handleTabChange = (value: string) => {
+    setActiveTab(value as RequestStatusGroup);
+    setPage(1);
+  };
 
   return (
     <ProtectedPage routeKey="requestUndertime">
@@ -50,7 +49,7 @@ export default function UndertimeListPage() {
         </div>
 
         <Card className="mt-4">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="pending" className="flex items-center gap-2">
                 <Hourglass className="w-4 h-4" />
@@ -66,26 +65,14 @@ export default function UndertimeListPage() {
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="pending" className="mt-4">
+            {/* Only the active tab is rendered/visible; it holds the fetched page. */}
+            <TabsContent value={activeTab} className="mt-4">
               <UndertimeRequestTable
-                undertimes={pending}
-                isLoading={showLoading}
-                status="pending"
+                undertimes={rows}
+                isLoading={isLoading}
+                status={activeTab}
               />
-            </TabsContent>
-            <TabsContent value="approved" className="mt-4">
-              <UndertimeRequestTable
-                undertimes={approved}
-                isLoading={showLoading}
-                status="approved"
-              />
-            </TabsContent>
-            <TabsContent value="rejected" className="mt-4">
-              <UndertimeRequestTable
-                undertimes={rejected}
-                isLoading={showLoading}
-                status="rejected"
-              />
+              {meta && <Pagination meta={meta} onPageChange={setPage} />}
             </TabsContent>
           </Tabs>
         </Card>
@@ -94,4 +81,3 @@ export default function UndertimeListPage() {
     </ProtectedPage>
   );
 }
-

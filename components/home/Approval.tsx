@@ -11,6 +11,7 @@ import {
   ApprovalObject,
 } from "@/lib/hooks/useApprovalActions"
 import { CardWithHeader } from "@/components/cards/CardWithHeader"
+import { Skeleton } from "@/components/ui/skeleton"
 import { FileCheck } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -438,12 +439,14 @@ export function Approval() {
       <CardWithHeader
         title="Resolution Center"
         icon={<FileCheck className="w-6 h-6" />}
-        iconColor="#834dc4"
-        className="mb-4"
+        iconColor="hsl(var(--primary))"
       >
         {isLoading ? (
-          <div className="flex items-center justify-center py-4">
-            <p>Loading...</p>
+          <div className="space-y-2">
+            <Skeleton className="h-9 w-full" />
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
           </div>
         ) : (
           <div className="flex flex-col gap-3">

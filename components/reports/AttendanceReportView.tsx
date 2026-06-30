@@ -11,6 +11,7 @@ import {
 } from "@/lib/hooks/useReports";
 import { ReportPageShell } from "@/components/reports/ReportPageShell";
 import { DateRangeFilter } from "@/components/reports/DateRangeFilter";
+import { Pagination } from "@/components/ui/Pagination";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -46,7 +47,7 @@ export function AttendanceReportView() {
   const [department, setDepartment] = useState<string[]>([]);
   const [position, setPosition] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
-  const [rows, setRows] = useState<AttendanceEmployeeHeaderDTO[]>([]);
+  const [submitted, setSubmitted] = useState<AttendanceReportFilters | null>(null);
   const [expandedEmpId, setExpandedEmpId] = useState<string | null>(null);
 
   const { data: departments } = useDepartments();
@@ -55,10 +56,6 @@ export function AttendanceReportView() {
   const { toast } = useToast();
 
   const attendance = useAttendanceReport({
-    onSuccess: (data) => {
-      setRows(data);
-      toast({ title: "Report ready", description: `${data.length} employees loaded` });
-    },
     onError: (err) => {
       toast({
         title: "Failed to load report",
@@ -70,26 +67,37 @@ export function AttendanceReportView() {
 
   const downloader = useDownloadReportXlsx();
 
+  const rows = attendance.data?.data ?? [];
+  const meta = attendance.data?.meta;
+
   const filters: AttendanceReportFilters = useMemo(
     () => ({ from, to, location, department, position }),
     [from, to, location, department, position],
   );
 
+  // "Apply Request" runs the mutating generate proc once; "Refresh from data"
+  // and page navigation use the read-only list endpoint.
   const handleGenerate = () => {
-    attendance.mutate({ filters, mode: "generate" });
+    setSubmitted(filters);
+    attendance.mutate({ filters, mode: "generate", page: 1 });
   };
   const handleList = () => {
-    attendance.mutate({ filters, mode: "list" });
+    setSubmitted(filters);
+    attendance.mutate({ filters, mode: "list", page: 1 });
+  };
+  const goToPage = (p: number) => {
+    if (!submitted) return;
+    attendance.mutate({ filters: submitted, mode: "list", page: p });
   };
   const handleExport = () => {
-    if (rows.length === 0) {
+    if (!submitted) {
       toast({ title: "Nothing to export", variant: "destructive" });
       return;
     }
     downloader.mutate({
       endpoint: "/reports/attendance/export",
-      rows,
-      filename: `Attendance Report (${from} to ${to}).xlsx`,
+      body: submitted as unknown as Record<string, unknown>,
+      filename: `Attendance Report (${submitted.from} to ${submitted.to}).xlsx`,
     });
   };
 
@@ -127,7 +135,7 @@ export function AttendanceReportView() {
             <Button
               variant="outline"
               onClick={handleExport}
-              disabled={downloader.isPending || rows.length === 0}
+              disabled={downloader.isPending || !submitted}
             >
               <Download className="mr-2 h-4 w-4" />
               {downloader.isPending ? "Exporting..." : "Export Excel"}
@@ -175,9 +183,13 @@ export function AttendanceReportView() {
 
       {attendance.isPending ? (
         <p className="py-8 text-center text-sm text-muted-foreground">Loading report...</p>
-      ) : rows.length === 0 ? (
+      ) : !submitted ? (
         <p className="py-8 text-center text-sm text-muted-foreground">
           No data loaded. Click <strong>Apply Request</strong> to generate the report.
+        </p>
+      ) : rows.length === 0 ? (
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          No employees for the selected range.
         </p>
       ) : (
         <div className="overflow-x-auto">
@@ -200,11 +212,11 @@ export function AttendanceReportView() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((row) => {
+              {rows.map((row, i) => {
                 const isExpanded = expandedEmpId === row.EmpId;
                 return (
                   <AttendanceRow
-                    key={row.EmpId ?? Math.random().toString()}
+                    key={row.EmpId ?? `att-${i}`}
                     row={row}
                     isExpanded={isExpanded}
                     onToggle={() =>
@@ -215,6 +227,7 @@ export function AttendanceReportView() {
               })}
             </TableBody>
           </Table>
+          {meta && <Pagination meta={meta} onPageChange={goToPage} />}
         </div>
       )}
     </ReportPageShell>

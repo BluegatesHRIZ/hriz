@@ -10,30 +10,27 @@ import { Button } from "@/components/ui/button"
 import { Plus, Hourglass, CheckCircle2, XCircle } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { AttendanceChangeRequestTable } from "@/components/requests/AttendanceChangeRequestTable"
-import { useAuth } from "@/lib/auth/context"
+import { Pagination } from "@/components/ui/Pagination"
 import { ProtectedPage } from "@/components/auth/ProtectedPage"
+import type { RequestStatusGroup } from "@/lib/requests/status"
 
 export default function AttendanceChangeListPage() {
   const router = useRouter()
-  const { user } = useAuth()
-  const { data: coaGrid, isLoading } = useCoaGrid()
-  const [activeTab, setActiveTab] = useState("pending")
+  const [activeTab, setActiveTab] = useState<RequestStatusGroup>("pending")
+  const [page, setPage] = useState(1)
+  // Status filtering and pagination happen server-side; each tab fetches its own page.
+  const { data, isLoading } = useCoaGrid(activeTab, page)
+  const rows = data?.data ?? []
+  const meta = data?.meta
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value as RequestStatusGroup)
+    setPage(1)
+  }
 
   const handleAddAttendanceChange = () => {
     router.push("/request/attendance-change/apply")
   }
-
-  // Filter COAs by status - use empty array if data not loaded yet
-  const pendingCoas = coaGrid ? coaGrid.filter(
-    (coa) => coa.coa_sstatus === 0 || coa.coa_sstatus === 4
-  ) : []
-  const approvedCoas = coaGrid ? coaGrid.filter((coa) => coa.coa_sstatus === 1) : []
-  const rejectedCoas = coaGrid ? coaGrid.filter(
-    (coa) => coa.coa_sstatus === 2 || coa.coa_sstatus === 3
-  ) : []
-
-  // Show loading if data is not yet available
-  const showLoading = coaGrid === undefined || isLoading
 
   return (
     <ProtectedPage routeKey="requestAttendanceChange">
@@ -54,7 +51,7 @@ export default function AttendanceChangeListPage() {
         </div>
 
         <Card className="mt-4">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="pending" className="flex items-center gap-2">
                 <Hourglass className="w-4 h-4" />
@@ -70,28 +67,14 @@ export default function AttendanceChangeListPage() {
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="pending" className="mt-4">
+            {/* Only the active tab is rendered/visible; it holds the fetched page. */}
+            <TabsContent value={activeTab} className="mt-4">
               <AttendanceChangeRequestTable
-                coas={pendingCoas}
-                isLoading={showLoading}
-                status="pending"
+                coas={rows}
+                isLoading={isLoading}
+                status={activeTab}
               />
-            </TabsContent>
-
-            <TabsContent value="approved" className="mt-4">
-              <AttendanceChangeRequestTable
-                coas={approvedCoas}
-                isLoading={showLoading}
-                status="approved"
-              />
-            </TabsContent>
-
-            <TabsContent value="rejected" className="mt-4">
-              <AttendanceChangeRequestTable
-                coas={rejectedCoas}
-                isLoading={showLoading}
-                status="rejected"
-              />
+              {meta && <Pagination meta={meta} onPageChange={setPage} />}
             </TabsContent>
           </Tabs>
         </Card>

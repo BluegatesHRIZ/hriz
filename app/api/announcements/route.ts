@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db/prisma"
 import { verifyToken } from "@/lib/auth/jwt-edge"
+import { parsePagination, paginate } from "@/lib/pagination"
 
 /**
  * GET /api/announcements
@@ -58,6 +59,8 @@ export async function GET(request: NextRequest) {
       },
     })
 
+    const { page, limit, skip, take } = parsePagination(request.nextUrl.searchParams)
+
     const announcements = allActive.filter((a) => {
       const repeat = a.an_repeat ?? 0
       const start = a.an_startdate ? new Date(a.an_startdate) : null
@@ -82,7 +85,10 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    return NextResponse.json(announcements)
+    // Recurrence filtering happens in memory, so paginate the resolved list.
+    return NextResponse.json(
+      paginate(announcements.slice(skip, skip + take), announcements.length, page, limit)
+    )
   } catch (error) {
     console.error("Get announcements error:", error)
     return NextResponse.json(

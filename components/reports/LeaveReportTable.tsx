@@ -5,10 +5,10 @@ import { format } from "date-fns";
 import {
   useDownloadReportXlsx,
   useLeaveReport,
-  type LeaveReportRow,
 } from "@/lib/hooks/useReports";
 import { ReportPageShell } from "@/components/reports/ReportPageShell";
 import { DateRangeFilter } from "@/components/reports/DateRangeFilter";
+import { Pagination } from "@/components/ui/Pagination";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -33,14 +33,10 @@ function today(): string {
 export function LeaveReportTable() {
   const [from, setFrom] = useState<string>(firstOfMonth());
   const [to, setTo] = useState<string>(today());
-  const [rows, setRows] = useState<LeaveReportRow[]>([]);
+  const [submitted, setSubmitted] = useState<{ from: string; to: string } | null>(null);
 
   const { toast } = useToast();
   const leave = useLeaveReport({
-    onSuccess: (data) => {
-      setRows(data);
-      toast({ title: "Report ready", description: `${data.length} rows` });
-    },
     onError: (err) => {
       toast({
         title: "Failed to load report",
@@ -50,6 +46,19 @@ export function LeaveReportTable() {
     },
   });
   const downloader = useDownloadReportXlsx();
+
+  const rows = leave.data?.data ?? [];
+  const meta = leave.data?.meta;
+
+  const generate = () => {
+    const f = { from, to };
+    setSubmitted(f);
+    leave.mutate({ ...f, page: 1 });
+  };
+  const goToPage = (p: number) => {
+    if (!submitted) return;
+    leave.mutate({ ...submitted, page: p });
+  };
 
   return (
     <ReportPageShell
@@ -65,20 +74,18 @@ export function LeaveReportTable() {
             disabled={leave.isPending}
           />
           <div className="flex flex-wrap gap-2">
-            <Button
-              onClick={() => leave.mutate({ from, to })}
-              disabled={leave.isPending}
-            >
+            <Button onClick={generate} disabled={leave.isPending}>
               <Send className="mr-2 h-4 w-4" /> Generate Report
             </Button>
             <Button
               variant="outline"
-              disabled={downloader.isPending || rows.length === 0}
+              disabled={downloader.isPending || !submitted}
               onClick={() =>
+                submitted &&
                 downloader.mutate({
                   endpoint: "/reports/leave/export",
-                  rows,
-                  filename: `Leave Report (${from} to ${to}).xlsx`,
+                  body: submitted,
+                  filename: `Leave Report (${submitted.from} to ${submitted.to}).xlsx`,
                 })
               }
             >
@@ -91,45 +98,52 @@ export function LeaveReportTable() {
     >
       {leave.isPending ? (
         <p className="py-8 text-center text-sm text-muted-foreground">Loading...</p>
-      ) : rows.length === 0 ? (
+      ) : !submitted ? (
         <p className="py-8 text-center text-sm text-muted-foreground">
           No data loaded.
         </p>
+      ) : rows.length === 0 ? (
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          No rows for the selected range.
+        </p>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>ID</TableHead>
-              <TableHead>Employee</TableHead>
-              <TableHead>Department</TableHead>
-              <TableHead>Location</TableHead>
-              <TableHead>Leave Type</TableHead>
-              <TableHead>From</TableHead>
-              <TableHead>To</TableHead>
-              <TableHead>Reason</TableHead>
-              <TableHead>With Pay</TableHead>
-              <TableHead>Applied Date</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.lea_sid ?? Math.random().toString()}>
-                <TableCell>{row.lea_semp}</TableCell>
-                <TableCell>{row.name}</TableCell>
-                <TableCell>{row.department}</TableCell>
-                <TableCell>{row.location}</TableCell>
-                <TableCell>{row.lev_desc}</TableCell>
-                <TableCell>{formatDate(row.lea_sfrom)}</TableCell>
-                <TableCell>{formatDate(row.lea_sto)}</TableCell>
-                <TableCell>{row.lea_sreason}</TableCell>
-                <TableCell>{row.lea_swithpay}</TableCell>
-                <TableCell>{formatDate(row.lea_sapplieddate)}</TableCell>
-                <TableCell>{row.status}</TableCell>
+        <>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>ID</TableHead>
+                <TableHead>Employee</TableHead>
+                <TableHead>Department</TableHead>
+                <TableHead>Location</TableHead>
+                <TableHead>Leave Type</TableHead>
+                <TableHead>From</TableHead>
+                <TableHead>To</TableHead>
+                <TableHead>Reason</TableHead>
+                <TableHead>With Pay</TableHead>
+                <TableHead>Applied Date</TableHead>
+                <TableHead>Status</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {rows.map((row, i) => (
+                <TableRow key={row.lea_sid ?? `leave-${i}`}>
+                  <TableCell>{row.lea_semp}</TableCell>
+                  <TableCell>{row.name}</TableCell>
+                  <TableCell>{row.department}</TableCell>
+                  <TableCell>{row.location}</TableCell>
+                  <TableCell>{row.lev_desc}</TableCell>
+                  <TableCell>{formatDate(row.lea_sfrom)}</TableCell>
+                  <TableCell>{formatDate(row.lea_sto)}</TableCell>
+                  <TableCell>{row.lea_sreason}</TableCell>
+                  <TableCell>{row.lea_swithpay}</TableCell>
+                  <TableCell>{formatDate(row.lea_sapplieddate)}</TableCell>
+                  <TableCell>{row.status}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          {meta && <Pagination meta={meta} onPageChange={goToPage} />}
+        </>
       )}
     </ReportPageShell>
   );

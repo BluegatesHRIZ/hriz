@@ -1,16 +1,35 @@
 "use client";
 
-import { useMutation, useQuery, type UseMutationOptions } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  keepPreviousData,
+  type UseMutationOptions,
+} from "@tanstack/react-query";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { queryKeys } from "@/lib/hooks/queries";
+import type { Paginated } from "@/lib/pagination";
+import { REPORT_DEFAULT_LIMIT } from "@/lib/pagination";
 
 /**
- * React Query hooks + DTO mirrors for the Reports module. The four
- * date-range / single-date reports are exposed as `useMutation` to match the
- * "Apply Request" UX from the Blazor pages (user clicks a button, we POST
- * filters, render the result). Payroll is a `useQuery` keyed on year because
- * the C# controller exposes it as a GET.
+ * React Query hooks + DTO mirrors for the Reports module. The date-range /
+ * single-date reports are exposed as `useMutation` to match the "Apply Request"
+ * UX from the Blazor pages (user clicks a button, we POST filters, render the
+ * result). Results are **server-side paginated** — the mutation variables carry
+ * `page`/`limit` (in the query string) and the response is `Paginated<T>`; page
+ * navigation simply re-runs the mutation with the next page. Payroll is a
+ * `useQuery` keyed on year + page because the C# controller exposes it as a GET.
  */
+
+/** Pagination params for a report request (page in the query string). */
+export interface ReportPageArgs {
+  page?: number;
+  limit?: number;
+}
+
+function reportQuery(page = 1, limit = REPORT_DEFAULT_LIMIT): string {
+  return new URLSearchParams({ page: String(page), limit: String(limit) }).toString();
+}
 
 export interface AttendanceReportFilters {
   from: string;
@@ -238,27 +257,32 @@ function getToken(): string {
  */
 export function useAttendanceReport(
   options?: UseMutationOptions<
-    AttendanceEmployeeHeaderDTO[],
+    Paginated<AttendanceEmployeeHeaderDTO>,
     ApiError,
-    { filters: AttendanceReportFilters; mode?: "generate" | "list" }
+    { filters: AttendanceReportFilters; mode?: "generate" | "list" } & ReportPageArgs
   >,
 ) {
   return useMutation<
-    AttendanceEmployeeHeaderDTO[],
+    Paginated<AttendanceEmployeeHeaderDTO>,
     ApiError,
-    { filters: AttendanceReportFilters; mode?: "generate" | "list" }
+    { filters: AttendanceReportFilters; mode?: "generate" | "list" } & ReportPageArgs
   >({
-    mutationFn: async ({ filters, mode = "generate" }) => {
+    mutationFn: async ({ filters, mode = "generate", page, limit }) => {
       const token = getToken();
+      // "generate" runs the mutating proc once (on Apply); paging uses the
+      // read-only "list" endpoint so the attendance table isn't recomputed.
       const endpoint =
         mode === "generate"
           ? "/reports/attendance/generate"
           : "/reports/attendance/list";
-      return apiFetch<AttendanceEmployeeHeaderDTO[]>(endpoint, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: filters as unknown as Record<string, unknown>,
-      });
+      return apiFetch<Paginated<AttendanceEmployeeHeaderDTO>>(
+        `${endpoint}?${reportQuery(page, limit)}`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: filters as unknown as Record<string, unknown>,
+        },
+      );
     },
     ...options,
   });
@@ -266,23 +290,26 @@ export function useAttendanceReport(
 
 export function useLeaveReport(
   options?: UseMutationOptions<
-    LeaveReportRow[],
+    Paginated<LeaveReportRow>,
     ApiError,
-    { from: string; to: string; emp?: string }
+    { from: string; to: string; emp?: string } & ReportPageArgs
   >,
 ) {
   return useMutation<
-    LeaveReportRow[],
+    Paginated<LeaveReportRow>,
     ApiError,
-    { from: string; to: string; emp?: string }
+    { from: string; to: string; emp?: string } & ReportPageArgs
   >({
-    mutationFn: async (filters) => {
+    mutationFn: async ({ page, limit, ...filters }) => {
       const token = getToken();
-      return apiFetch<LeaveReportRow[]>("/reports/leave", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: filters as unknown as Record<string, unknown>,
-      });
+      return apiFetch<Paginated<LeaveReportRow>>(
+        `/reports/leave?${reportQuery(page, limit)}`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: filters as unknown as Record<string, unknown>,
+        },
+      );
     },
     ...options,
   });
@@ -290,60 +317,79 @@ export function useLeaveReport(
 
 export function useOvertimeReport(
   options?: UseMutationOptions<
-    OvertimeReportRow[],
+    Paginated<OvertimeReportRow>,
     ApiError,
-    { from: string; to: string; emp?: string }
+    { from: string; to: string; emp?: string } & ReportPageArgs
   >,
 ) {
   return useMutation<
-    OvertimeReportRow[],
+    Paginated<OvertimeReportRow>,
     ApiError,
-    { from: string; to: string; emp?: string }
+    { from: string; to: string; emp?: string } & ReportPageArgs
   >({
-    mutationFn: async (filters) => {
+    mutationFn: async ({ page, limit, ...filters }) => {
       const token = getToken();
-      return apiFetch<OvertimeReportRow[]>("/reports/overtime", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: filters as unknown as Record<string, unknown>,
-      });
+      return apiFetch<Paginated<OvertimeReportRow>>(
+        `/reports/overtime?${reportQuery(page, limit)}`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: filters as unknown as Record<string, unknown>,
+        },
+      );
     },
     ...options,
   });
 }
 
 /**
- * Payroll Report - keyed on year. C# exposes this as a GET, so we match by
- * using `useQuery` with the year embedded in the URL path.
+ * Payroll Report - keyed on year + page. C# exposes this as a GET, so we match
+ * by using `useQuery` with the year embedded in the URL path; server-side
+ * paginated by pay-header group.
  */
-export function usePayrollReport(year: string | null) {
-  return useQuery<PayrollReportRow[], ApiError>({
-    queryKey: queryKeys.reports.payroll(year ?? ""),
+export function usePayrollReport(
+  year: string | null,
+  page = 1,
+  limit = REPORT_DEFAULT_LIMIT,
+) {
+  return useQuery<Paginated<PayrollReportRow>, ApiError>({
+    queryKey: [...queryKeys.reports.payroll(year ?? ""), page, limit],
     queryFn: async () => {
       const token = getToken();
-      return apiFetch<PayrollReportRow[]>(`/reports/payroll/${year}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      return apiFetch<Paginated<PayrollReportRow>>(
+        `/reports/payroll/${year}?${reportQuery(page, limit)}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
     },
     enabled: Boolean(year),
+    placeholderData: keepPreviousData,
   });
 }
 
 export function useDailyLogReport(
   options?: UseMutationOptions<
-    DailyLogRow[],
+    Paginated<DailyLogRow>,
     ApiError,
-    { date: string; emp?: string }
+    { date: string; emp?: string } & ReportPageArgs
   >,
 ) {
-  return useMutation<DailyLogRow[], ApiError, { date: string; emp?: string }>({
-    mutationFn: async (filters) => {
+  return useMutation<
+    Paginated<DailyLogRow>,
+    ApiError,
+    { date: string; emp?: string } & ReportPageArgs
+  >({
+    mutationFn: async ({ page, limit, ...filters }) => {
       const token = getToken();
-      return apiFetch<DailyLogRow[]>("/reports/dailylog", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: filters as unknown as Record<string, unknown>,
-      });
+      return apiFetch<Paginated<DailyLogRow>>(
+        `/reports/dailylog?${reportQuery(page, limit)}`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: filters as unknown as Record<string, unknown>,
+        },
+      );
     },
     ...options,
   });
@@ -399,23 +445,26 @@ export interface BiologReportRow {
 
 export function useUndertimeReport(
   options?: UseMutationOptions<
-    UndertimeReportRow[],
+    Paginated<UndertimeReportRow>,
     ApiError,
-    { from: string; to: string; emp?: string }
+    { from: string; to: string; emp?: string } & ReportPageArgs
   >,
 ) {
   return useMutation<
-    UndertimeReportRow[],
+    Paginated<UndertimeReportRow>,
     ApiError,
-    { from: string; to: string; emp?: string }
+    { from: string; to: string; emp?: string } & ReportPageArgs
   >({
-    mutationFn: async (filters) => {
+    mutationFn: async ({ page, limit, ...filters }) => {
       const token = getToken();
-      return apiFetch<UndertimeReportRow[]>("/reports/undertime", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: filters as unknown as Record<string, unknown>,
-      });
+      return apiFetch<Paginated<UndertimeReportRow>>(
+        `/reports/undertime?${reportQuery(page, limit)}`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: filters as unknown as Record<string, unknown>,
+        },
+      );
     },
     ...options,
   });
@@ -423,23 +472,26 @@ export function useUndertimeReport(
 
 export function useScheduleChangeReport(
   options?: UseMutationOptions<
-    ScheduleChangeReportRow[],
+    Paginated<ScheduleChangeReportRow>,
     ApiError,
-    { from: string; to: string; emp?: string }
+    { from: string; to: string; emp?: string } & ReportPageArgs
   >,
 ) {
   return useMutation<
-    ScheduleChangeReportRow[],
+    Paginated<ScheduleChangeReportRow>,
     ApiError,
-    { from: string; to: string; emp?: string }
+    { from: string; to: string; emp?: string } & ReportPageArgs
   >({
-    mutationFn: async (filters) => {
+    mutationFn: async ({ page, limit, ...filters }) => {
       const token = getToken();
-      return apiFetch<ScheduleChangeReportRow[]>("/reports/schedule-change", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: filters as unknown as Record<string, unknown>,
-      });
+      return apiFetch<Paginated<ScheduleChangeReportRow>>(
+        `/reports/schedule-change?${reportQuery(page, limit)}`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: filters as unknown as Record<string, unknown>,
+        },
+      );
     },
     ...options,
   });
@@ -447,23 +499,26 @@ export function useScheduleChangeReport(
 
 export function useCoaReport(
   options?: UseMutationOptions<
-    CoaReportRow[],
+    Paginated<CoaReportRow>,
     ApiError,
-    { from: string; to: string; emp?: string }
+    { from: string; to: string; emp?: string } & ReportPageArgs
   >,
 ) {
   return useMutation<
-    CoaReportRow[],
+    Paginated<CoaReportRow>,
     ApiError,
-    { from: string; to: string; emp?: string }
+    { from: string; to: string; emp?: string } & ReportPageArgs
   >({
-    mutationFn: async (filters) => {
+    mutationFn: async ({ page, limit, ...filters }) => {
       const token = getToken();
-      return apiFetch<CoaReportRow[]>("/reports/attendance-change", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: filters as unknown as Record<string, unknown>,
-      });
+      return apiFetch<Paginated<CoaReportRow>>(
+        `/reports/attendance-change?${reportQuery(page, limit)}`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: filters as unknown as Record<string, unknown>,
+        },
+      );
     },
     ...options,
   });
@@ -471,36 +526,44 @@ export function useCoaReport(
 
 export function useBiologReport(
   options?: UseMutationOptions<
-    BiologReportRow[],
+    Paginated<BiologReportRow>,
     ApiError,
-    { from: string; to: string }
+    { from: string; to: string } & ReportPageArgs
   >,
 ) {
-  return useMutation<BiologReportRow[], ApiError, { from: string; to: string }>({
-    mutationFn: async (filters) => {
+  return useMutation<
+    Paginated<BiologReportRow>,
+    ApiError,
+    { from: string; to: string } & ReportPageArgs
+  >({
+    mutationFn: async ({ page, limit, ...filters }) => {
       const token = getToken();
-      return apiFetch<BiologReportRow[]>("/reports/biolog", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: filters as unknown as Record<string, unknown>,
-      });
+      return apiFetch<Paginated<BiologReportRow>>(
+        `/reports/biolog?${reportQuery(page, limit)}`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: filters as unknown as Record<string, unknown>,
+        },
+      );
     },
     ...options,
   });
 }
 
 /**
- * Generic .xlsx download helper. Posts the currently-rendered rows to the
- * matching `/export` endpoint, reads the blob, and triggers a browser
+ * Generic .xlsx download helper. Posts the report **filters** (not the rendered
+ * rows) to the matching `/export` endpoint, which re-fetches the full dataset
+ * server-side, builds the workbook, and returns the blob. Triggers a browser
  * download via a temporary `<a>` element + `URL.createObjectURL`.
  */
 export function useDownloadReportXlsx() {
   return useMutation<
     void,
     ApiError,
-    { endpoint: string; rows: unknown[]; filename: string }
+    { endpoint: string; body: Record<string, unknown>; filename: string }
   >({
-    mutationFn: async ({ endpoint, rows, filename }) => {
+    mutationFn: async ({ endpoint, body, filename }) => {
       const token = getToken();
       const response = await fetch(`/api${endpoint}`, {
         method: "POST",
@@ -508,7 +571,7 @@ export function useDownloadReportXlsx() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ rows, filename }),
+        body: JSON.stringify({ ...body, filename }),
       });
       if (!response.ok) {
         let message = response.statusText || "Export failed";

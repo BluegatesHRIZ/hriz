@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 import { useUserPayslips, computeNetPay } from "@/lib/hooks/usePayslip";
+import { Pagination } from "@/components/ui/Pagination";
+import { useState } from "react";
 
 function num(val: number): string {
   return val.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -23,7 +25,10 @@ function fmtDate(iso: string | null): string {
 }
 
 export function PayslipTable() {
-  const { data: payslips = [], isLoading, error } = useUserPayslips();
+  const [page, setPage] = useState(1);
+  const { data, isLoading, error } = useUserPayslips(page);
+  const payslips = data?.data ?? [];
+  const meta = data?.meta;
 
   if (isLoading) {
     return <p className="text-sm text-muted-foreground py-8 text-center">Loading payslips…</p>;
@@ -85,6 +90,11 @@ export function PayslipTable() {
             )}
           </TableBody>
         </Table>
+        {meta && (
+          <div className="px-4 pb-4">
+            <Pagination meta={meta} onPageChange={setPage} />
+          </div>
+        )}
       </CardContent>
     </Card>
   );

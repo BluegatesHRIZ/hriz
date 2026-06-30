@@ -27,9 +27,9 @@ export async function PUT(
     await requestProcedures.cancelRequest(otId, username);
 
     // Fetch updated overtime requests
-    const result = await requestProcedures.displayGrid("OVT", username);
+    const { data } = await requestProcedures.displayGrid("OVT", username);
 
-    return NextResponse.json(result);
+    return NextResponse.json(data);
   } catch (error) {
     console.error("Cancel overtime error:", error);
     return NextResponse.json(

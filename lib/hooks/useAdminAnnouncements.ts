@@ -1,7 +1,9 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { ApiError, apiFetch } from "@/lib/api/client";
+import type { Paginated } from "@/lib/pagination";
+import { DEFAULT_LIMIT } from "@/lib/pagination";
 
 function authHeader(): Record<string, string> {
   const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
@@ -35,11 +37,15 @@ export interface AnnouncementFormData {
 
 const QK = ["admin", "announcements"] as const;
 
-export function useAdminAnnouncements() {
-  return useQuery<AnnouncementDTO[], ApiError>({
-    queryKey: [...QK],
+export function useAdminAnnouncements(page = 1, limit = DEFAULT_LIMIT) {
+  return useQuery<Paginated<AnnouncementDTO>, ApiError>({
+    queryKey: [...QK, page, limit],
     queryFn: () =>
-      apiFetch<AnnouncementDTO[]>("/admin/announcements", { headers: authHeader() }),
+      apiFetch<Paginated<AnnouncementDTO>>(
+        `/admin/announcements?page=${page}&limit=${limit}`,
+        { headers: authHeader() }
+      ),
+    placeholderData: keepPreviousData,
   });
 }
 

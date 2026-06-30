@@ -170,14 +170,14 @@ export function DeviceFormDialog({ open, onOpenChange, editTarget }: Props) {
             <Label className="col-span-4 text-right text-sm">Location</Label>
             <div className="col-span-8">
               <Select
-                value={form.ter_loc ?? ""}
-                onValueChange={(v) => field("ter_loc", v)}
+                value={form.ter_loc ? form.ter_loc : "__none__"}
+                onValueChange={(v) => field("ter_loc", v === "__none__" ? "" : v)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select location" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">— None —</SelectItem>
+                  <SelectItem value="__none__">— None —</SelectItem>
                   {locations.map((loc) => (
                     <SelectItem key={loc.loc_id} value={loc.loc_id}>
                       {loc.loc_desc}

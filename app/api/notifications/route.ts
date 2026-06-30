@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth/jwt-edge";
 import { prisma } from "@/lib/db/prisma";
+import { parsePagination, paginate } from "@/lib/pagination";
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,13 +17,20 @@ export async function GET(request: NextRequest) {
     }
 
     const empId = payload.name ?? "";
-    const notifications = await prisma.notification.findMany({
-      where: { not_emp: empId },
-      orderBy: { not_logdate: "desc" },
-      take: 50,
-    });
+    const { page, limit, skip, take } = parsePagination(request.nextUrl.searchParams);
 
-    return NextResponse.json(notifications);
+    const where = { not_emp: empId };
+    const [total, notifications] = await Promise.all([
+      prisma.notification.count({ where }),
+      prisma.notification.findMany({
+        where,
+        orderBy: { not_logdate: "desc" },
+        skip,
+        take,
+      }),
+    ]);
+
+    return NextResponse.json(paginate(notifications, total, page, limit));
   } catch (error) {
     console.error("Notifications GET error:", error);
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });

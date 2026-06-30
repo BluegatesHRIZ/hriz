@@ -18,8 +18,8 @@ export async function PUT(
     // Cancel the request
     await requestProcedures.cancelRequest(scaId, username);
 
-    const result = await requestProcedures.displayGrid("SCA", username);
-    return NextResponse.json(result);
+    const { data } = await requestProcedures.displayGrid("SCA", username);
+    return NextResponse.json(data);
   } catch (error) {
     console.error("Cancel schedule adjustment error:", error);
     return NextResponse.json(

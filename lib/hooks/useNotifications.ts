@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, ApiError } from "@/lib/api/client";
+import type { Paginated } from "@/lib/pagination";
 
 export interface NotificationDTO {
   not_id: number;
@@ -20,10 +21,13 @@ function token() {
 export function useNotifications() {
   return useQuery<NotificationDTO[], ApiError>({
     queryKey: ["notifications"],
-    queryFn: () =>
-      apiFetch<NotificationDTO[]>("/notifications", {
+    queryFn: async () => {
+      // Endpoint is server-side paginated; the bell shows the first page.
+      const res = await apiFetch<Paginated<NotificationDTO>>("/notifications", {
         headers: { Authorization: `Bearer ${token()}` },
-      }),
+      });
+      return res.data;
+    },
     refetchInterval: 30_000,
   });
 }

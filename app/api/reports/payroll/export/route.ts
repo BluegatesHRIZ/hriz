@@ -1,23 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeApiRequest } from "@/lib/auth/authorization";
 import { buildPayrollXlsx } from "@/lib/services/reports.excel";
-import type { PayrollReportRow } from "@/lib/services/reports.service";
+import { getPayrollReport } from "@/lib/services/reports.service";
 
 interface ExportBody {
-  rows: PayrollReportRow[];
+  year?: string;
   filename?: string;
 }
 
+/** Independent export: re-fetches the FULL payroll report for the year. */
 export async function POST(request: NextRequest) {
   const auth = await authorizeApiRequest(request, "apiPayrollReport");
   if (!auth.ok) return auth.response;
 
   try {
     const body = (await request.json()) as ExportBody;
-    if (!Array.isArray(body.rows)) {
-      return NextResponse.json({ message: "rows is required" }, { status: 400 });
+    if (!body.year) {
+      return NextResponse.json({ message: "year is required" }, { status: 400 });
     }
-    const buffer = await buildPayrollXlsx(body.rows);
+    const rows = await getPayrollReport(body.year);
+    const buffer = await buildPayrollXlsx(rows);
     const filename = body.filename || "PayrollReport.xlsx";
     return new NextResponse(buffer, {
       status: 200,

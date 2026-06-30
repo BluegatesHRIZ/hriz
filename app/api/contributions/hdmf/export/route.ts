@@ -1,23 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeApiRequest } from "@/lib/auth/authorization";
 import { buildHdmfContributionXlsx } from "@/lib/services/contributions.excel";
-import type { HdmfContributionRow } from "@/lib/services/contributions.service";
+import { listHdmfContribution } from "@/lib/services/contributions.service";
 
 interface ExportBody {
-  rows: HdmfContributionRow[];
+  year?: string | number;
+  emp?: string;
   filename?: string;
 }
 
+/** Independent export: re-fetches the FULL HDMF contributions for the year. */
 export async function POST(request: NextRequest) {
   const auth = await authorizeApiRequest(request, "apiContributionHdmf");
   if (!auth.ok) return auth.response;
 
   try {
     const body = (await request.json()) as ExportBody;
-    if (!Array.isArray(body.rows)) {
-      return NextResponse.json({ message: "rows is required" }, { status: 400 });
+    if (!body.year) {
+      return NextResponse.json({ message: "year is required" }, { status: 400 });
     }
-    const buffer = await buildHdmfContributionXlsx(body.rows);
+    const rows = await listHdmfContribution(Number(body.year), body.emp ?? "All");
+    const buffer = await buildHdmfContributionXlsx(rows);
     const filename = body.filename || "HDMF Contributions.xlsx";
     return new NextResponse(buffer, {
       status: 200,

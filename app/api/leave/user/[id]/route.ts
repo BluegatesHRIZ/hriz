@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth/jwt-edge";
 import { prisma } from "@/lib/db/prisma";
+import { parsePagination, paginate } from "@/lib/pagination";
 
 export async function GET(
   request: NextRequest,
@@ -20,17 +21,22 @@ export async function GET(
 
     const resolvedParams = await params;
     const empId = resolvedParams.id;
+    const { page, limit, skip, take } = parsePagination(request.nextUrl.searchParams);
 
-    const leaves = await prisma.leave_summary.findMany({
-      where: {
-        lea_semp: empId,
-      },
-      orderBy: {
-        lea_sapplieddate: "desc",
-      },
-    });
+    const where = { lea_semp: empId };
+    const [total, leaves] = await Promise.all([
+      prisma.leave_summary.count({ where }),
+      prisma.leave_summary.findMany({
+        where,
+        orderBy: {
+          lea_sapplieddate: "desc",
+        },
+        skip,
+        take,
+      }),
+    ]);
 
-    return NextResponse.json(leaves);
+    return NextResponse.json(paginate(leaves, total, page, limit));
   } catch (error) {
     console.error("Get user leaves error:", error);
     return NextResponse.json(

@@ -1,8 +1,10 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { ApiError, apiFetch } from "@/lib/api/client";
 import type { UserPayslipDTO } from "@/app/api/payroll/payslips/route";
+import type { Paginated } from "@/lib/pagination";
+import { DEFAULT_LIMIT } from "@/lib/pagination";
 
 export type { UserPayslipDTO };
 
@@ -12,11 +14,15 @@ function authHeader(): Record<string, string> {
   return { Authorization: `Bearer ${token}` };
 }
 
-export function useUserPayslips() {
-  return useQuery<UserPayslipDTO[], ApiError>({
-    queryKey: ["payslips", "user"],
+export function useUserPayslips(page = 1, limit = DEFAULT_LIMIT) {
+  return useQuery<Paginated<UserPayslipDTO>, ApiError>({
+    queryKey: ["payslips", "user", page, limit],
     queryFn: () =>
-      apiFetch<UserPayslipDTO[]>("/payroll/payslips", { headers: authHeader() }),
+      apiFetch<Paginated<UserPayslipDTO>>(
+        `/payroll/payslips?page=${page}&limit=${limit}`,
+        { headers: authHeader() }
+      ),
+    placeholderData: keepPreviousData,
   });
 }
 

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth/jwt-edge";
 import * as requestProcedures from "@/lib/services/requests.service";
+import { parsePagination, paginate } from "@/lib/pagination";
+import { statusGroupToCodes } from "@/lib/requests/status";
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,9 +19,11 @@ export async function GET(request: NextRequest) {
     }
 
     const employee = payload.name; // EmpId from JWT payload
-    const result = await requestProcedures.displayGrid("OVT", employee);
+    const { page, limit, skip, take } = parsePagination(request.nextUrl.searchParams);
+    const statuses = statusGroupToCodes(request.nextUrl.searchParams.get("status"));
+    const { data, total } = await requestProcedures.displayGrid("OVT", employee, { skip, take, statuses });
 
-    return NextResponse.json(result);
+    return NextResponse.json(paginate(data, total, page, limit));
   } catch (error) {
     console.error("Get overtime requests error:", error);
     return NextResponse.json(

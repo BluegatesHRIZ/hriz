@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeApiRequest } from "@/lib/auth/authorization";
 import { listLeaveReport } from "@/lib/services/reports.service";
+import { parsePagination, paginateInMemory, REPORT_DEFAULT_LIMIT } from "@/lib/pagination";
 
 interface LeaveFilters {
   from?: string;
@@ -24,8 +25,9 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+    const { page, limit } = parsePagination(request.nextUrl.searchParams, REPORT_DEFAULT_LIMIT);
     const rows = await listLeaveReport(body.from, body.to, body.emp ?? "All");
-    return NextResponse.json(rows);
+    return NextResponse.json(paginateInMemory(rows, page, limit));
   } catch (error) {
     console.error("Leave report error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";

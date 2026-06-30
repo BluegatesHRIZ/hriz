@@ -41,16 +41,16 @@ export default function DashboardLayout({
       {/* Overlay for mobile - only show on mobile and when sidebar is open */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
+          className="fixed inset-0 bg-foreground/40 backdrop-blur-sm z-30 lg:hidden"
           onClick={() => setSidebarOpen(false)}
           style={{ pointerEvents: 'auto' }}
         />
       )}
 
       {/* Main Content */}
-      <div className="overflow-y-auto h-screen w-full lg:ml-0">
+      <main className="overflow-y-auto h-[100dvh] w-full lg:ml-0">
         {children}
-      </div>
+      </main>
     </div>
   )
 }

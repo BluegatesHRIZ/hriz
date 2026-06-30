@@ -1,4 +1,9 @@
-import { callProc, execProc } from "@/lib/db/mariadb";
+import { callProc } from "@/lib/db/mariadb";
+import {
+  queryAttendanceDetails,
+  queryAttendanceSummary,
+  recomputeAttendance,
+} from "@/lib/services/attendance-recompute";
 
 /**
  * Reports service - mirrors C# ReportController endpoints.
@@ -236,18 +241,6 @@ export interface DailyLogRow {
   OutLoc: string | null;
 }
 
-/**
- * Normalizes a `string | string[]` filter argument into the comma-separated
- * inline string the stored proc expects (matches C# `string.Join(", ", ...)`).
- */
-function flatten(value?: string[] | null): string {
-  if (!value || value.length === 0) return "";
-  return value
-    .map((s) => (s ?? "").trim())
-    .filter((s) => s.length > 0)
-    .join(", ");
-}
-
 
 /**
  * Coerces values returned by `$queryRawUnsafe` (which uses MariaDB native
@@ -286,20 +279,16 @@ function normalizeRow<T extends Record<string, unknown>>(row: T): T {
 export async function generateAttendance(
   filters: AttendanceReportFilters,
 ): Promise<AttendanceEmployeeHeader[]> {
-  const loc = flatten(filters.location);
-  const dep = flatten(filters.department);
-  const pos = flatten(filters.position);
+  const scope = {
+    location: filters.location,
+    department: filters.department,
+    position: filters.position,
+  };
 
-  await execProc(`CALL crearep_attendance(?, ?)`, [filters.from, filters.to]);
+  await recomputeAttendance(filters.from, filters.to);
 
-  const headers = await callProc(
-    `CALL crearep_summary(?, ?, ?, ?, ?)`,
-    [filters.from, filters.to, loc, dep, pos],
-  );
-  const details = await callProc(
-    `CALL crearep_details(?, ?, ?, ?, ?)`,
-    [filters.from, filters.to, loc, dep, pos],
-  );
+  const headers = await queryAttendanceSummary(filters.from, filters.to, scope);
+  const details = await queryAttendanceDetails(filters.from, filters.to, scope);
 
   return mergeAttendance(headers, details);
 }
@@ -312,14 +301,9 @@ export async function generateAttendance(
 export async function listAttendance(
   filters: AttendanceReportFilters,
 ): Promise<AttendanceEmployeeHeader[]> {
-  const headers = await callProc(
-    `CALL crearep_summary(?, ?, ?, ?, ?)`,
-    [filters.from, filters.to, "", "", ""],
-  );
-  const details = await callProc(
-    `CALL crearep_details(?, ?, ?, ?, ?)`,
-    [filters.from, filters.to, "", "", ""],
-  );
+  // Mirrors C#: list passes empty location/department/position scope.
+  const headers = await queryAttendanceSummary(filters.from, filters.to);
+  const details = await queryAttendanceDetails(filters.from, filters.to);
 
   return mergeAttendance(headers, details);
 }

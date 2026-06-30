@@ -1,17 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeApiRequest } from "@/lib/auth/authorization";
 import { buildAttendanceXlsx } from "@/lib/services/reports.excel";
-import type { AttendanceEmployeeHeader } from "@/lib/services/reports.service";
+import {
+  listAttendance,
+  type AttendanceReportFilters,
+} from "@/lib/services/reports.service";
 
-interface ExportBody {
-  rows: AttendanceEmployeeHeader[];
+interface ExportBody extends Partial<AttendanceReportFilters> {
   filename?: string;
 }
 
 /**
- * Receives the already-rendered grid rows and returns a .xlsx export. The
- * client posts back exactly what it sees on the table so the export matches
- * any UI-side filtering / column changes.
+ * Independent export: re-fetches the FULL attendance report for the filters via
+ * the read-only `listAttendance` (never re-runs the mutating generate proc),
+ * then builds the .xlsx — independent of any client-side pagination.
  */
 export async function POST(request: NextRequest) {
   const auth = await authorizeApiRequest(request, "apiAttendanceReport");
@@ -19,10 +21,17 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = (await request.json()) as ExportBody;
-    if (!Array.isArray(body.rows)) {
-      return NextResponse.json({ message: "rows is required" }, { status: 400 });
+    if (!body.from || !body.to) {
+      return NextResponse.json({ message: "from and to are required" }, { status: 400 });
     }
-    const buffer = await buildAttendanceXlsx(body.rows);
+    const rows = await listAttendance({
+      from: body.from,
+      to: body.to,
+      location: body.location ?? [],
+      department: body.department ?? [],
+      position: body.position ?? [],
+    });
+    const buffer = await buildAttendanceXlsx(rows);
     const filename = body.filename || "AttendanceReport.xlsx";
     return new NextResponse(buffer, {
       status: 200,
