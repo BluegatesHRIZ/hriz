@@ -10,6 +10,15 @@ UPDATE menu SET mnu_http = '/admin/settings'           WHERE mnu_id = 'A8';
 UPDATE menu SET mnu_http = '/admin/bulk-upload'        WHERE mnu_id = 'A9';
 UPDATE menu SET mnu_http = '/admin/manage-loans'       WHERE mnu_id = 'A10';
 
+-- A11 Manage Schedules: new module (row does not exist yet, so INSERT).
+INSERT INTO menu (mnu_id, mnu_desc, mnu_status, mnu_http, mnu_ctr)
+VALUES ('A11', 'Manage Schedules', 1, '/schedules', 11)
+ON DUPLICATE KEY UPDATE
+  mnu_desc = VALUES(mnu_desc),
+  mnu_status = VALUES(mnu_status),
+  mnu_http = VALUES(mnu_http),
+  mnu_ctr = VALUES(mnu_ctr);
+
 UPDATE menu SET mnu_http = '/reports/attendance'       WHERE mnu_id = 'R1';
 UPDATE menu SET mnu_http = '/reports/leave'            WHERE mnu_id = 'R2';
 UPDATE menu SET mnu_http = '/reports/overtime'         WHERE mnu_id = 'R3';

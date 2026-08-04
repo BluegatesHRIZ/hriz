@@ -23,6 +23,7 @@ const MENU_TO_PERMISSION_NAMES: Record<string, PermissionName[]> = {
   A8: ["AccessSettings", "AllAccess"],
   A9: ["AccessBulkUpload", "AllAccess"],
   A10: ["LoanApprove", "LoanRelease", "AllAccess"],
+  A11: ["AccessEmployee", "AllAccess"],
   M1: ["AccessLeave", "AllAccess"],
   M2: ["AccessAttendanceChange", "AllAccess"],
   M3: ["AccessOvertime", "AllAccess"],
@@ -87,6 +88,8 @@ const ROUTE_TO_PERMISSION_NAMES: Record<string, PermissionName[]> = {
   apiContributionHdmf: ["HDMFContribution", "AllAccess"],
   apiContributionPhic: ["PHICContribution", "AllAccess"],
   adminManageLoans: ["LoanApprove", "LoanRelease", "AllAccess"],
+  scheduleManagement: ["AccessEmployee", "AllAccess"],
+  apiScheduleManagement: ["AccessEmployee", "AllAccess"],
 };
 
 async function fetchPermissionValues() {

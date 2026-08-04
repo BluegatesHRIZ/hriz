@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth/jwt-edge";
 import {
-  insertSchedule,
-  updateSchedule,
+  saveEmployeeScheduleBatch,
   ScheduleForm,
 } from "@/lib/services/schedule.service";
 import { prisma } from "@/lib/db/prisma";
@@ -99,24 +98,9 @@ export async function PUT(
       );
     }
 
-    // Process each schedule entry
-    for (const schedule of schedules) {
-      schedule.sch_emp = empId;
-
-      // Check if schedule exists for this day
-      const existing = await prisma.schedule.findFirst({
-        where: {
-          sch_emp: empId,
-          sch_day: schedule.sch_day,
-        },
-      });
-
-      if (existing) {
-        await updateSchedule(schedule);
-      } else {
-        await insertSchedule(schedule);
-      }
-    }
+    // Replace the employee's full weekly schedule in a single batched
+    // transaction (deleteMany + createMany) instead of a per-day loop.
+    await saveEmployeeScheduleBatch(empId, schedules);
 
     return NextResponse.json({ message: "Schedule saved successfully" });
   } catch (error) {

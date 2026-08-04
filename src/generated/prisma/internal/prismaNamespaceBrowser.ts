@@ -121,6 +121,8 @@ export const ModelName = {
   schedadjust_summary: 'schedadjust_summary',
   schedule: 'schedule',
   scheduletypes: 'scheduletypes',
+  scheduletemplate: 'scheduletemplate',
+  scheduletemplatedetail: 'scheduletemplatedetail',
   settings_tab: 'settings_tab',
   taxtab: 'taxtab',
   terminal: 'terminal',
@@ -1227,6 +1229,35 @@ export const ScheduletypesScalarFieldEnum = {
 export type ScheduletypesScalarFieldEnum = (typeof ScheduletypesScalarFieldEnum)[keyof typeof ScheduletypesScalarFieldEnum]
 
 
+export const ScheduletemplateScalarFieldEnum = {
+  sct_tid: 'sct_tid',
+  sct_tname: 'sct_tname',
+  sct_tdesc: 'sct_tdesc',
+  sct_tby: 'sct_tby',
+  sct_tstatus: 'sct_tstatus',
+  sct_tlogdate: 'sct_tlogdate'
+} as const
+
+export type ScheduletemplateScalarFieldEnum = (typeof ScheduletemplateScalarFieldEnum)[keyof typeof ScheduletemplateScalarFieldEnum]
+
+
+export const ScheduletemplatedetailScalarFieldEnum = {
+  sct_did: 'sct_did',
+  sct_dpk: 'sct_dpk',
+  sct_dday: 'sct_dday',
+  sct_din: 'sct_din',
+  sct_dout: 'sct_dout',
+  sct_dbin: 'sct_dbin',
+  sct_dbout: 'sct_dbout',
+  sct_dhrs: 'sct_dhrs',
+  sct_drest: 'sct_drest',
+  sct_dshift: 'sct_dshift',
+  sct_dbreak: 'sct_dbreak'
+} as const
+
+export type ScheduletemplatedetailScalarFieldEnum = (typeof ScheduletemplatedetailScalarFieldEnum)[keyof typeof ScheduletemplatedetailScalarFieldEnum]
+
+
 export const Settings_tabScalarFieldEnum = {
   set_id: 'set_id',
   set_din: 'set_din',
@@ -2041,6 +2072,26 @@ export const scheduletypesOrderByRelevanceFieldEnum = {
 } as const
 
 export type scheduletypesOrderByRelevanceFieldEnum = (typeof scheduletypesOrderByRelevanceFieldEnum)[keyof typeof scheduletypesOrderByRelevanceFieldEnum]
+
+
+export const scheduletemplateOrderByRelevanceFieldEnum = {
+  sct_tid: 'sct_tid',
+  sct_tname: 'sct_tname',
+  sct_tdesc: 'sct_tdesc',
+  sct_tby: 'sct_tby'
+} as const
+
+export type scheduletemplateOrderByRelevanceFieldEnum = (typeof scheduletemplateOrderByRelevanceFieldEnum)[keyof typeof scheduletemplateOrderByRelevanceFieldEnum]
+
+
+export const scheduletemplatedetailOrderByRelevanceFieldEnum = {
+  sct_did: 'sct_did',
+  sct_dpk: 'sct_dpk',
+  sct_dday: 'sct_dday',
+  sct_dshift: 'sct_dshift'
+} as const
+
+export type scheduletemplatedetailOrderByRelevanceFieldEnum = (typeof scheduletemplatedetailOrderByRelevanceFieldEnum)[keyof typeof scheduletemplatedetailOrderByRelevanceFieldEnum]
 
 
 export const settings_tabOrderByRelevanceFieldEnum = {

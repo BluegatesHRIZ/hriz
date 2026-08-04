@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authorizeApiRequest } from "@/lib/auth/authorization";
 import { buildAttendanceXlsx } from "@/lib/services/reports.excel";
 import {
-  listAttendance,
+  listAttendanceAll,
   type AttendanceReportFilters,
 } from "@/lib/services/reports.service";
 
@@ -12,7 +12,7 @@ interface ExportBody extends Partial<AttendanceReportFilters> {
 
 /**
  * Independent export: re-fetches the FULL attendance report for the filters via
- * the read-only `listAttendance` (never re-runs the mutating generate proc),
+ * the read-only `listAttendanceAll` (never re-runs the mutating generate proc),
  * then builds the .xlsx — independent of any client-side pagination.
  */
 export async function POST(request: NextRequest) {
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     if (!body.from || !body.to) {
       return NextResponse.json({ message: "from and to are required" }, { status: 400 });
     }
-    const rows = await listAttendance({
+    const rows = await listAttendanceAll({
       from: body.from,
       to: body.to,
       location: body.location ?? [],

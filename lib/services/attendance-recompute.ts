@@ -405,14 +405,54 @@ export interface AttendanceScope {
   position?: string[];
 }
 
+/** SQL-level pagination window (by employee header). */
+export interface AttendancePage {
+  limit: number;
+  offset: number;
+}
+
+/**
+ * Count the distinct employees a report would return for the given range + scope.
+ * Used as the pagination `total` so the summary query only fetches one page while
+ * the client still gets an accurate page count.
+ */
+export async function countAttendanceEmployees(
+  from: string,
+  to: string,
+  scope: AttendanceScope = {},
+): Promise<number> {
+  const loc = inFilter("emp_loc", scope.location ?? []);
+  const dep = inFilter("emp_dept", scope.department ?? []);
+  const pos = inFilter("emp_pos", scope.position ?? []);
+
+  const sql = `
+SELECT COUNT(DISTINCT att_emp) AS total
+FROM attendance
+LEFT JOIN employee ON att_emp=emp_id
+WHERE (att_date BETWEEN ? AND ?)${loc.sql}${dep.sql}${pos.sql}`;
+
+  const rows = await prisma.$queryRawUnsafe<Array<{ total: unknown }>>(
+    sql,
+    from,
+    to,
+    ...loc.params,
+    ...dep.params,
+    ...pos.params,
+  );
+  return Number(rows[0]?.total ?? 0);
+}
+
 /**
  * Port of `CALL crearep_summary(from, to, loc, dep, pos)` — the grouped
- * per-employee header rows.
+ * per-employee header rows. Rows are ordered deterministically (by name) so
+ * pagination is stable; when `pagination` is supplied, only that page's
+ * employees are fetched (`LIMIT ? OFFSET ?`) instead of the whole result set.
  */
 export async function queryAttendanceSummary(
   from: string,
   to: string,
   scope: AttendanceScope = {},
+  pagination?: AttendancePage,
 ): Promise<Record<string, unknown>[]> {
   const loc = inFilter("emp_loc", scope.location ?? []);
   const dep = inFilter("emp_dept", scope.department ?? []);
@@ -448,30 +488,31 @@ LEFT JOIN position ON emp_pos = pst_id
 LEFT JOIN location ON emp_loc = loc_id
 LEFT JOIN files ON fil_fk = emp_id AND fil_type = 'emp_profile' AND fil_status = 1
 WHERE (att_date BETWEEN ? AND ?)${loc.sql}${dep.sql}${pos.sql}
-GROUP BY att_emp`;
+GROUP BY att_emp
+ORDER BY emp_last, emp_first, att_emp${pagination ? "\nLIMIT ? OFFSET ?" : ""}`;
 
-  return prisma.$queryRawUnsafe<Record<string, unknown>[]>(
-    sql,
-    from,
-    to,
-    ...loc.params,
-    ...dep.params,
-    ...pos.params,
-  );
+  const params: unknown[] = [from, to, ...loc.params, ...dep.params, ...pos.params];
+  if (pagination) params.push(pagination.limit, pagination.offset);
+
+  return prisma.$queryRawUnsafe<Record<string, unknown>[]>(sql, ...params);
 }
 
 /**
  * Port of `CALL crearep_details(from, to, loc, dep, pos)` — the day-by-day
- * detail rows that hang under each summary header.
+ * detail rows that hang under each summary header. When `empIds` is supplied,
+ * only those employees' rows are fetched (so a paginated report loads details
+ * for the current page only); omit it (export path) to fetch every employee.
  */
 export async function queryAttendanceDetails(
   from: string,
   to: string,
   scope: AttendanceScope = {},
+  empIds?: string[],
 ): Promise<Record<string, unknown>[]> {
   const loc = inFilter("emp_loc", scope.location ?? []);
   const dep = inFilter("emp_dept", scope.department ?? []);
   const pos = inFilter("emp_pos", scope.position ?? []);
+  const emp = inFilter("att_emp", empIds ?? []);
 
   const sql = `
 SELECT
@@ -503,7 +544,8 @@ SELECT
 FROM attendance
 LEFT JOIN employee ON emp_id=att_emp
 LEFT JOIN (select lea_ddate,lea_semp,concat(lea_dtype,lea_dampm) as lea_dtype from leave_detail left join leave_summary on lea_dpk=lea_sid where lea_sstatus=1) myleave on myleave.lea_ddate=att_date and myleave.lea_semp=att_emp
-WHERE (att_date BETWEEN ? AND ?)${loc.sql}${dep.sql}${pos.sql}`;
+WHERE (att_date BETWEEN ? AND ?)${loc.sql}${dep.sql}${pos.sql}${emp.sql}
+ORDER BY att_emp, att_date`;
 
   return prisma.$queryRawUnsafe<Record<string, unknown>[]>(
     sql,
@@ -512,5 +554,6 @@ WHERE (att_date BETWEEN ? AND ?)${loc.sql}${dep.sql}${pos.sql}`;
     ...loc.params,
     ...dep.params,
     ...pos.params,
+    ...emp.params,
   );
 }

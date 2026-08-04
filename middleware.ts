@@ -19,6 +19,8 @@ const COARSE_ROUTE_PERMISSIONS: Record<string, bigint> = {
   apiUndertime: PERMISSIONS.AccessUndertime | PERMISSIONS.AllAccess,
   apiScheduleChange: PERMISSIONS.AccessScheduleAdjustment | PERMISSIONS.AllAccess,
   apiLoan: PERMISSIONS.AccessLoan | PERMISSIONS.AllAccess,
+  scheduleManagement: PERMISSIONS.AccessEmployee | PERMISSIONS.AllAccess,
+  apiScheduleManagement: PERMISSIONS.AccessEmployee | PERMISSIONS.AllAccess,
   // Reads are open to any authenticated user (mirrors C# `[Authorize]` defaults).
   // Mutation handlers enforce `AdministrationRolesAndPermissions | AllAccess`
   // via `authorizeApiRequest("apiRolesPermissionsWrite")`.

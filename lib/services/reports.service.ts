@@ -1,8 +1,10 @@
 import { callProc } from "@/lib/db/mariadb";
 import {
+  countAttendanceEmployees,
   queryAttendanceDetails,
   queryAttendanceSummary,
   recomputeAttendance,
+  type AttendanceScope,
 } from "@/lib/services/attendance-recompute";
 
 /**
@@ -270,15 +272,57 @@ function normalizeRow<T extends Record<string, unknown>>(row: T): T {
   return out as T;
 }
 
+/** Page window for a paginated attendance report request. */
+export interface AttendanceReportPage {
+  page: number;
+  limit: number;
+}
+
+/** One page of report headers plus the total distinct-employee count (for meta). */
+export interface AttendanceReportResult {
+  rows: AttendanceEmployeeHeader[];
+  total: number;
+}
+
+/**
+ * Shared loader: gets the total employee count, fetches just the current page's
+ * headers at the SQL level, then fetches details only for those employees. This
+ * replaces the old "fetch every employee × every day, slice in memory" flow.
+ */
+async function loadAttendancePage(
+  filters: AttendanceReportFilters,
+  scope: AttendanceScope,
+  paging: AttendanceReportPage,
+): Promise<AttendanceReportResult> {
+  const offset = (paging.page - 1) * paging.limit;
+
+  const total = await countAttendanceEmployees(filters.from, filters.to, scope);
+  const headers = await queryAttendanceSummary(filters.from, filters.to, scope, {
+    limit: paging.limit,
+    offset,
+  });
+
+  const empIds = headers
+    .map((h) => (h.emp_id == null ? null : String(h.emp_id)))
+    .filter((id): id is string => id !== null);
+
+  const details = empIds.length
+    ? await queryAttendanceDetails(filters.from, filters.to, scope, empIds)
+    : [];
+
+  return { rows: mergeAttendance(headers, details), total };
+}
+
 /**
  * Mirrors `POST api/AttendanceReport/generate`: runs `crearep_attendance` to
- * refresh the attendance table for the requested date range, then loads the
- * grouped summary + day-by-day detail and bundles them into one
+ * refresh the attendance table for the requested date range, then loads one page
+ * of the grouped summary + day-by-day detail, bundled into
  * `AttendanceEmployeeHeader[]` with `AttendanceDetails` nested.
  */
 export async function generateAttendance(
   filters: AttendanceReportFilters,
-): Promise<AttendanceEmployeeHeader[]> {
+  paging: AttendanceReportPage,
+): Promise<AttendanceReportResult> {
   const scope = {
     location: filters.location,
     department: filters.department,
@@ -287,21 +331,30 @@ export async function generateAttendance(
 
   await recomputeAttendance(filters.from, filters.to);
 
-  const headers = await queryAttendanceSummary(filters.from, filters.to, scope);
-  const details = await queryAttendanceDetails(filters.from, filters.to, scope);
-
-  return mergeAttendance(headers, details);
+  return loadAttendancePage(filters, scope, paging);
 }
 
 /**
- * Mirrors `POST api/AttendanceReport/list`: re-reads the already computed
- * summary + detail rows for the given range (no `crearep_attendance` call).
- * C# passes empty location/department/position so list mirrors that exactly.
+ * Mirrors `POST api/AttendanceReport/list`: re-reads one page of the already
+ * computed summary + detail rows for the given range (no `crearep_attendance`
+ * call). C# passes empty location/department/position so list mirrors that.
  */
 export async function listAttendance(
   filters: AttendanceReportFilters,
-): Promise<AttendanceEmployeeHeader[]> {
+  paging: AttendanceReportPage,
+): Promise<AttendanceReportResult> {
   // Mirrors C#: list passes empty location/department/position scope.
+  return loadAttendancePage(filters, {}, paging);
+}
+
+/**
+ * Full (unpaginated) attendance report for the export path — the .xlsx needs
+ * every employee, not a single page. Mirrors the old `listAttendance` behaviour
+ * (empty scope, whole result set).
+ */
+export async function listAttendanceAll(
+  filters: AttendanceReportFilters,
+): Promise<AttendanceEmployeeHeader[]> {
   const headers = await queryAttendanceSummary(filters.from, filters.to);
   const details = await queryAttendanceDetails(filters.from, filters.to);
 

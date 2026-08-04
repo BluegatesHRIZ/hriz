@@ -4,7 +4,7 @@ import {
   generateAttendance,
   type AttendanceReportFilters,
 } from "@/lib/services/reports.service";
-import { parsePagination, paginateInMemory, REPORT_DEFAULT_LIMIT } from "@/lib/pagination";
+import { parsePagination, paginate, REPORT_DEFAULT_LIMIT } from "@/lib/pagination";
 
 /**
  * Mirrors `POST api/AttendanceReport/generate`. Runs `crearep_attendance`
@@ -24,16 +24,20 @@ export async function POST(request: NextRequest) {
     }
 
     const { page, limit } = parsePagination(request.nextUrl.searchParams, REPORT_DEFAULT_LIMIT);
-    const rows = await generateAttendance({
-      from: body.from,
-      to: body.to,
-      location: body.location ?? [],
-      department: body.department ?? [],
-      position: body.position ?? [],
-    });
+    const { rows, total } = await generateAttendance(
+      {
+        from: body.from,
+        to: body.to,
+        location: body.location ?? [],
+        department: body.department ?? [],
+        position: body.position ?? [],
+      },
+      { page, limit },
+    );
 
-    // Paginate by employee header; each header keeps its full nested details.
-    return NextResponse.json(paginateInMemory(rows, page, limit));
+    // `rows` is already just the current page of employee headers (each with its
+    // full nested details); `total` is the distinct-employee count for the range.
+    return NextResponse.json(paginate(rows, total, page, limit));
   } catch (error) {
     console.error("Attendance report generate error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";

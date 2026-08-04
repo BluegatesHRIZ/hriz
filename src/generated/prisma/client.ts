@@ -387,6 +387,16 @@ export type schedule = Prisma.scheduleModel
  */
 export type scheduletypes = Prisma.scheduletypesModel
 /**
+ * Model scheduletemplate
+ * 
+ */
+export type scheduletemplate = Prisma.scheduletemplateModel
+/**
+ * Model scheduletemplatedetail
+ * 
+ */
+export type scheduletemplatedetail = Prisma.scheduletemplatedetailModel
+/**
  * Model settings_tab
  * This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
  */

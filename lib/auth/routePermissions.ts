@@ -13,6 +13,8 @@ const PAGE_ROUTE_MATCHERS: Array<{ test: RegExp; key: string }> = [
   { test: /^\/admin\/settings(\/|$)/, key: "adminSettings" },
   { test: /^\/admin\/bulk-upload(\/|$)/, key: "adminBulkUpload" },
   { test: /^\/admin\/manage-loans(\/|$)/, key: "adminManageLoans" },
+  { test: /^\/schedules(\/|$)/, key: "scheduleManagement" },
+  { test: /^\/payroll(\/|$)/, key: "payrollRun" },
   { test: /^\/reports\/attendance(\/|$)/, key: "reportAttendance" },
   { test: /^\/reports\/leave(\/|$)/, key: "reportLeave" },
   { test: /^\/reports\/overtime(\/|$)/, key: "reportOvertime" },
@@ -34,6 +36,10 @@ const API_ROUTE_MATCHERS: Array<{ test: RegExp; key: string }> = [
   { test: /^\/api\/undertime(\/|$)/, key: "apiUndertime" },
   { test: /^\/api\/schedule-adjust(\/|$)/, key: "apiScheduleChange" },
   { test: /^\/api\/loan(\/|$)/, key: "apiLoan" },
+  { test: /^\/api\/schedules(\/|$)/, key: "apiScheduleManagement" },
+  // Reads are gated by `apiPayrollRun`; compute/post/unpost additionally
+  // require `apiPayrollRunWrite`, checked in those handlers.
+  { test: /^\/api\/payroll\/runs(\/|$)/, key: "apiPayrollRun" },
   // GETs are allowed for any authenticated user; mutation methods are checked
   // again in the route handler against `apiRolesPermissionsWrite`.
   { test: /^\/api\/roles-permissions(\/|$)/, key: "apiRolesPermissionsRead" },

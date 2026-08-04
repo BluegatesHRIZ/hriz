@@ -117,6 +117,16 @@ export const queryKeys = {
       [...queryKeys.reports.all, "biolog", filters] as const,
   },
 
+  // Schedule Management module (bulk weekly schedule editing)
+  schedules: {
+    all: ["schedules"] as const,
+    list: (filters?: Record<string, unknown>) =>
+      [...queryKeys.schedules.all, "list", filters] as const,
+    templates: () => [...queryKeys.schedules.all, "templates"] as const,
+    template: (id: string) =>
+      [...queryKeys.schedules.all, "template", id] as const,
+  },
+
   contributions: {
     all: ["contributions"] as const,
     sss: (year: string, emp: string) =>

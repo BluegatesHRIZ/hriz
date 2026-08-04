@@ -454,6 +454,8 @@ export const ModelName = {
   schedadjust_summary: 'schedadjust_summary',
   schedule: 'schedule',
   scheduletypes: 'scheduletypes',
+  scheduletemplate: 'scheduletemplate',
+  scheduletemplatedetail: 'scheduletemplatedetail',
   settings_tab: 'settings_tab',
   taxtab: 'taxtab',
   terminal: 'terminal',
@@ -474,7 +476,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "accpermission" | "accrole" | "accrolepermission" | "announce" | "approvallevels" | "attendance" | "audit_logs" | "biologs" | "bugs" | "coa_detail" | "coa_summary" | "coa_type" | "comded" | "company" | "department" | "empadvance" | "empasset" | "empbenefit" | "empdependent" | "emphist" | "emphmo" | "empleave" | "employee" | "empmed" | "empmedrec" | "empmemo" | "empmovement" | "emppersonal" | "empreq" | "empsalary" | "emptoken" | "emptraining" | "empwork" | "errlog" | "fapreason" | "files" | "forapproval" | "govtpag" | "govtph" | "govtsss" | "govttax" | "holiday" | "holidaytype" | "inittmp" | "leave" | "leave_adjustment" | "leave_detail" | "leave_summary" | "loan" | "location" | "menu" | "notification" | "numbers" | "otrates" | "overtime" | "pay_adjust" | "pay_amounts" | "pay_annual" | "pay_details" | "pay_header" | "pay_loan" | "pay_ytd" | "payrunsett" | "paytypes" | "period_types" | "position" | "schedadjust_detail" | "schedadjust_summary" | "schedule" | "scheduletypes" | "settings_tab" | "taxtab" | "terminal" | "ufclogs" | "undertime"
+    modelProps: "accpermission" | "accrole" | "accrolepermission" | "announce" | "approvallevels" | "attendance" | "audit_logs" | "biologs" | "bugs" | "coa_detail" | "coa_summary" | "coa_type" | "comded" | "company" | "department" | "empadvance" | "empasset" | "empbenefit" | "empdependent" | "emphist" | "emphmo" | "empleave" | "employee" | "empmed" | "empmedrec" | "empmemo" | "empmovement" | "emppersonal" | "empreq" | "empsalary" | "emptoken" | "emptraining" | "empwork" | "errlog" | "fapreason" | "files" | "forapproval" | "govtpag" | "govtph" | "govtsss" | "govttax" | "holiday" | "holidaytype" | "inittmp" | "leave" | "leave_adjustment" | "leave_detail" | "leave_summary" | "loan" | "location" | "menu" | "notification" | "numbers" | "otrates" | "overtime" | "pay_adjust" | "pay_amounts" | "pay_annual" | "pay_details" | "pay_header" | "pay_loan" | "pay_ytd" | "payrunsett" | "paytypes" | "period_types" | "position" | "schedadjust_detail" | "schedadjust_summary" | "schedule" | "scheduletypes" | "scheduletemplate" | "scheduletemplatedetail" | "settings_tab" | "taxtab" | "terminal" | "ufclogs" | "undertime"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -5098,6 +5100,138 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    scheduletemplate: {
+      payload: Prisma.$scheduletemplatePayload<ExtArgs>
+      fields: Prisma.scheduletemplateFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.scheduletemplateFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$scheduletemplatePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.scheduletemplateFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$scheduletemplatePayload>
+        }
+        findFirst: {
+          args: Prisma.scheduletemplateFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$scheduletemplatePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.scheduletemplateFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$scheduletemplatePayload>
+        }
+        findMany: {
+          args: Prisma.scheduletemplateFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$scheduletemplatePayload>[]
+        }
+        create: {
+          args: Prisma.scheduletemplateCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$scheduletemplatePayload>
+        }
+        createMany: {
+          args: Prisma.scheduletemplateCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        delete: {
+          args: Prisma.scheduletemplateDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$scheduletemplatePayload>
+        }
+        update: {
+          args: Prisma.scheduletemplateUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$scheduletemplatePayload>
+        }
+        deleteMany: {
+          args: Prisma.scheduletemplateDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.scheduletemplateUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        upsert: {
+          args: Prisma.scheduletemplateUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$scheduletemplatePayload>
+        }
+        aggregate: {
+          args: Prisma.ScheduletemplateAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateScheduletemplate>
+        }
+        groupBy: {
+          args: Prisma.scheduletemplateGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ScheduletemplateGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.scheduletemplateCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ScheduletemplateCountAggregateOutputType> | number
+        }
+      }
+    }
+    scheduletemplatedetail: {
+      payload: Prisma.$scheduletemplatedetailPayload<ExtArgs>
+      fields: Prisma.scheduletemplatedetailFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.scheduletemplatedetailFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$scheduletemplatedetailPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.scheduletemplatedetailFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$scheduletemplatedetailPayload>
+        }
+        findFirst: {
+          args: Prisma.scheduletemplatedetailFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$scheduletemplatedetailPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.scheduletemplatedetailFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$scheduletemplatedetailPayload>
+        }
+        findMany: {
+          args: Prisma.scheduletemplatedetailFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$scheduletemplatedetailPayload>[]
+        }
+        create: {
+          args: Prisma.scheduletemplatedetailCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$scheduletemplatedetailPayload>
+        }
+        createMany: {
+          args: Prisma.scheduletemplatedetailCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        delete: {
+          args: Prisma.scheduletemplatedetailDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$scheduletemplatedetailPayload>
+        }
+        update: {
+          args: Prisma.scheduletemplatedetailUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$scheduletemplatedetailPayload>
+        }
+        deleteMany: {
+          args: Prisma.scheduletemplatedetailDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.scheduletemplatedetailUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        upsert: {
+          args: Prisma.scheduletemplatedetailUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$scheduletemplatedetailPayload>
+        }
+        aggregate: {
+          args: Prisma.ScheduletemplatedetailAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateScheduletemplatedetail>
+        }
+        groupBy: {
+          args: Prisma.scheduletemplatedetailGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ScheduletemplatedetailGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.scheduletemplatedetailCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ScheduletemplatedetailCountAggregateOutputType> | number
+        }
+      }
+    }
     settings_tab: {
       payload: Prisma.$settings_tabPayload<ExtArgs>
       fields: Prisma.settings_tabFieldRefs
@@ -6550,6 +6684,35 @@ export const ScheduletypesScalarFieldEnum = {
 export type ScheduletypesScalarFieldEnum = (typeof ScheduletypesScalarFieldEnum)[keyof typeof ScheduletypesScalarFieldEnum]
 
 
+export const ScheduletemplateScalarFieldEnum = {
+  sct_tid: 'sct_tid',
+  sct_tname: 'sct_tname',
+  sct_tdesc: 'sct_tdesc',
+  sct_tby: 'sct_tby',
+  sct_tstatus: 'sct_tstatus',
+  sct_tlogdate: 'sct_tlogdate'
+} as const
+
+export type ScheduletemplateScalarFieldEnum = (typeof ScheduletemplateScalarFieldEnum)[keyof typeof ScheduletemplateScalarFieldEnum]
+
+
+export const ScheduletemplatedetailScalarFieldEnum = {
+  sct_did: 'sct_did',
+  sct_dpk: 'sct_dpk',
+  sct_dday: 'sct_dday',
+  sct_din: 'sct_din',
+  sct_dout: 'sct_dout',
+  sct_dbin: 'sct_dbin',
+  sct_dbout: 'sct_dbout',
+  sct_dhrs: 'sct_dhrs',
+  sct_drest: 'sct_drest',
+  sct_dshift: 'sct_dshift',
+  sct_dbreak: 'sct_dbreak'
+} as const
+
+export type ScheduletemplatedetailScalarFieldEnum = (typeof ScheduletemplatedetailScalarFieldEnum)[keyof typeof ScheduletemplatedetailScalarFieldEnum]
+
+
 export const Settings_tabScalarFieldEnum = {
   set_id: 'set_id',
   set_din: 'set_din',
@@ -7366,6 +7529,26 @@ export const scheduletypesOrderByRelevanceFieldEnum = {
 export type scheduletypesOrderByRelevanceFieldEnum = (typeof scheduletypesOrderByRelevanceFieldEnum)[keyof typeof scheduletypesOrderByRelevanceFieldEnum]
 
 
+export const scheduletemplateOrderByRelevanceFieldEnum = {
+  sct_tid: 'sct_tid',
+  sct_tname: 'sct_tname',
+  sct_tdesc: 'sct_tdesc',
+  sct_tby: 'sct_tby'
+} as const
+
+export type scheduletemplateOrderByRelevanceFieldEnum = (typeof scheduletemplateOrderByRelevanceFieldEnum)[keyof typeof scheduletemplateOrderByRelevanceFieldEnum]
+
+
+export const scheduletemplatedetailOrderByRelevanceFieldEnum = {
+  sct_did: 'sct_did',
+  sct_dpk: 'sct_dpk',
+  sct_dday: 'sct_dday',
+  sct_dshift: 'sct_dshift'
+} as const
+
+export type scheduletemplatedetailOrderByRelevanceFieldEnum = (typeof scheduletemplatedetailOrderByRelevanceFieldEnum)[keyof typeof scheduletemplatedetailOrderByRelevanceFieldEnum]
+
+
 export const settings_tabOrderByRelevanceFieldEnum = {
   set_id: 'set_id',
   set_extid: 'set_extid',
@@ -7628,6 +7811,8 @@ export type GlobalOmitConfig = {
   schedadjust_summary?: Prisma.schedadjust_summaryOmit
   schedule?: Prisma.scheduleOmit
   scheduletypes?: Prisma.scheduletypesOmit
+  scheduletemplate?: Prisma.scheduletemplateOmit
+  scheduletemplatedetail?: Prisma.scheduletemplatedetailOmit
   settings_tab?: Prisma.settings_tabOmit
   taxtab?: Prisma.taxtabOmit
   terminal?: Prisma.terminalOmit

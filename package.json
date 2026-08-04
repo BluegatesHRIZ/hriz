@@ -11,7 +11,9 @@
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
     "lint": "eslint",
-    "db:update-report-menus": "tsx scripts/update-report-menu-paths.ts"
+    "db:update-report-menus": "tsx scripts/update-report-menu-paths.ts",
+    "test:payroll": "tsx --test lib/services/payroll/*.test.ts",
+    "payroll:parity": "tsx scripts/payroll-parity.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

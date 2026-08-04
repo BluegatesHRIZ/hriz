@@ -130,6 +130,9 @@ model attendance {
   att_logdate     DateTime? @default(now()) @db.DateTime(0)
 
   @@id([att_date, att_emp])
+  // Emp-first probe for the recompute overlay UPDATEs (PK is date-first).
+  // Created by sql/perf_indexes.sql.
+  @@index([att_emp, att_date], map: "idx_att_emp_date")
 }
 
 model audit_logs {
@@ -169,6 +172,8 @@ model coa_detail {
   coa_dtype String?   @db.VarChar(2)
   coa_ddate DateTime? @db.Date
   coa_dtime DateTime? @db.Time(0)
+
+  @@index([coa_ddate, coa_dpk], map: "idx_coa_detail_date_pk")
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -184,6 +189,8 @@ model coa_summary {
   coa_sapprovedby   String?   @db.VarChar(6)
   coa_sapproveddate DateTime? @db.DateTime(0)
   coa_logdate       DateTime? @default(now()) @db.DateTime(0)
+
+  @@index([coa_semp, coa_sstatus], map: "idx_coa_summary_emp_status")
 }
 
 model coa_type {
@@ -319,6 +326,11 @@ model employee {
   emp_status      Int?      @default(1)
   emp_extid       String?   @db.VarChar(55)
   emp_updatedate  DateTime? @db.DateTime(0)
+
+  // Report scope filters: emp_loc/emp_dept/emp_pos IN (...). Created by sql/perf_indexes.sql.
+  @@index([emp_dept], map: "idx_employee_dept")
+  @@index([emp_pos], map: "idx_employee_pos")
+  @@index([emp_loc], map: "idx_employee_loc")
 }
 
 model empmed {
@@ -591,6 +603,8 @@ model leave_detail {
   lea_ddate DateTime? @db.Date
   lea_dtype String?   @db.VarChar(5)
   lea_dampm String?   @db.VarChar(5)
+
+  @@index([lea_ddate, lea_dpk], map: "idx_leave_detail_date_pk")
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -609,6 +623,8 @@ model leave_summary {
   lea_sapprovedby   String?   @db.VarChar(6)
   lea_sapproveddate DateTime? @db.DateTime(0)
   lea_logdate       DateTime? @default(now()) @db.DateTime(0)
+
+  @@index([lea_semp, lea_sstatus], map: "idx_leave_summary_emp_status")
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -710,6 +726,8 @@ model overtime {
   otm_approvedby   String?   @db.VarChar(6)
   otm_approveddate DateTime? @db.DateTime(0)
   otm_logdate      DateTime? @default(now()) @db.DateTime(0)
+
+  @@index([otm_date, otm_emp, otm_status], map: "idx_overtime_date_emp_status")
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -874,6 +892,8 @@ model schedadjust_detail {
   sca_drest       Int?
   sca_dbreak      Int?
   sca_dshift      String?   @db.VarChar(2)
+
+  @@index([sca_ddate, sca_dpk], map: "idx_schedadjust_detail_date_pk")
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -889,6 +909,8 @@ model schedadjust_summary {
   sca_sapprovedby   String?   @db.VarChar(6)
   sca_sapproveddate DateTime? @db.DateTime(0)
   sca_logdate       DateTime? @default(now()) @db.DateTime(0)
+
+  @@index([sca_semp, sca_sstatus], map: "idx_schedadjust_summary_emp_status")
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -905,12 +927,42 @@ model schedule {
   sch_emp     String?   @db.VarChar(6)
   sch_logdate DateTime? @default(now()) @db.DateTime(0)
   sch_break   Int?      @default(1) @db.TinyInt
+
+  @@index([sch_emp], map: "idx_schedule_emp")
 }
 
 model scheduletypes {
   sct_id     String  @id @db.VarChar(10)
   sct_desc   String? @db.VarChar(50)
   sct_status Int?    @default(0)
+}
+
+// Saved schedule templates ("Morning shift", "Night shift", ...) for the bulk
+// schedule management module. A template's 7 day rows share the same shape as
+// the `schedule` table so a template can be applied directly to many employees.
+model scheduletemplate {
+  sct_tid      String    @id @db.VarChar(20)
+  sct_tname    String    @db.VarChar(60)
+  sct_tdesc    String?   @db.VarChar(150)
+  sct_tby      String?   @db.VarChar(6)
+  sct_tstatus  Int?      @default(1)
+  sct_tlogdate DateTime? @default(now()) @db.DateTime(0)
+}
+
+model scheduletemplatedetail {
+  sct_did    String    @id @db.VarChar(40)
+  sct_dpk    String    @db.VarChar(20)
+  sct_dday   String?   @db.VarChar(45)
+  sct_din    DateTime? @db.Time(0)
+  sct_dout   DateTime? @db.Time(0)
+  sct_dbin   DateTime? @db.Time(0)
+  sct_dbout  DateTime? @db.Time(0)
+  sct_dhrs   Float?    @default(0)
+  sct_drest  Int?      @default(0)
+  sct_dshift String?   @default("R") @db.VarChar(2)
+  sct_dbreak Int?      @default(1) @db.TinyInt
+
+  @@index([sct_dpk], map: "idx_scheduletemplatedetail_pk")
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -1005,4 +1057,6 @@ model undertime {
   utm_approvedby   String?   @db.VarChar(6)
   utm_approveddate DateTime? @db.DateTime(0)
   utm_logdate      DateTime? @default(now()) @db.DateTime(0)
+
+  @@index([utm_date, utm_emp, utm_status], map: "idx_undertime_date_emp_status")
 }
