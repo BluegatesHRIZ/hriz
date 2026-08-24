@@ -6,6 +6,8 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth/context";
 import { useMenuList } from "@/lib/hooks/useMenu";
 import { useAuthorizationMap } from "@/lib/hooks/useAuthorization";
+import { useUserProfile } from "@/lib/hooks/useUserProfile";
+import { Avatar } from "@/components/ui/avatar";
 import { useCompanySettings } from "@/lib/hooks/useSettings";
 import {
   Accordion,
@@ -110,6 +112,9 @@ export function Sidebar() {
   const { data: menus, isLoading: menusLoading } = useMenuList();
   const { data: authMap, isLoading: authMapLoading } = useAuthorizationMap();
   const { data: company, isLoading: companyLoading } = useCompanySettings();
+  // The JWT has names but no photo, so the avatar comes from the profile fetch.
+  const { data: profile } = useUserProfile();
+  const displayName = `${user?.Firstname ?? ""} ${user?.Lastname ?? ""}`.trim();
   const [activeAccordion, setActiveAccordion] = useState<string>("");
   const [collapsed, setCollapsedState] = useState(false);
 
@@ -340,9 +345,12 @@ export function Sidebar() {
       >
         {!collapsed && (
           <>
-            <div className="w-9 h-9 rounded-lg bg-sidebar-accent ring-1 ring-sidebar-border flex items-center justify-center shrink-0">
-              <User className="w-[18px] h-[18px] text-sidebar-foreground" />
-            </div>
+            <Avatar
+              src={profile?.avatar_url}
+              name={displayName}
+              size={36}
+              className="bg-sidebar-accent ring-sidebar-border text-sidebar-foreground"
+            />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-sidebar-foreground truncate">
                 {user?.Firstname} {user?.Lastname}
@@ -357,11 +365,16 @@ export function Sidebar() {
           <DropdownMenuTrigger asChild>
             {collapsed ? (
               <button
-                className="flex w-10 h-10 items-center justify-center rounded-lg bg-sidebar-accent ring-1 ring-sidebar-border text-sidebar-foreground hover:bg-sidebar-accent/80 transition-colors outline-none focus:ring-2 focus:ring-sidebar-foreground/30"
+                className="flex items-center justify-center rounded-lg hover:opacity-80 transition-opacity outline-none focus:ring-2 focus:ring-sidebar-foreground/30"
                 aria-label="Open profile menu"
-                title={`${user?.Firstname ?? ""} ${user?.Lastname ?? ""}`.trim()}
+                title={displayName}
               >
-                <User className="w-[18px] h-[18px]" />
+                <Avatar
+                  src={profile?.avatar_url}
+                  name={displayName}
+                  size={40}
+                  className="bg-sidebar-accent ring-sidebar-border text-sidebar-foreground"
+                />
               </button>
             ) : (
               <button

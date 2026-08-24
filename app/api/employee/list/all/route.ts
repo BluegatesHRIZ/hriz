@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db/prisma"
 import { verifyToken } from "@/lib/auth/jwt-edge"
 import { parsePagination, paginate } from "@/lib/pagination"
+import { getAvatarUrls } from "@/lib/services/avatars.service"
 
 /**
  * GET /api/employee/list/all
@@ -107,7 +108,7 @@ export async function GET(request: NextRequest) {
     // The salary lookup is scoped to this page's ids; the reference tables are
     // small enough to fetch whole and map in memory.
     const ids = employees.map((e) => e.emp_id)
-    const [departments, positions, locations, salaried] = await Promise.all([
+    const [departments, positions, locations, salaried, avatars] = await Promise.all([
       prisma.department.findMany({ select: { dep_id: true, dep_desc: true } }),
       prisma.position.findMany({ select: { pst_id: true, pst_desc: true } }),
       prisma.location.findMany({ select: { loc_id: true, loc_desc: true } }),
@@ -118,6 +119,8 @@ export async function GET(request: NextRequest) {
             distinct: ["emp_id"],
           })
         : Promise.resolve([] as Array<{ emp_id: string }>),
+      // Profile pictures for this page only — one query, not one per row.
+      getAvatarUrls(ids),
     ])
     const hasSalary = new Set(salaried.map((s) => s.emp_id))
     const depMap = new Map(departments.map((d) => [d.dep_id, d.dep_desc]))
@@ -130,6 +133,7 @@ export async function GET(request: NextRequest) {
       emp_pos_desc: e.emp_pos ? posMap.get(e.emp_pos) ?? null : null,
       emp_loc_desc: e.emp_loc ? locMap.get(e.emp_loc) ?? null : null,
       has_salary: hasSalary.has(e.emp_id),
+      emp_avatar_url: avatars.get(e.emp_id) ?? null,
     }))
 
     return NextResponse.json(paginate(enriched, total, page, limit))

@@ -25,6 +25,7 @@ import { Save, Plus, Pencil } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 import Image from "next/image";
 import { useUploadFile } from "@/lib/hooks/useUpload";
+import { IMAGE_ACCEPT, MAX_UPLOAD_LABEL } from "@/lib/storage/limits";
 import { useRouter } from "next/navigation";
 
 const accountSchema = z.object({
@@ -216,13 +217,17 @@ export function AccountInformationTab({
       window.location.reload();
     } catch (error) {
       toast({
-        title: "Error",
+        title: "Upload failed",
         description:
           error instanceof Error
             ? error.message
             : "Failed to upload profile picture",
         variant: "destructive",
       });
+    } finally {
+      // Clearing the input lets the user re-pick the same path after
+      // resizing; otherwise the unchanged value fires no change event.
+      e.target.value = "";
     }
   };
 
@@ -262,7 +267,7 @@ export function AccountInformationTab({
             <input
               id="profile-upload"
               type="file"
-              accept=".png,.jpeg,.jpg"
+              accept={IMAGE_ACCEPT}
               onChange={handleProfileUpload}
               className="hidden"
             />
@@ -279,6 +284,9 @@ export function AccountInformationTab({
               </span>
             </Button>
           </label>
+          <p className="mt-2 text-center text-xs text-muted-foreground">
+            JPG or PNG, up to {MAX_UPLOAD_LABEL}
+          </p>
         </div>
 
         {/* Basic Information Section */}

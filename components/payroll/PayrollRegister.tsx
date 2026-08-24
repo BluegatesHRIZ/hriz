@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -13,6 +13,7 @@ import {
 import { CardWithHeader } from "@/components/cards/CardWithHeader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Pagination } from "@/components/ui/Pagination";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,6 +51,14 @@ import {
 
 const peso = (n: number) =>
   n.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/**
+ * Rows rendered at a time. Paging is client-side: the run endpoint already
+ * returns every slip in one payload (the totals row and the header figures both
+ * need the whole run), so paging here is purely about not rendering hundreds of
+ * wide rows at once.
+ */
+const PAGE_SIZE = 25;
 
 /** Numeric columns, in the legacy order, grouped for visual separation. */
 const GROUPS: Array<{
@@ -97,11 +106,21 @@ export function PayrollRegister({ code }: { code: string }) {
 
   const [confirm, setConfirm] = useState<"post" | "unpost" | null>(null);
   const [openSlip, setOpenSlip] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
   const run = detail.data?.run;
   const slips = detail.data?.slips ?? [];
   const totals = detail.data?.totals;
   const isPosted = run?.status === "1";
+
+  // Clamped rather than reset in an effect — a regenerate that shrinks the run
+  // would otherwise leave `page` pointing past the end for one render.
+  const pageCount = Math.max(1, Math.ceil(slips.length / PAGE_SIZE));
+  const current = Math.min(page, pageCount);
+  const visible = useMemo(
+    () => slips.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE),
+    [slips, current],
+  );
 
   const fail = (e: unknown, fallback: string) =>
     toast({
@@ -282,7 +301,7 @@ export function PayrollRegister({ code }: { code: string }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {slips.map((s) => (
+                  {visible.map((s) => (
                     <tr
                       key={s.pk}
                       onClick={() => setOpenSlip(s.pk)}
@@ -317,8 +336,10 @@ export function PayrollRegister({ code }: { code: string }) {
                   ))}
 
                   <tr className="font-semibold">
-                    <td className="sticky left-0 z-10 bg-muted/30 px-3 py-2.5 shadow-[1px_0_0_0_hsl(var(--border))]">
-                      Total ({slips.length})
+                    {/* Whole-run totals, not the visible page — they have to
+                        agree with the Gross/Net figures in the card header. */}
+                    <td className="sticky left-0 z-10 whitespace-nowrap bg-muted/30 px-3 py-2.5 shadow-[1px_0_0_0_hsl(var(--border))]">
+                      Total (all {slips.length})
                     </td>
                     {GROUPS.flatMap((g) =>
                       g.columns.map((c, ci) => (
@@ -341,6 +362,16 @@ export function PayrollRegister({ code }: { code: string }) {
                 </tbody>
               </table>
             </div>
+
+            <Pagination
+              meta={{
+                total: slips.length,
+                page: current,
+                limit: PAGE_SIZE,
+                pageCount,
+              }}
+              onPageChange={setPage}
+            />
 
             <p className="mt-3 text-xs text-muted-foreground">
               Click a row to view its lines and key in adjustments.

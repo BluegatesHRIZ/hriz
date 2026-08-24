@@ -3,6 +3,7 @@ import { verifyToken } from "@/lib/auth/jwt-edge";
 import { prisma } from "@/lib/db/prisma";
 import { storageService } from "@/lib/storage";
 import { formatTimeForInput } from "@/lib/utils/time";
+import { PROFILE_FILE_TYPES } from "@/lib/services/avatars.service";
 
 /**
  * GET /api/employee/{id}
@@ -102,7 +103,7 @@ export async function GET(
         orderBy: { sch_id: "asc" },
       }),
       prisma.files.findMany({
-        where: { fil_fk: empId, fil_type: "profile" },
+        where: { fil_fk: empId, fil_type: { in: PROFILE_FILE_TYPES } },
         orderBy: { fil_datetime: "desc" },
       }),
       prisma.approvallevels.findMany({

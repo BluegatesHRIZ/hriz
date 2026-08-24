@@ -11,11 +11,15 @@ export async function insertFile(params: {
   filename: string;
   filetype: string;
 }) {
-  if (params.filetype === "emp_profile") {
+  // A new profile picture supersedes the old one. The uploader sends
+  // "profile"; "emp_profile" is the legacy C# spelling, still present in older
+  // rows. Missing "profile" here left every past upload active, so lists had to
+  // guess which row was current.
+  if (params.filetype === "profile" || params.filetype === "emp_profile") {
     await prisma.files.updateMany({
       where: {
         fil_fk: params.fk,
-        fil_type: "emp_profile",
+        fil_type: { in: ["profile", "emp_profile"] },
         fil_status: 1,
       },
       data: { fil_status: 0 },

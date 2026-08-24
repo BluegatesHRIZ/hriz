@@ -2,15 +2,21 @@
 
 export const dynamic = "force-dynamic"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth/context"
 import { useEmployees, useManageEmployeeStatus } from "@/lib/hooks/useEmployees"
+import {
+  useDepartments,
+  useLocations,
+  usePositions,
+} from "@/lib/hooks/useEmployeeDetail"
 import { useGenerateQrToken } from "@/lib/hooks/useAuth"
 import { CardWithHeader } from "@/components/cards/CardWithHeader"
 import { Users, QrCode } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Avatar } from "@/components/ui/avatar"
 import {
   Table,
   TableBody,
@@ -37,13 +43,35 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
+/** Radix Select forbids an empty item value, so "all" stands in for no filter. */
+const ALL = "all"
+
 export default function EmployeesPage() {
   const router = useRouter()
   const { isAuthenticated, isLoading: authLoading } = useAuth()
   const [page, setPage] = useState(1)
-  const { data: employeesPage, isLoading, error } = useEmployees(page)
-  const employees = employeesPage?.data
-  const [searchTerm, setSearchTerm] = useState("")
+
+  // `searchInput` is what the user sees; `search` is the debounced value the
+  // server actually queries on.
+  const [searchInput, setSearchInput] = useState("")
+  const [search, setSearch] = useState("")
+  const [dept, setDept] = useState(ALL)
+  const [loc, setLoc] = useState(ALL)
+  const [pos, setPos] = useState(ALL)
+  const debounce = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const { data: employeesPage, isLoading, error } = useEmployees({
+    page,
+    search,
+    dept: dept === ALL ? undefined : dept,
+    loc: loc === ALL ? undefined : loc,
+    pos: pos === ALL ? undefined : pos,
+  })
+  const employees = employeesPage?.data ?? []
+
+  const { data: departments } = useDepartments()
+  const { data: positions } = usePositions()
+  const { data: locations } = useLocations()
   const manageStatusMutation = useManageEmployeeStatus()
   const generateQrMutation = useGenerateQrToken()
   const [qrDialogOpen, setQrDialogOpen] = useState(false)
@@ -68,21 +96,19 @@ export default function EmployeesPage() {
     return null
   }
 
-  const getStatusLabel = (status: number | null) => {
-    switch (status) {
-      case 1:
-        return "Active"
-      case 2:
-        return "Resigned"
-      case 3:
-        return "End of Contract"
-      case 4:
-        return "Terminated"
-      case 5:
-        return "AWOL"
-      default:
-        return "Unknown"
-    }
+  const onSearchChange = (v: string) => {
+    setSearchInput(v)
+    if (debounce.current) clearTimeout(debounce.current)
+    debounce.current = setTimeout(() => {
+      setSearch(v)
+      setPage(1)
+    }, 300)
+  }
+
+  // Any filter change invalidates the current page number.
+  const onFilterChange = (set: (v: string) => void) => (v: string) => {
+    set(v)
+    setPage(1)
   }
 
   const handleStatusChange = (empId: string, value: string) => {
@@ -114,21 +140,6 @@ export default function EmployeesPage() {
     }
   }
 
-  const filteredEmployees = employees?.filter((emp) => {
-    if (!searchTerm) return true
-    const search = searchTerm.toLowerCase()
-    return (
-      emp.emp_id?.toLowerCase().includes(search) ||
-      emp.emp_first?.toLowerCase().includes(search) ||
-      emp.emp_last?.toLowerCase().includes(search) ||
-      emp.emp_dept?.toLowerCase().includes(search) ||
-      emp.emp_pos?.toLowerCase().includes(search) ||
-      emp.emp_dept_desc?.toLowerCase().includes(search) ||
-      emp.emp_pos_desc?.toLowerCase().includes(search) ||
-      emp.emp_loc_desc?.toLowerCase().includes(search)
-    )
-  }) || []
-
   return (
     <div className="w-full px-4 md:px-6 lg:px-8 pt-5 pb-8">
       <div className="mb-5 flex items-center justify-between">
@@ -148,17 +159,56 @@ export default function EmployeesPage() {
         className="mb-4"
       >
         <div className="space-y-4">
-          {/* Search */}
-          <div className="flex gap-2">
+          {/* Search and filters — all applied server-side */}
+          <div className="flex flex-col gap-2 sm:flex-row">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search employees..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search by ID or name..."
+                value={searchInput}
+                onChange={(e) => onSearchChange(e.target.value)}
                 className="pl-10"
               />
             </div>
+            <Select value={dept} onValueChange={onFilterChange(setDept)}>
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder="All departments" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>All departments</SelectItem>
+                {departments?.map((d) => (
+                  <SelectItem key={d.dep_id} value={d.dep_id}>
+                    {d.dep_desc || d.dep_id}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={pos} onValueChange={onFilterChange(setPos)}>
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder="All positions" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>All positions</SelectItem>
+                {positions?.map((p) => (
+                  <SelectItem key={p.pst_id} value={p.pst_id}>
+                    {p.pst_desc || p.pst_id}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={loc} onValueChange={onFilterChange(setLoc)}>
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder="All locations" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>All locations</SelectItem>
+                {locations?.map((l) => (
+                  <SelectItem key={l.loc_id} value={l.loc_id}>
+                    {l.loc_desc || l.loc_id}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Employee Table */}
@@ -170,7 +220,7 @@ export default function EmployeesPage() {
             <div className="flex items-center justify-center py-8">
               <p className="text-red-600">Error loading employees</p>
             </div>
-          ) : filteredEmployees.length === 0 ? (
+          ) : employees.length === 0 ? (
             <div className="flex items-center justify-center py-8">
               <p className="text-muted-foreground">No employees found</p>
             </div>
@@ -179,6 +229,9 @@ export default function EmployeesPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-12">
+                      <span className="sr-only">Photo</span>
+                    </TableHead>
                     <TableHead>Employee ID</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Department</TableHead>
@@ -189,8 +242,16 @@ export default function EmployeesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredEmployees.map((emp) => (
+                  {employees.map((emp) => (
                     <TableRow key={emp.emp_id}>
+                      <TableCell className="w-12 pr-0">
+                        <Avatar
+                          src={emp.emp_avatar_url}
+                          name={`${emp.emp_first ?? ""} ${emp.emp_last ?? ""}`}
+                          size={32}
+                          rounded="rounded-full"
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">{emp.emp_id}</TableCell>
                       <TableCell>
                         {emp.emp_first} {emp.emp_mid} {emp.emp_last}
@@ -199,29 +260,26 @@ export default function EmployeesPage() {
                       <TableCell>{emp.emp_pos_desc || emp.emp_pos || "N/A"}</TableCell>
                       <TableCell>{emp.emp_loc_desc || emp.emp_loc || "N/A"}</TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-foreground">
-                            {getStatusLabel(emp.emp_status)}
-                          </span>
-                          <Select
-                            value={String(emp.emp_status ?? 1)}
-                            onValueChange={(value) =>
-                              handleStatusChange(emp.emp_id, value)
-                            }
-                            disabled={manageStatusMutation.isPending}
-                          >
-                            <SelectTrigger className="h-8 w-32 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="1">Active</SelectItem>
-                              <SelectItem value="2">Resigned</SelectItem>
-                              <SelectItem value="3">End of Contract</SelectItem>
-                              <SelectItem value="4">Terminated</SelectItem>
-                              <SelectItem value="5">AWOL</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
+                        {/* The dropdown shows the current status as its value —
+                            a separate label beside it just repeated itself. */}
+                        <Select
+                          value={String(emp.emp_status ?? 1)}
+                          onValueChange={(value) =>
+                            handleStatusChange(emp.emp_id, value)
+                          }
+                          disabled={manageStatusMutation.isPending}
+                        >
+                          <SelectTrigger className="h-8 w-36 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">Active</SelectItem>
+                            <SelectItem value="2">Resigned</SelectItem>
+                            <SelectItem value="3">End of Contract</SelectItem>
+                            <SelectItem value="4">Terminated</SelectItem>
+                            <SelectItem value="5">AWOL</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-2">

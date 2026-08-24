@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db/prisma"
 import { verifyToken } from "@/lib/auth/jwt-edge"
+import { getAvatarUrl } from "@/lib/services/avatars.service"
 
 /**
  * GET /api/user-profile/user
@@ -54,9 +55,11 @@ export async function GET(request: NextRequest) {
     const { emp_pswd: _emp_pswd, ...profileData } = employee
 
     // TODO: Process approval levels as in C# code
-    // TODO: Get profile picture from Files table
 
-    return NextResponse.json(profileData)
+    // Profile picture, resolved to a public Supabase Storage URL.
+    const avatar_url = await getAvatarUrl(userId).catch(() => null)
+
+    return NextResponse.json({ ...profileData, avatar_url })
   } catch (error) {
     console.error("Get user profile error:", error)
     return NextResponse.json(

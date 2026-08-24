@@ -5,8 +5,14 @@ import { insertFile } from "@/lib/services/files.service";
 import { randomBytes } from "crypto";
 import { extname } from "path";
 
-const ALLOWED_FILE_TYPES = [".png", ".jpeg", ".jpg", ".pdf", ".xlsx"];
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+import {
+  ALLOWED_UPLOAD_EXTENSIONS,
+  MAX_UPLOAD_BYTES,
+  MAX_UPLOAD_LABEL,
+  formatBytes,
+} from "@/lib/storage/limits";
+
+const ALLOWED_FILE_TYPES = ALLOWED_UPLOAD_EXTENSIONS;
 
 /**
  * POST /api/upload/{path}/{fk}/{type}
@@ -33,7 +39,23 @@ export async function POST(
     // In Next.js 15+, params is a Promise - await it
     const { path: pathParam, fk, type } = await params;
 
-    const formData = await request.formData();
+    // An oversized or interrupted upload dies here, before any per-file size
+    // check can run, and undici reports it only as "Failed to parse body as
+    // FormData". Translate that into something the user can act on rather
+    // than letting it surface as a 500.
+    let formData: FormData;
+    try {
+      formData = await request.formData();
+    } catch (error) {
+      console.error("Upload body parse failed:", error);
+      return NextResponse.json(
+        {
+          message: `Could not read the upload. Files must be ${MAX_UPLOAD_LABEL} or smaller — if the file is larger than that, resize it and try again.`,
+        },
+        { status: 413 }
+      );
+    }
+
     const files = formData.getAll("files") as File[];
 
     if (!files || files.length === 0) {
@@ -60,14 +82,14 @@ export async function POST(
       }
 
       // Validate file size
-      if (file.size > MAX_FILE_SIZE) {
+      if (file.size > MAX_UPLOAD_BYTES) {
         return NextResponse.json(
           {
-            message: `File ${file.name} exceeds maximum size of ${
-              MAX_FILE_SIZE / 1024 / 1024
-            }MB`,
+            message: `"${file.name}" is ${formatBytes(
+              file.size
+            )}. The limit is ${MAX_UPLOAD_LABEL} — please resize or compress it and try again.`,
           },
-          { status: 400 }
+          { status: 413 }
         );
       }
 

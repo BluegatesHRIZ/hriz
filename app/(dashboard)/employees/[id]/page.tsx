@@ -68,7 +68,7 @@ export default function EmployeeDetailPage() {
   const { data: positions } = usePositions();
   const { data: locations } = useLocations();
   // Fetch a large page to populate the employee dropdown (server-side paginated).
-  const { data: employeesPage } = useEmployees(1, 100);
+  const { data: employeesPage } = useEmployees({ page: 1, limit: 100 });
   const employees = employeesPage?.data;
 
   const [activeTab, setActiveTab] = useState("account");

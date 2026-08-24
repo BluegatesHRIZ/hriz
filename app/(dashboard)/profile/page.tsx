@@ -6,14 +6,24 @@ import { ProtectedPage } from "@/components/auth/ProtectedPage";
 import { ProfileTabs } from "@/components/profile/ProfileTabs";
 import { useAuth } from "@/lib/auth/context";
 import { useEmployeeDetail } from "@/lib/hooks/useEmployeeDetail";
+import { useUserProfile } from "@/lib/hooks/useUserProfile";
+import { Avatar } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 
-function ProfileHeader({ name, empId, role }: { name: string; empId: string; role?: string }) {
+function ProfileHeader({
+  name,
+  empId,
+  role,
+  avatarUrl,
+}: {
+  name: string;
+  empId: string;
+  role?: string;
+  avatarUrl?: string | null;
+}) {
   return (
     <div className="flex items-center gap-4 mb-6">
-      <div className="w-16 h-16 rounded-full bg-slate-200 flex items-center justify-center text-2xl font-bold text-slate-600 select-none">
-        {name.charAt(0).toUpperCase()}
-      </div>
+      <Avatar src={avatarUrl} name={name} size={64} rounded="rounded-full" className="text-xl" />
       <div>
         <h2 className="text-2xl font-semibold">{name}</h2>
         <p className="text-sm text-muted-foreground">{empId}{role ? ` · ${role}` : ""}</p>
@@ -26,6 +36,8 @@ function ProfileContent() {
   const { user } = useAuth();
   const empId = user?.name ?? "";
   const { data, isLoading, error } = useEmployeeDetail(empId, !!empId);
+  // The JWT has names but no photo, so the avatar comes from the profile fetch.
+  const { data: profile } = useUserProfile();
 
   if (isLoading) {
     return (
@@ -51,7 +63,12 @@ function ProfileContent() {
 
   return (
     <>
-      <ProfileHeader name={fullName || empId} empId={empId} role={data.Account.EmpRole ?? undefined} />
+      <ProfileHeader
+        name={fullName || empId}
+        empId={empId}
+        role={data.Account.EmpRole ?? undefined}
+        avatarUrl={profile?.avatar_url}
+      />
       <ProfileTabs data={data} />
     </>
   );

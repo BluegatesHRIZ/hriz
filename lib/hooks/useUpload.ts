@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiFetch, ApiError } from "@/lib/api/client"
+import { describeUploadProblem } from "@/lib/storage/limits"
 
 export interface FileModel {
   name: string
@@ -25,6 +26,14 @@ export function useUploadFile() {
     mutationFn: async ({ path, fk, type, files }) => {
       const token = localStorage.getItem("auth_token")
       if (!token) throw new ApiError("No token found", 401)
+
+      // Check before sending. An oversized body fails mid-parse on the server
+      // with a generic error, so catching it here is the difference between
+      // "that photo is 12.4 MB" and a 500 after a long wait.
+      for (const file of files) {
+        const problem = describeUploadProblem(file)
+        if (problem) throw new ApiError(problem, 413)
+      }
 
       const formData = new FormData()
       files.forEach((file) => {

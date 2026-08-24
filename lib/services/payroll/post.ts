@@ -19,6 +19,8 @@
  * cannot be recomputed without unposting first, which reverses those effects.
  */
 
+import type { Prisma } from "../../../src/generated/prisma/client";
+
 import { prisma } from "@/lib/db/prisma";
 import { computePayslip, type ComputeResult } from "./compute";
 import {
@@ -215,72 +217,86 @@ async function persistRun(
 ): Promise<void> {
   const pks = slips.map((s) => s.pk);
 
-  await prisma.$transaction(async (tx) => {
-    // Wholesale replace — computing is repeatable while a run is a draft.
-    // Adjustments were read before computing and are re-emitted as components,
-    // so clearing everything here does not lose them.
-    await tx.pay_amounts.deleteMany({ where: { pya_code: { in: pks } } });
-    await tx.pay_loan.deleteMany({ where: { pyl_code: { in: pks } } });
-    await tx.pay_details.deleteMany({ where: { pyd_code: code } });
+  // Build every row up front so the transaction is three bulk inserts instead
+  // of a create() round trip per component — a 300-employee run blew past the
+  // 5s interactive-transaction timeout doing it one at a time.
+  const detailRows = slips.map(({ pk, employee, result }) => ({
+    pyd_pk: pk,
+    pyd_code: code,
+    pyd_emp: employee,
+    pyd_salary: result.basic,
+    pyd_comp: result.premiums.totalAmount,
+    pyd_tadjc: result.adjustmentCredits,
+    pyd_deduct: result.timeDeductions,
+    pyd_tadjd: result.adjustmentDeductions,
+    pyd_tloan: result.loans,
+    pyd_tax: result.tax,
+    pyd_sss: sumComponent(result, "CD11"),
+    pyd_phic: sumComponent(result, "CD12"),
+    pyd_hdmf: sumComponent(result, "CD13"),
+    pyd_ssser: sumComponent(result, "CD11", true),
+    pyd_phicer: sumComponent(result, "CD12", true),
+    pyd_hdmfer: sumComponent(result, "CD13", true),
+  }));
 
-    for (const { pk, employee, result } of slips) {
-      await tx.pay_details.create({
-        data: {
-          pyd_pk: pk,
-          pyd_code: code,
-          pyd_emp: employee,
-          pyd_salary: result.basic,
-          pyd_comp: result.premiums.totalAmount,
-          pyd_tadjc: result.adjustmentCredits,
-          pyd_deduct: result.timeDeductions,
-          pyd_tadjd: result.adjustmentDeductions,
-          pyd_tloan: result.loans,
-          pyd_tax: result.tax,
-          pyd_sss: sumComponent(result, "CD11"),
-          pyd_phic: sumComponent(result, "CD12"),
-          pyd_hdmf: sumComponent(result, "CD13"),
-          pyd_ssser: sumComponent(result, "CD11", true),
-          pyd_phicer: sumComponent(result, "CD12", true),
-          pyd_hdmfer: sumComponent(result, "CD13", true),
-        },
+  const amountRows = slips.flatMap(({ pk, result }) =>
+    result.components.map((c, ctr) => ({
+      pya_code: pk,
+      pya_ctr: ctr,
+      pya_def: c.code,
+      pya_desc: c.description ?? "",
+      pya_cd: c.type,
+      pya_amt: c.amount,
+      pya_eramt: c.employerAmount ?? 0,
+      pya_tax: c.taxable ? 1 : 0,
+      // Only keyed-in adjustments carry the flag; that is what makes them
+      // survive the next recompute.
+      pya_adj: c.isAdjustment ? 1 : 0,
+    })),
+  );
+
+  const loanRows = slips.flatMap(({ pk, result }) =>
+    result.advanceDeductions.map((loan) => ({
+      pyl_code: pk,
+      pyl_lcode: loan.advanceId,
+      pyl_amt: loan.amount,
+      pyl_bal: loan.balanceBefore,
+    })),
+  );
+
+  await prisma.$transaction(
+    async (tx) => {
+      // Wholesale replace — computing is repeatable while a run is a draft.
+      // Adjustments were read before computing and are re-emitted as components,
+      // so clearing everything here does not lose them.
+      await tx.pay_amounts.deleteMany({ where: { pya_code: { in: pks } } });
+      await tx.pay_loan.deleteMany({ where: { pyl_code: { in: pks } } });
+      await tx.pay_details.deleteMany({ where: { pyd_code: code } });
+
+      if (detailRows.length) await tx.pay_details.createMany({ data: detailRows });
+      // Chunked so a big run does not build one oversized INSERT statement.
+      for (const chunk of chunks(amountRows, 1000)) {
+        await tx.pay_amounts.createMany({ data: chunk });
+      }
+      for (const chunk of chunks(loanRows, 1000)) {
+        await tx.pay_loan.createMany({ data: chunk });
+      }
+
+      await tx.pay_header.update({
+        where: { pyh_code: code },
+        data: { pyh_status: RUN_DRAFT },
       });
+    },
+    // Payroll runs are big; the 5s default is not enough for a full company.
+    { timeout: 120_000, maxWait: 20_000 },
+  );
+}
 
-      let ctr = 0;
-      for (const c of result.components) {
-        await tx.pay_amounts.create({
-          data: {
-            pya_code: pk,
-            pya_ctr: ctr++,
-            pya_def: c.code,
-            pya_desc: c.description ?? "",
-            pya_cd: c.type,
-            pya_amt: c.amount,
-            pya_eramt: c.employerAmount ?? 0,
-            pya_tax: c.taxable ? 1 : 0,
-            // Only keyed-in adjustments carry the flag; that is what makes them
-            // survive the next recompute.
-            pya_adj: c.isAdjustment ? 1 : 0,
-          },
-        });
-      }
-
-      for (const loan of result.advanceDeductions) {
-        await tx.pay_loan.create({
-          data: {
-            pyl_code: pk,
-            pyl_lcode: loan.advanceId,
-            pyl_amt: loan.amount,
-            pyl_bal: loan.balanceBefore,
-          },
-        });
-      }
-    }
-
-    await tx.pay_header.update({
-      where: { pyh_code: code },
-      data: { pyh_status: RUN_DRAFT },
-    });
-  });
+/** Split rows into batches so a single INSERT never gets unreasonably large. */
+function chunks<T>(rows: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < rows.length; i += size) out.push(rows.slice(i, i + size));
+  return out;
 }
 
 /** Pull one statutory component's employee or employer amount off a result. */
@@ -309,51 +325,111 @@ export async function postRun(code: string, userId: string): Promise<void> {
   });
   const year = header.pyh_year ?? new Date().getFullYear();
 
-  await prisma.$transaction(async (tx) => {
-    // Advance every collected loan by the instalment taken.
-    for (const loan of loans) {
-      const advance = await tx.empadvance.findUnique({ where: { emp_adid: loan.pyl_lcode } });
-      if (!advance) continue;
-      const paid = (advance.emp_adpaid ?? 0) + (loan.pyl_amt ?? 0);
-      const total = (advance.emp_adamt ?? 0) + (advance.emp_adaddedamt ?? 0);
-      await tx.empadvance.update({
-        where: { emp_adid: loan.pyl_lcode },
-        // Close the advance once it is fully recovered.
-        data: { emp_adpaid: paid, emp_adstatus: paid >= total ? 0 : advance.emp_adstatus },
-      });
-    }
-
-    // Year-to-date accumulators, keyed (year, employee, component).
-    for (const d of details) {
-      const amounts = await tx.pay_amounts.findMany({ where: { pya_code: d.pyd_pk } });
-      for (const a of amounts) {
-        const key = { pytd_year: year, pytd_emp: d.pyd_emp ?? "", pytd_code: a.pya_def };
-        const existing = await tx.pay_ytd.findUnique({ where: { pytd_year_pytd_emp_pytd_code: key } });
-        if (existing) {
-          await tx.pay_ytd.update({
-            where: { pytd_year_pytd_emp_pytd_code: key },
-            data: {
-              pytd_amt: (existing.pytd_amt ?? 0) + (a.pya_amt ?? 0),
-              pytd_eramt: (existing.pytd_eramt ?? 0) + (a.pya_eramt ?? 0),
-            },
-          });
-        } else {
-          await tx.pay_ytd.create({
-            data: { ...key, pytd_amt: a.pya_amt ?? 0, pytd_eramt: a.pya_eramt ?? 0 },
-          });
-        }
-      }
-    }
-
-    await tx.pay_header.update({
-      where: { pyh_code: code },
-      data: {
-        pyh_status: RUN_POSTED,
-        pyh_postedby: userId.slice(0, 10),
-        pyh_posteddate: new Date(),
-      },
-    });
+  // Everything the transaction needs is read up front, in bulk — the old
+  // per-loan / per-component round trips inside the transaction ran it past
+  // the 5s interactive-transaction timeout on a full company.
+  const advances = await prisma.empadvance.findMany({
+    where: { emp_adid: { in: loans.map((l) => l.pyl_lcode).filter(Boolean) as string[] } },
   });
+  const advanceById = new Map(advances.map((a) => [a.emp_adid, a]));
+  const amounts = await prisma.pay_amounts.findMany({
+    where: { pya_code: { in: details.map((d) => d.pyd_pk) } },
+  });
+  const empByPk = new Map(details.map((d) => [d.pyd_pk, d.pyd_emp ?? ""]));
+
+  // Collapse to one advance update per advance, even if collected twice.
+  const paidByAdvance = new Map<string, number>();
+  for (const loan of loans) {
+    if (!loan.pyl_lcode || !advanceById.has(loan.pyl_lcode)) continue;
+    paidByAdvance.set(
+      loan.pyl_lcode,
+      (paidByAdvance.get(loan.pyl_lcode) ?? 0) + (loan.pyl_amt ?? 0),
+    );
+  }
+
+  const ytd = ytdDeltas(amounts, empByPk, year);
+
+  await prisma.$transaction(
+    async (tx) => {
+      // Advance every collected loan by the instalment taken.
+      for (const [advanceId, collected] of paidByAdvance) {
+        const advance = advanceById.get(advanceId)!;
+        const paid = (advance.emp_adpaid ?? 0) + collected;
+        const total = (advance.emp_adamt ?? 0) + (advance.emp_adaddedamt ?? 0);
+        await tx.empadvance.update({
+          where: { emp_adid: advanceId },
+          // Close the advance once it is fully recovered.
+          data: { emp_adpaid: paid, emp_adstatus: paid >= total ? 0 : advance.emp_adstatus },
+        });
+      }
+
+      // Year-to-date accumulators, keyed (year, employee, component).
+      await applyYtd(tx, ytd, 1);
+
+      await tx.pay_header.update({
+        where: { pyh_code: code },
+        data: {
+          pyh_status: RUN_POSTED,
+          pyh_postedby: userId.slice(0, 10),
+          pyh_posteddate: new Date(),
+        },
+      });
+    },
+    { timeout: 120_000, maxWait: 20_000 },
+  );
+}
+
+type YtdDelta = { year: number; emp: string; code: string; amt: number; eramt: number };
+
+/** Sum a run's component amounts per (year, employee, component). */
+function ytdDeltas(
+  amounts: { pya_code: string | null; pya_def: string; pya_amt: number | null; pya_eramt: number | null }[],
+  empByPk: Map<string, string>,
+  year: number,
+): YtdDelta[] {
+  const acc = new Map<string, YtdDelta>();
+  for (const a of amounts) {
+    const emp = empByPk.get(a.pya_code ?? "") ?? "";
+    const key = `${emp}\u0000${a.pya_def}`;
+    const cur =
+      acc.get(key) ?? { year, emp, code: a.pya_def, amt: 0, eramt: 0 };
+    cur.amt += a.pya_amt ?? 0;
+    cur.eramt += a.pya_eramt ?? 0;
+    acc.set(key, cur);
+  }
+  return [...acc.values()];
+}
+
+/**
+ * Add (`sign` 1) or back out (`sign` -1) YTD deltas in one statement.
+ *
+ * MySQL upserts on the (year, employee, component) primary key, so posting a
+ * component an employee has never had still creates its row, and unposting
+ * subtracts exactly what posting added.
+ */
+async function applyYtd(
+  tx: Prisma.TransactionClient,
+  deltas: YtdDelta[],
+  sign: 1 | -1,
+): Promise<void> {
+  for (const chunk of chunks(deltas, 500)) {
+    const values = chunk.map(() => "(?, ?, ?, ?, ?)").join(", ");
+    const params = chunk.flatMap((d) => [
+      d.year,
+      d.emp,
+      d.code,
+      sign * d.amt,
+      sign * d.eramt,
+    ]);
+    await tx.$executeRawUnsafe(
+      `INSERT INTO pay_ytd (pytd_year, pytd_emp, pytd_code, pytd_amt, pytd_eramt)
+       VALUES ${values}
+       ON DUPLICATE KEY UPDATE
+         pytd_amt = pytd_amt + VALUES(pytd_amt),
+         pytd_eramt = pytd_eramt + VALUES(pytd_eramt)`,
+      ...params,
+    );
+  }
 }
 
 /**
@@ -374,38 +450,46 @@ export async function unpostRun(code: string): Promise<void> {
   });
   const year = header.pyh_year ?? new Date().getFullYear();
 
-  await prisma.$transaction(async (tx) => {
-    for (const loan of loans) {
-      const advance = await tx.empadvance.findUnique({ where: { emp_adid: loan.pyl_lcode } });
-      if (!advance) continue;
-      await tx.empadvance.update({
-        where: { emp_adid: loan.pyl_lcode },
-        data: {
-          emp_adpaid: Math.max(0, (advance.emp_adpaid ?? 0) - (loan.pyl_amt ?? 0)),
-          emp_adstatus: 1, // reopen — it was collectable at post time
-        },
-      });
-    }
+  const advances = await prisma.empadvance.findMany({
+    where: { emp_adid: { in: loans.map((l) => l.pyl_lcode).filter(Boolean) as string[] } },
+  });
+  const advanceById = new Map(advances.map((a) => [a.emp_adid, a]));
+  const amounts = await prisma.pay_amounts.findMany({
+    where: { pya_code: { in: details.map((d) => d.pyd_pk) } },
+  });
+  const empByPk = new Map(details.map((d) => [d.pyd_pk, d.pyd_emp ?? ""]));
 
-    for (const d of details) {
-      const amounts = await tx.pay_amounts.findMany({ where: { pya_code: d.pyd_pk } });
-      for (const a of amounts) {
-        const key = { pytd_year: year, pytd_emp: d.pyd_emp ?? "", pytd_code: a.pya_def };
-        const existing = await tx.pay_ytd.findUnique({ where: { pytd_year_pytd_emp_pytd_code: key } });
-        if (!existing) continue;
-        await tx.pay_ytd.update({
-          where: { pytd_year_pytd_emp_pytd_code: key },
+  const paidByAdvance = new Map<string, number>();
+  for (const loan of loans) {
+    if (!loan.pyl_lcode || !advanceById.has(loan.pyl_lcode)) continue;
+    paidByAdvance.set(
+      loan.pyl_lcode,
+      (paidByAdvance.get(loan.pyl_lcode) ?? 0) + (loan.pyl_amt ?? 0),
+    );
+  }
+
+  const ytd = ytdDeltas(amounts, empByPk, year);
+
+  await prisma.$transaction(
+    async (tx) => {
+      for (const [advanceId, collected] of paidByAdvance) {
+        const advance = advanceById.get(advanceId)!;
+        await tx.empadvance.update({
+          where: { emp_adid: advanceId },
           data: {
-            pytd_amt: (existing.pytd_amt ?? 0) - (a.pya_amt ?? 0),
-            pytd_eramt: (existing.pytd_eramt ?? 0) - (a.pya_eramt ?? 0),
+            emp_adpaid: Math.max(0, (advance.emp_adpaid ?? 0) - collected),
+            emp_adstatus: 1, // reopen — it was collectable at post time
           },
         });
       }
-    }
 
-    await tx.pay_header.update({
-      where: { pyh_code: code },
-      data: { pyh_status: RUN_DRAFT, pyh_postedby: null, pyh_posteddate: null },
-    });
-  });
+      await applyYtd(tx, ytd, -1);
+
+      await tx.pay_header.update({
+        where: { pyh_code: code },
+        data: { pyh_status: RUN_DRAFT, pyh_postedby: null, pyh_posteddate: null },
+      });
+    },
+    { timeout: 120_000, maxWait: 20_000 },
+  );
 }
