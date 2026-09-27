@@ -40,20 +40,13 @@ export default function DashboardPage() {
   }
 
   const now = new Date();
-  const today = now.toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
   const firstName = user?.Firstname?.trim();
 
   return (
     <div className="w-full max-w-[1600px] mx-auto px-4 md:px-6 lg:px-8 pt-6 pb-10">
       {/* Greeting header */}
       <header className="mb-6 animate-rise" style={{ ["--i" as string]: 0 }}>
-        <p className="text-sm text-muted-foreground tabular">{today}</p>
-        <h1 className="mt-0.5 text-2xl md:text-3xl font-semibold tracking-tight text-foreground">
+        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground">
           {greeting(now.getHours())}{firstName ? `, ${firstName}` : ""}
         </h1>
       </header>
