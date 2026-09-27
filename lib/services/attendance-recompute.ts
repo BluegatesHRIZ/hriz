@@ -403,6 +403,18 @@ export interface AttendanceScope {
   location?: string[];
   department?: string[];
   position?: string[];
+  /** `location.loc_code` values — the branch/store code. */
+  branchCode?: string[];
+}
+
+/** Branch code filter: employees whose location carries one of the codes. */
+function branchFilter(codes: string[]): { sql: string; params: string[] } {
+  const inner = inFilter("loc_code", codes);
+  if (!inner.sql) return inner;
+  return {
+    sql: ` AND emp_loc IN (SELECT loc_id FROM location WHERE 1=1${inner.sql})`,
+    params: inner.params,
+  };
 }
 
 /** SQL-level pagination window (by employee header). */
@@ -424,12 +436,13 @@ export async function countAttendanceEmployees(
   const loc = inFilter("emp_loc", scope.location ?? []);
   const dep = inFilter("emp_dept", scope.department ?? []);
   const pos = inFilter("emp_pos", scope.position ?? []);
+  const br = branchFilter(scope.branchCode ?? []);
 
   const sql = `
 SELECT COUNT(DISTINCT att_emp) AS total
 FROM attendance
 LEFT JOIN employee ON att_emp=emp_id
-WHERE (att_date BETWEEN ? AND ?)${loc.sql}${dep.sql}${pos.sql}`;
+WHERE (att_date BETWEEN ? AND ?)${loc.sql}${dep.sql}${pos.sql}${br.sql}`;
 
   const rows = await prisma.$queryRawUnsafe<Array<{ total: unknown }>>(
     sql,
@@ -438,6 +451,7 @@ WHERE (att_date BETWEEN ? AND ?)${loc.sql}${dep.sql}${pos.sql}`;
     ...loc.params,
     ...dep.params,
     ...pos.params,
+    ...br.params,
   );
   return Number(rows[0]?.total ?? 0);
 }
@@ -457,6 +471,7 @@ export async function queryAttendanceSummary(
   const loc = inFilter("emp_loc", scope.location ?? []);
   const dep = inFilter("emp_dept", scope.department ?? []);
   const pos = inFilter("emp_pos", scope.position ?? []);
+  const br = branchFilter(scope.branchCode ?? []);
 
   const sql = `
 SELECT
@@ -487,11 +502,11 @@ LEFT JOIN department ON emp_dept = dep_id
 LEFT JOIN position ON emp_pos = pst_id
 LEFT JOIN location ON emp_loc = loc_id
 LEFT JOIN files ON fil_fk = emp_id AND fil_type = 'emp_profile' AND fil_status = 1
-WHERE (att_date BETWEEN ? AND ?)${loc.sql}${dep.sql}${pos.sql}
+WHERE (att_date BETWEEN ? AND ?)${loc.sql}${dep.sql}${pos.sql}${br.sql}
 GROUP BY att_emp
 ORDER BY emp_last, emp_first, att_emp${pagination ? "\nLIMIT ? OFFSET ?" : ""}`;
 
-  const params: unknown[] = [from, to, ...loc.params, ...dep.params, ...pos.params];
+  const params: unknown[] = [from, to, ...loc.params, ...dep.params, ...pos.params, ...br.params];
   if (pagination) params.push(pagination.limit, pagination.offset);
 
   return prisma.$queryRawUnsafe<Record<string, unknown>[]>(sql, ...params);
@@ -512,6 +527,7 @@ export async function queryAttendanceDetails(
   const loc = inFilter("emp_loc", scope.location ?? []);
   const dep = inFilter("emp_dept", scope.department ?? []);
   const pos = inFilter("emp_pos", scope.position ?? []);
+  const br = branchFilter(scope.branchCode ?? []);
   const emp = inFilter("att_emp", empIds ?? []);
 
   const sql = `
@@ -544,7 +560,7 @@ SELECT
 FROM attendance
 LEFT JOIN employee ON emp_id=att_emp
 LEFT JOIN (select lea_ddate,lea_semp,concat(lea_dtype,lea_dampm) as lea_dtype from leave_detail left join leave_summary on lea_dpk=lea_sid where lea_sstatus=1) myleave on myleave.lea_ddate=att_date and myleave.lea_semp=att_emp
-WHERE (att_date BETWEEN ? AND ?)${loc.sql}${dep.sql}${pos.sql}${emp.sql}
+WHERE (att_date BETWEEN ? AND ?)${loc.sql}${dep.sql}${pos.sql}${br.sql}${emp.sql}
 ORDER BY att_emp, att_date`;
 
   return prisma.$queryRawUnsafe<Record<string, unknown>[]>(
@@ -554,6 +570,7 @@ ORDER BY att_emp, att_date`;
     ...loc.params,
     ...dep.params,
     ...pos.params,
+    ...br.params,
     ...emp.params,
   );
 }

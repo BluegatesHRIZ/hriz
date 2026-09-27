@@ -30,6 +30,18 @@ function today(): string {
   return format(new Date(), "yyyy-MM-dd");
 }
 
+// `bio_date` arrives as midnight UTC ("2026-08-25T00:00:00.000Z"); read only
+// the date part so it can't shift a day in the viewer's timezone.
+function formatBioDate(raw: string | null): string {
+  const m = raw?.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[2]}/${m[3]}/${m[1]}` : raw ?? "";
+}
+
+function formatBioType(raw: string | null): string {
+  const t = raw?.trim().toUpperCase();
+  return t === "I" ? "IN" : t === "O" ? "OUT" : raw ?? "";
+}
+
 export function BiologReportTable() {
   const [from, setFrom] = useState(firstOfMonth());
   const [to, setTo] = useState(today());
@@ -119,9 +131,9 @@ export function BiologReportTable() {
             <TableBody>
               {rows.map((row, i) => (
                 <TableRow key={`${row.bio_date}-${row.bio_time}-${i}`}>
-                  <TableCell>{row.bio_date}</TableCell>
+                  <TableCell>{formatBioDate(row.bio_date)}</TableCell>
                   <TableCell>{row.bio_emp}</TableCell>
-                  <TableCell>{row.bio_type}</TableCell>
+                  <TableCell>{formatBioType(row.bio_type)}</TableCell>
                   <TableCell>{row.bio_time}</TableCell>
                   <TableCell>{row.bio_loc}</TableCell>
                   <TableCell>{row.bio_ip}</TableCell>

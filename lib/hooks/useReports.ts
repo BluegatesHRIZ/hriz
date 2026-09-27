@@ -37,6 +37,8 @@ export interface AttendanceReportFilters {
   location?: string[];
   department?: string[];
   position?: string[];
+  /** Branch/store codes (`location.loc_code`). */
+  branchCode?: string[];
 }
 
 export interface AttendanceEmployeeDetailDTO {

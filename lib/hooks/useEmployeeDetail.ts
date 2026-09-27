@@ -244,6 +244,7 @@ export interface Position {
 export interface Location {
   loc_id: string;
   loc_desc: string | null;
+  loc_code: string | null;
 }
 
 /**

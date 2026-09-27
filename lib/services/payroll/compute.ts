@@ -244,12 +244,22 @@ export function computePayslip(input: ComputeInput): ComputeResult {
   } = input;
 
   const rates = deriveRates(salary.amount, salary.type, yearDays);
-  const basic = basicForCutoff(salary.amount, salary.type);
 
   // --- 2. time deductions, with paid leave offsetting absence --------------
   const paidLeave = paidLeaveByDate(leave);
   const quantities = quantifyDeductions(attendance, paidLeave);
-  const timeComponents = priceDeductions(quantities, rates);
+
+  // Daily-paid staff have no fixed basic: they are paid for the days they
+  // covered. An absent day is therefore already unpaid, so it is not also
+  // charged as CD7 — that would take the same day twice.
+  const isDaily = salary.type === "D";
+  const basic = isDaily
+    ? quantities.paidDays * rates.daily
+    : basicForCutoff(salary.amount, salary.type);
+  const timeComponents = priceDeductions(
+    isDaily ? { ...quantities, absentDays: 0 } : quantities,
+    rates,
+  );
   const timeDeductions = timeComponents.reduce((s, c) => s + c.amount, 0);
 
   // --- 3. premiums ---------------------------------------------------------

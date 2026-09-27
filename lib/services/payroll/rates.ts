@@ -101,8 +101,9 @@ export function deriveRates(
  *
  * Semi-monthly is the only cadence in the 47 posted runs; "M" employees are
  * still paid across two cutoffs, so their basic is half the monthly amount.
- * "D" employees have no fixed basic — their pay is built from days present, so
- * this returns 0 and `deductions.ts` drives the amount instead.
+ * "D" employees have no fixed basic — their pay is built from days covered
+ * (`DeductionQuantities.paidDays` x daily rate), so this returns 0 and
+ * `computePayslip` builds the amount instead.
  */
 export function basicForCutoff(amount: number, type: PayrollType): number {
   switch (type) {

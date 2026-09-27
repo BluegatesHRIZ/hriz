@@ -36,6 +36,8 @@ export interface AttendanceReportFilters {
   location?: string[];
   department?: string[];
   position?: string[];
+  /** Branch/store codes (`location.loc_code`). */
+  branchCode?: string[];
 }
 
 export interface AttendanceEmployeeHeader {
@@ -323,40 +325,48 @@ export async function generateAttendance(
   filters: AttendanceReportFilters,
   paging: AttendanceReportPage,
 ): Promise<AttendanceReportResult> {
-  const scope = {
+  await recomputeAttendance(filters.from, filters.to);
+
+  return loadAttendancePage(filters, scopeOf(filters), paging);
+}
+
+/** The Advanced Filter selections as a SQL scope. */
+function scopeOf(filters: AttendanceReportFilters): AttendanceScope {
+  return {
     location: filters.location,
     department: filters.department,
     position: filters.position,
+    branchCode: filters.branchCode,
   };
-
-  await recomputeAttendance(filters.from, filters.to);
-
-  return loadAttendancePage(filters, scope, paging);
 }
 
 /**
  * Mirrors `POST api/AttendanceReport/list`: re-reads one page of the already
  * computed summary + detail rows for the given range (no `crearep_attendance`
- * call). C# passes empty location/department/position so list mirrors that.
+ * call).
+ *
+ * Deliberately applies the filter scope, unlike C# (which passed an empty
+ * one): the Next app pages server-side through this endpoint, so an empty
+ * scope made every page after the first ignore the Advanced Filter.
  */
 export async function listAttendance(
   filters: AttendanceReportFilters,
   paging: AttendanceReportPage,
 ): Promise<AttendanceReportResult> {
-  // Mirrors C#: list passes empty location/department/position scope.
-  return loadAttendancePage(filters, {}, paging);
+  return loadAttendancePage(filters, scopeOf(filters), paging);
 }
 
 /**
  * Full (unpaginated) attendance report for the export path — the .xlsx needs
- * every employee, not a single page. Mirrors the old `listAttendance` behaviour
- * (empty scope, whole result set).
+ * every employee, not a single page, but honours the same filter scope as the
+ * on-screen report.
  */
 export async function listAttendanceAll(
   filters: AttendanceReportFilters,
 ): Promise<AttendanceEmployeeHeader[]> {
-  const headers = await queryAttendanceSummary(filters.from, filters.to);
-  const details = await queryAttendanceDetails(filters.from, filters.to);
+  const scope = scopeOf(filters);
+  const headers = await queryAttendanceSummary(filters.from, filters.to, scope);
+  const details = await queryAttendanceDetails(filters.from, filters.to, scope);
 
   return mergeAttendance(headers, details);
 }

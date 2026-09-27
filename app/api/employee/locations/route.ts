@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
       select: {
         loc_id: true,
         loc_desc: true,
+        loc_code: true,
       },
       orderBy: {
         loc_desc: "asc",

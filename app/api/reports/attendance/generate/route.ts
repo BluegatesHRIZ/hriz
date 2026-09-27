@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
         location: body.location ?? [],
         department: body.department ?? [],
         position: body.position ?? [],
+        branchCode: body.branchCode ?? [],
       },
       { page, limit },
     );
