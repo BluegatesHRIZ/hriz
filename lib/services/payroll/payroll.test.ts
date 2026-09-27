@@ -240,7 +240,7 @@ test("pricing reproduces the posted 148-minute undertime deduction", () => {
   // Posted run PR062024102, employees 000006/000007: D 250 -> 77.08 undertime.
   const rates = deriveRates(250, "D", FACTOR);
   const [, , ut] = priceDeductions(
-    { absentDays: 0, lateMinutes: 0, undertimeMinutes: 148, paidLeaveDays: 0 },
+    { absentDays: 0, lateMinutes: 0, undertimeMinutes: 148, paidLeaveDays: 0, paidDays: 0 },
     rates,
   );
   assert.ok(Math.abs(ut.amount - 77.08) < 0.005, `got ${ut.amount}`);
@@ -250,7 +250,7 @@ test("pricing reproduces a posted absence deduction", () => {
   // Posted run PR012025101, employee 000009: M 31,000, 10 absent days -> 11,884.98.
   const rates = deriveRates(31000, "M", FACTOR);
   const [absent] = priceDeductions(
-    { absentDays: 10, lateMinutes: 0, undertimeMinutes: 0, paidLeaveDays: 0 },
+    { absentDays: 10, lateMinutes: 0, undertimeMinutes: 0, paidLeaveDays: 0, paidDays: 0 },
     rates,
   );
   assert.ok(Math.abs(absent.amount - 11884.98) < 0.005, `got ${absent.amount}`);

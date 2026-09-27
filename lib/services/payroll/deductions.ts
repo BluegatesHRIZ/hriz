@@ -50,6 +50,11 @@ export interface DeductionQuantities {
   undertimeMinutes: number;
   /** Paid leave days that offset what would otherwise be absence. */
   paidLeaveDays: number;
+  /**
+   * Scheduled working days covered by work or paid leave — what a daily-paid
+   * ("D") employee's basic is built from.
+   */
+  paidDays: number;
 }
 
 /**
@@ -59,8 +64,9 @@ export interface DeductionQuantities {
  * and is not covered by PAID leave. Unpaid leave deliberately falls through to
  * absence — that is the R7 fix.
  *
- * Rest days and unscheduled days are never absences: there was nothing to
- * attend. Holidays are left to `premiums.ts`, which prices them as earnings.
+ * Rest days, unscheduled days and unworked holidays are never absences. An
+ * unworked regular holiday still counts toward `paidDays` (daily-paid staff
+ * are paid for it); worked holidays' premiums are priced by `premiums.ts`.
  *
  * @param days            attendance rows for the cutoff
  * @param paidLeave       date -> paid leave fraction, from `leave.ts`
@@ -73,6 +79,7 @@ export function quantifyDeductions(
   let lateMinutes = 0;
   let undertimeMinutes = 0;
   let paidLeaveDays = 0;
+  let paidDays = 0;
 
   for (const day of days) {
     const leaveFraction = Math.min(paidLeave.get(day.date) ?? 0, 1);
@@ -86,12 +93,21 @@ export function quantifyDeductions(
 
     if (!day.scheduled || day.restDay) continue;
 
+    // A holiday is never an absence. Unworked, a regular holiday (Y1) is still
+    // a paid day; a special holiday (Y2) is "no work, no pay". Worked holidays
+    // count as worked below, with the premium priced by `premiums.ts`.
+    if (day.holiday !== "N" && !day.hasPunch) {
+      if (day.holiday === "Y1") paidDays += 1;
+      continue;
+    }
+
     const workedFraction = day.hasPunch ? 1 : 0;
     const covered = Math.min(1, workedFraction + leaveFraction);
+    paidDays += covered;
     absentDays += Math.max(0, 1 - covered);
   }
 
-  return { absentDays, lateMinutes, undertimeMinutes, paidLeaveDays };
+  return { absentDays, lateMinutes, undertimeMinutes, paidLeaveDays, paidDays };
 }
 
 /** `comded` codes for the three time-based deductions. */

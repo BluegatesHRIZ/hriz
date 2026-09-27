@@ -273,3 +273,99 @@ test("mode Half caps Pag-IBIG on the monthly figure before halving", () => {
   );
   assert.equal(half.statutoryEmployee, 100);
 });
+
+// --- daily-paid ("D") employees ---------------------------------------------
+
+const dailyDay = (date: string, over: Partial<{ hasPunch: boolean; restDay: boolean; lateMinutes: number }> = {}) => ({
+  date, scheduled: true, restDay: false, holiday: "N",
+  hasPunch: true, lateMinutes: 0, undertimeMinutes: 0, ...over,
+});
+
+test("a daily-paid employee is paid days worked x daily rate", () => {
+  const r = computePayslip(
+    input({
+      salary: { amount: 600, type: "D" },
+      attendance: ["2025-05-01", "2025-05-02", "2025-05-03"].map((d) => dailyDay(d)),
+    }),
+  );
+  assert.equal(r.quantities.paidDays, 3);
+  assert.equal(r.basic, 1800);
+  assert.ok(r.grossEarnings >= 1800);
+  assert.equal(r.components.find((c) => c.code === "CD1")?.amount, 1800);
+});
+
+test("a daily-paid absence is simply unpaid, not also deducted", () => {
+  const r = computePayslip(
+    input({
+      salary: { amount: 600, type: "D" },
+      attendance: [dailyDay("2025-05-01"), dailyDay("2025-05-02", { hasPunch: false })],
+    }),
+  );
+  assert.equal(r.quantities.absentDays, 1);
+  assert.equal(r.basic, 600, "only the worked day is paid");
+  assert.equal(r.components.find((c) => c.code === "CD7")?.amount, 0, "no second charge for the absence");
+});
+
+test("a daily-paid employee on paid leave is paid for the leave day", () => {
+  const r = computePayslip(
+    input({
+      salary: { amount: 600, type: "D" },
+      attendance: [dailyDay("2025-05-02", { hasPunch: false })],
+      leave: [{
+        id: "L", employee: "000008", leaveType: "L1", status: 1,
+        withPayDays: 1, withoutPayDays: 0,
+        dates: [{ date: "2025-05-02", sequence: 1, duration: "W", half: "A" }],
+      }],
+    }),
+  );
+  assert.equal(r.basic, 600);
+});
+
+test("a daily-paid employee still pays for lateness and rest days earn no basic", () => {
+  const r = computePayslip(
+    input({
+      salary: { amount: 600, type: "D" },
+      attendance: [
+        dailyDay("2025-05-01", { lateMinutes: 60 }),
+        dailyDay("2025-05-04", { restDay: true }),
+      ],
+    }),
+  );
+  assert.equal(r.basic, 600, "the rest day is priced by premiums, not basic");
+  assert.equal(r.components.find((c) => c.code === "CD8")?.amount, 75); // 600 / 8h
+});
+
+test("monthly and semi-monthly basics are unchanged by days worked", () => {
+  const r = computePayslip(input({ attendance: [dailyDay("2025-05-01")] }));
+  assert.equal(r.basic, 15000);
+});
+
+test("an unworked regular holiday is paid to a daily-paid employee", () => {
+  const r = computePayslip(
+    input({
+      salary: { amount: 600, type: "D" },
+      attendance: [{ ...dailyDay("2025-05-01", { hasPunch: false }), holiday: "Y1" }],
+    }),
+  );
+  assert.equal(r.basic, 600);
+  assert.equal(r.quantities.absentDays, 0);
+});
+
+test("an unworked special holiday is unpaid but not an absence", () => {
+  const r = computePayslip(
+    input({
+      salary: { amount: 600, type: "D" },
+      attendance: [{ ...dailyDay("2025-05-01", { hasPunch: false }), holiday: "Y2" }],
+    }),
+  );
+  assert.equal(r.basic, 0);
+  assert.equal(r.quantities.absentDays, 0);
+});
+
+test("a monthly employee is not charged an absence for an unworked holiday", () => {
+  const r = computePayslip(
+    input({ attendance: [{ ...dailyDay("2025-05-01", { hasPunch: false }), holiday: "Y1" }] }),
+  );
+  assert.equal(r.quantities.absentDays, 0);
+  assert.equal(r.timeDeductions, 0);
+});
