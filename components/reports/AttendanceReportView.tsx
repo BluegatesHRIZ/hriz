@@ -46,6 +46,7 @@ export function AttendanceReportView() {
   const [location, setLocation] = useState<string[]>([]);
   const [department, setDepartment] = useState<string[]>([]);
   const [position, setPosition] = useState<string[]>([]);
+  const [branchCode, setBranchCode] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [submitted, setSubmitted] = useState<AttendanceReportFilters | null>(null);
   const [expandedEmpId, setExpandedEmpId] = useState<string | null>(null);
@@ -67,12 +68,21 @@ export function AttendanceReportView() {
 
   const downloader = useDownloadReportXlsx();
 
+  // Several locations can share a code, so list each code once.
+  const branchCodes = useMemo(
+    () =>
+      [...new Set((locations ?? []).map((l) => l.loc_code?.trim()).filter((c): c is string => !!c))]
+        .sort()
+        .map((code) => ({ id: code, label: code })),
+    [locations],
+  );
+
   const rows = attendance.data?.data ?? [];
   const meta = attendance.data?.meta;
 
   const filters: AttendanceReportFilters = useMemo(
-    () => ({ from, to, location, department, position }),
-    [from, to, location, department, position],
+    () => ({ from, to, location, department, position, branchCode }),
+    [from, to, location, department, position, branchCode],
   );
 
   // "Apply Request" runs the mutating generate proc once; "Refresh from data"
@@ -158,6 +168,12 @@ export function AttendanceReportView() {
               }))}
               selected={location}
               onChange={setLocation}
+            />
+            <MultiSelect
+              label="Branch Code"
+              options={branchCodes}
+              selected={branchCode}
+              onChange={setBranchCode}
             />
             <MultiSelect
               label="Department"

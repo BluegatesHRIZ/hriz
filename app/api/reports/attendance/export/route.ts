@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
       location: body.location ?? [],
       department: body.department ?? [],
       position: body.position ?? [],
+      branchCode: body.branchCode ?? [],
     });
     const buffer = await buildAttendanceXlsx(rows);
     const filename = body.filename || "AttendanceReport.xlsx";
