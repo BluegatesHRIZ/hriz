@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth/jwt-edge";
 import { saveEmployeeSalary } from "@/lib/services/employee.service";
+import { countPresent } from "@/lib/utils/salaryHistory";
 
 /**
  * PUT /api/employee/{id}/salary
@@ -93,6 +94,13 @@ export async function PUT(
         }
       )
       .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+
+    if (countPresent(entries) > 1) {
+      return NextResponse.json(
+        { message: "Only one salary can be Present. End the others first." },
+        { status: 400 }
+      );
+    }
 
     console.log("Saving salaries for employee:", empId, "Entries:", entries.length);
 

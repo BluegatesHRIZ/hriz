@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Save, Plus, Pencil, Trash2, X } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
@@ -27,6 +28,7 @@ import {
 } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { applyPresent, countPresent } from "@/lib/utils/salaryHistory";
 import {
   Table,
   TableBody,
@@ -47,6 +49,28 @@ const SALARY_STATUSES = [
   { value: 0, label: "Ended" },
   { value: 1, label: "Present" },
 ] as const;
+
+/** Wage types the payroll engine pays; any other type is skipped by payroll. */
+const PAYABLE_TYPES = new Set(["D", "S", "M"]);
+
+/**
+ * The row payroll would use on `asOf` — mirrors `loadSalaries` in
+ * `lib/services/payroll/repository.ts`: the Present row with the latest
+ * Date From on or before that day. Returns -1 when none applies.
+ */
+function activeSalaryIndex(salaries: SalaryForm[], asOf: Date): number {
+  let best = -1;
+  let bestFrom = -Infinity;
+  salaries.forEach((sal, i) => {
+    if (sal.SalStatus !== 1 || !sal.SalDateFrom) return;
+    if (!PAYABLE_TYPES.has(sal.SalPayrollType.toUpperCase())) return;
+    const from = new Date(sal.SalDateFrom).getTime();
+    if (from > asOf.getTime() || from <= bestFrom) return;
+    best = i;
+    bestFrom = from;
+  });
+  return best;
+}
 
 interface SalaryForm {
   SalId: number;
@@ -137,14 +161,35 @@ export function SalaryHistoryTab({
       return;
     }
 
-    if (editingIndex !== null) {
-      setSalaries(salaries.map((s, i) => (i === editingIndex ? formData : s)));
-    } else {
-      const newSalary: SalaryForm = {
-        ...formData,
-        SalId: nextTempId.current--, // Temporary ID
-      };
-      setSalaries([...salaries, newSalary]);
+    const index = editingIndex ?? salaries.length;
+    const withRow =
+      editingIndex !== null
+        ? salaries.map((s, i) => (i === editingIndex ? formData : s))
+        : [...salaries, { ...formData, SalId: nextTempId.current-- }]; // Temporary ID
+
+    // Only one Present salary: a new one ends the salary it replaces.
+    const result = applyPresent(withRow, index);
+    if (!result.ok) {
+      toast({
+        title: "Two Present salaries",
+        description: result.error,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSalaries(result.rows);
+    for (const ended of result.ended) {
+      toast({
+        title: "Previous salary ended",
+        description: `${
+          PAYROLL_TYPES.find((t) => t.value === ended.SalPayrollType)?.label ||
+          ended.SalPayrollType
+        } ${ended.SalAmount.toFixed(2)} now ends ${format(
+          ended.SalDateTo as Date,
+          "PPP",
+        )}. Click Save Changes to keep it.`,
+      });
     }
 
     resetForm();
@@ -169,12 +214,52 @@ export function SalaryHistoryTab({
     }
   };
 
+  const activeIndex = useMemo(
+    () => activeSalaryIndex(salaries, new Date()),
+    [salaries],
+  );
+  const active = activeIndex >= 0 ? salaries[activeIndex] : null;
+
+  const statusBadge = (salary: SalaryForm, index: number) => {
+    if (index === activeIndex) return <Badge variant="success">Active</Badge>;
+    if (salary.SalStatus !== 1) {
+      return (
+        SALARY_STATUSES.find((s) => s.value === salary.SalStatus)?.label || "-"
+      );
+    }
+    if (salary.SalDateFrom && new Date(salary.SalDateFrom) > new Date()) {
+      return (
+        <Badge variant="info" title="Payroll starts using this on its Date From">
+          Upcoming
+        </Badge>
+      );
+    }
+    return (
+      <Badge
+        variant="warning"
+        title="Marked Present, but payroll uses a newer salary. Set a Date To to end it."
+      >
+        Not in effect
+      </Badge>
+    );
+  };
+
   const handleSave = async () => {
     try {
       if (salaries.length === 0) {
         toast({
           title: "No Data",
           description: "Please add at least one salary entry",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (countPresent(salaries) > 1) {
+        toast({
+          title: "Only one salary can be Present",
+          description:
+            "Edit the salaries marked Not in effect and set a Date To to end them.",
           variant: "destructive",
         });
         return;
@@ -439,7 +524,26 @@ export function SalaryHistoryTab({
 
       {/* Salary History Table */}
       <div className="bg-card rounded-xl border border-border/60 p-5">
-        <h4 className="text-base font-semibold text-foreground mb-4 pb-3 border-b border-border/60">Salary History</h4>
+        <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2 border-b border-border/60 pb-3">
+          <h4 className="text-base font-semibold text-foreground">Salary History</h4>
+          {salaries.length > 0 &&
+            (active ? (
+              <p className="text-sm text-muted-foreground">
+                Payroll uses{" "}
+                <span className="font-medium text-foreground">
+                  {PAYROLL_TYPES.find((t) => t.value === active.SalPayrollType)
+                    ?.label || active.SalPayrollType}{" "}
+                  · {active.SalAmount.toFixed(2)}
+                </span>
+                {active.SalDateFrom &&
+                  ` since ${format(new Date(active.SalDateFrom), "PPP")}`}
+              </p>
+            ) : (
+              <p className="text-sm text-warning">
+                No active salary — payroll will skip this employee.
+              </p>
+            ))}
+        </div>
         {salaries.length === 0 ? (
           <div className="text-center py-8 border rounded-lg">
             <p className="text-muted-foreground">No salary history records found.</p>
@@ -463,7 +567,10 @@ export function SalaryHistoryTab({
                 {salaries.map((salary, index) => (
                   <TableRow
                     key={`sal-${salary.SalId}-${index}`}
-                    className={cn(editingIndex === index && "bg-muted/50")}
+                    className={cn(
+                      index === activeIndex && "bg-success/5",
+                      editingIndex === index && "bg-muted/50",
+                    )}
                   >
                     <TableCell>{salary.SalPosition}</TableCell>
                     <TableCell>
@@ -482,10 +589,7 @@ export function SalaryHistoryTab({
                     <TableCell className="text-right">
                       {salary.SalAmount.toFixed(2)}
                     </TableCell>
-                    <TableCell>
-                      {SALARY_STATUSES.find((s) => s.value === salary.SalStatus)
-                        ?.label || "-"}
-                    </TableCell>
+                    <TableCell>{statusBadge(salary, index)}</TableCell>
                     <TableCell>{salary.SalRemarks || "-"}</TableCell>
                     <TableCell className="whitespace-nowrap">
                       <Button
