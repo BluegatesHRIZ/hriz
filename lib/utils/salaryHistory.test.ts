@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   applyPresent,
   countPresent,
+  supersededEndDate,
   SALARY_ENDED,
   SALARY_PRESENT,
   type SalaryPeriod,
@@ -60,4 +61,29 @@ test("already-ended rows are left alone", () => {
   assert.ok(result.ok);
   assert.equal(result.rows[0], ended);
   assert.equal(result.ended.length, 1);
+});
+
+test("a superseded salary ends the day before the next one starts", () => {
+  const rows = [row("2026-08-31"), row("2025-02-02")];
+  const end = supersededEndDate(rows, 1);
+  assert.equal(end?.toDateString(), new Date("2026-08-30T00:00:00").toDateString());
+});
+
+test("the latest Present salary has no superseded end date", () => {
+  assert.equal(supersededEndDate([row("2026-08-31"), row("2025-02-02")], 0), null);
+});
+
+test("the nearest later salary sets the end date, not the latest", () => {
+  const rows = [row("2025-02-02"), row("2026-12-01"), row("2026-08-31")];
+  assert.equal(
+    supersededEndDate(rows, 0)?.toDateString(),
+    new Date("2026-08-30T00:00:00").toDateString(),
+  );
+});
+
+test("an Ended salary has no superseded end date", () => {
+  assert.equal(
+    supersededEndDate([row("2026-08-31"), row("2025-02-02", SALARY_ENDED)], 1),
+    null,
+  );
 });

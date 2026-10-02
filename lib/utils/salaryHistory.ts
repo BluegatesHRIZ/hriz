@@ -69,3 +69,29 @@ export function applyPresent<T extends SalaryPeriod>(
 
   return { ok: true, rows: next, ended };
 }
+
+/**
+ * The end date a superseded Present salary should have: the day before the
+ * next Present salary starts. Null when `rows[index]` is not Present or no
+ * later Present salary exists.
+ */
+export function supersededEndDate(
+  rows: SalaryPeriod[],
+  index: number,
+): Date | null {
+  const row = rows[index];
+  if (!row || row.SalStatus !== SALARY_PRESENT || !row.SalDateFrom) return null;
+
+  const start = toDate(row.SalDateFrom);
+  let next: Date | null = null;
+  rows.forEach((r, i) => {
+    if (i === index || r.SalStatus !== SALARY_PRESENT || !r.SalDateFrom) return;
+    const from = toDate(r.SalDateFrom);
+    if (from > start && (!next || from < next)) next = from;
+  });
+  if (!next) return null;
+
+  const end = new Date(next);
+  end.setDate(end.getDate() - 1);
+  return end;
+}
