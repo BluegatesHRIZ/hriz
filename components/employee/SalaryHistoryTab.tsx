@@ -26,9 +26,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { applyPresent, countPresent } from "@/lib/utils/salaryHistory";
+import {
+  applyPresent,
+  countPresent,
+  supersededEndDate,
+  SALARY_ENDED,
+} from "@/lib/utils/salaryHistory";
+import { formatAmount, formatDate } from "@/lib/utils/format";
 import {
   Table,
   TableBody,
@@ -185,9 +190,8 @@ export function SalaryHistoryTab({
         description: `${
           PAYROLL_TYPES.find((t) => t.value === ended.SalPayrollType)?.label ||
           ended.SalPayrollType
-        } ${ended.SalAmount.toFixed(2)} now ends ${format(
-          ended.SalDateTo as Date,
-          "PPP",
+        } ${formatAmount(ended.SalAmount)} now ends ${formatDate(
+          ended.SalDateTo,
         )}. Click Save Changes to keep it.`,
       });
     }
@@ -220,6 +224,15 @@ export function SalaryHistoryTab({
   );
   const active = activeIndex >= 0 ? salaries[activeIndex] : null;
 
+  /** End a superseded Present salary the day before the next one starts. */
+  const handleEndSuperseded = (index: number, end: Date) => {
+    setSalaries(
+      salaries.map((s, i) =>
+        i === index ? { ...s, SalDateTo: end, SalStatus: SALARY_ENDED } : s,
+      ),
+    );
+  };
+
   const statusBadge = (salary: SalaryForm, index: number) => {
     if (index === activeIndex) return <Badge variant="success">Active</Badge>;
     if (salary.SalStatus !== 1) {
@@ -234,13 +247,28 @@ export function SalaryHistoryTab({
         </Badge>
       );
     }
+    const end = supersededEndDate(salaries, index);
     return (
-      <Badge
-        variant="warning"
-        title="Marked Present, but payroll uses a newer salary. Set a Date To to end it."
-      >
-        Not in effect
-      </Badge>
+      <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+        <Badge
+          variant="warning"
+          title="Still marked Present, but payroll uses a newer salary."
+        >
+          Previous
+        </Badge>
+        {end && (
+          <Button
+            type="button"
+            variant="link"
+            size="sm"
+            className="h-auto px-0 text-xs"
+            title="Set Date To to the day before the newer salary starts"
+            onClick={() => handleEndSuperseded(index, end)}
+          >
+            End {formatDate(end)}
+          </Button>
+        )}
+      </span>
     );
   };
 
@@ -259,7 +287,7 @@ export function SalaryHistoryTab({
         toast({
           title: "Only one salary can be Present",
           description:
-            "Edit the salaries marked Not in effect and set a Date To to end them.",
+            "Click End on the salaries marked Previous, then save again.",
           variant: "destructive",
         });
         return;
@@ -371,7 +399,7 @@ export function SalaryHistoryTab({
                   )}
                 >
                   {formData.SalDateFrom
-                    ? format(formData.SalDateFrom, "PPP")
+                    ? formatDate(formData.SalDateFrom)
                     : "Pick a date"}
                 </Button>
               </PopoverTrigger>
@@ -427,7 +455,7 @@ export function SalaryHistoryTab({
                   disabled={!formData.SalDateFrom}
                 >
                   {formData.SalDateTo
-                    ? format(formData.SalDateTo, "PPP")
+                    ? formatDate(formData.SalDateTo)
                     : "Pick a date"}
                 </Button>
               </PopoverTrigger>
@@ -533,10 +561,10 @@ export function SalaryHistoryTab({
                 <span className="font-medium text-foreground">
                   {PAYROLL_TYPES.find((t) => t.value === active.SalPayrollType)
                     ?.label || active.SalPayrollType}{" "}
-                  · {active.SalAmount.toFixed(2)}
+                  · {formatAmount(active.SalAmount)}
                 </span>
                 {active.SalDateFrom &&
-                  ` since ${format(new Date(active.SalDateFrom), "PPP")}`}
+                  ` since ${formatDate(active.SalDateFrom)}`}
               </p>
             ) : (
               <p className="text-sm text-warning">
@@ -579,15 +607,17 @@ export function SalaryHistoryTab({
                       )?.label || salary.SalPayrollType}
                     </TableCell>
                     <TableCell>
-                      {salary.SalDateFrom
-                        ? format(salary.SalDateFrom, "PPP")
-                        : "-"}
+                      {formatDate(salary.SalDateFrom)}
                     </TableCell>
                     <TableCell>
-                      {salary.SalDateTo ? format(salary.SalDateTo, "PPP") : "-"}
+                      {salary.SalDateTo
+                        ? formatDate(salary.SalDateTo)
+                        : index === activeIndex
+                          ? "Present"
+                          : "-"}
                     </TableCell>
                     <TableCell className="text-right">
-                      {salary.SalAmount.toFixed(2)}
+                      {formatAmount(salary.SalAmount)}
                     </TableCell>
                     <TableCell>{statusBadge(salary, index)}</TableCell>
                     <TableCell>{salary.SalRemarks || "-"}</TableCell>
