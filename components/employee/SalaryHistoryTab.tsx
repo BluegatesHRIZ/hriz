@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import {
   EmployeeDetail,
   SalaryHistoryData,
@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Save, Plus, Trash2 } from "lucide-react";
+import { Save, Plus, Pencil, Trash2, X } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -97,7 +97,7 @@ export function SalaryHistoryTab({
     return pos?.pst_desc || posId;
   };
 
-  const [formData, setFormData] = useState<SalaryForm>({
+  const emptyForm = (): SalaryForm => ({
     SalId: 0,
     SalPosition: getPositionDesc(employee.Account.EmpPos) || "",
     SalPayrollType: "S",
@@ -108,10 +108,20 @@ export function SalaryHistoryTab({
     SalStatus: 1,
   });
 
-  // Sync state when employee data changes
-  useEffect(() => {
+  const [formData, setFormData] = useState<SalaryForm>(emptyForm);
+  // Temporary ids for unsaved rows; negative so they never clash with saved ones.
+  const nextTempId = useRef(-1);
+  // Index of the history row loaded into the form, or null when adding.
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+
+  // Sync state when employee data changes (adjusting state during render,
+  // rather than in an effect, avoids a second render pass).
+  const [syncedFrom, setSyncedFrom] = useState(initialSalaries);
+  if (syncedFrom !== initialSalaries) {
+    setSyncedFrom(initialSalaries);
     setSalaries(initialSalaries);
-  }, [initialSalaries]);
+    setEditingIndex(null);
+  }
 
   const handleAddSalary = () => {
     if (
@@ -127,28 +137,36 @@ export function SalaryHistoryTab({
       return;
     }
 
-    const newSalary: SalaryForm = {
-      ...formData,
-      SalId: Date.now(), // Temporary ID
-    };
-    setSalaries([...salaries, newSalary]);
+    if (editingIndex !== null) {
+      setSalaries(salaries.map((s, i) => (i === editingIndex ? formData : s)));
+    } else {
+      const newSalary: SalaryForm = {
+        ...formData,
+        SalId: nextTempId.current--, // Temporary ID
+      };
+      setSalaries([...salaries, newSalary]);
+    }
 
-    // Reset form
-    setFormData({
-      SalId: 0,
-      SalPosition: getPositionDesc(employee.Account.EmpPos) || "",
-      SalPayrollType: "S",
-      SalDateFrom: null,
-      SalDateTo: null,
-      SalAmount: 0,
-      SalRemarks: "",
-      SalStatus: 1,
-    });
+    resetForm();
+  };
+
+  const resetForm = () => {
+    setFormData(emptyForm());
+    setEditingIndex(null);
+  };
+
+  const handleEditSalary = (index: number) => {
+    setFormData({ ...salaries[index] });
+    setEditingIndex(index);
   };
 
   const handleRemoveSalary = (index: number) => {
     const newSalaries = salaries.filter((_, i) => i !== index);
     setSalaries(newSalaries);
+    if (editingIndex === index) resetForm();
+    else if (editingIndex !== null && index < editingIndex) {
+      setEditingIndex(editingIndex - 1);
+    }
   };
 
   const handleSave = async () => {
@@ -206,7 +224,9 @@ export function SalaryHistoryTab({
     <div className="space-y-4 p-4">
       {/* Add Salary Form */}
       <div className="bg-card rounded-xl border border-border/60 p-5">
-        <h4 className="text-base font-semibold text-foreground mb-4 pb-3 border-b border-border/60">Add Salary Entry</h4>
+        <h4 className="text-base font-semibold text-foreground mb-4 pb-3 border-b border-border/60">
+          {editingIndex !== null ? "Edit Salary Entry" : "Add Salary Entry"}
+        </h4>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <Label htmlFor="sal_position">Position</Label>
@@ -393,10 +413,25 @@ export function SalaryHistoryTab({
             />
           </div>
 
-          <div className="flex items-end">
-            <Button type="button" onClick={handleAddSalary} className="w-full">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Salary
+          <div className="flex items-end gap-2">
+            {editingIndex !== null && (
+              <Button type="button" variant="outline" onClick={resetForm}>
+                <X className="mr-2 h-4 w-4" />
+                Cancel
+              </Button>
+            )}
+            <Button type="button" onClick={handleAddSalary} className="flex-1">
+              {editingIndex !== null ? (
+                <>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Update Salary
+                </>
+              ) : (
+                <>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Salary
+                </>
+              )}
             </Button>
           </div>
         </div>
@@ -426,7 +461,10 @@ export function SalaryHistoryTab({
               </TableHeader>
               <TableBody>
                 {salaries.map((salary, index) => (
-                  <TableRow key={`sal-${salary.SalId}-${index}`}>
+                  <TableRow
+                    key={`sal-${salary.SalId}-${index}`}
+                    className={cn(editingIndex === index && "bg-muted/50")}
+                  >
                     <TableCell>{salary.SalPosition}</TableCell>
                     <TableCell>
                       {PAYROLL_TYPES.find(
@@ -449,11 +487,21 @@ export function SalaryHistoryTab({
                         ?.label || "-"}
                     </TableCell>
                     <TableCell>{salary.SalRemarks || "-"}</TableCell>
-                    <TableCell>
+                    <TableCell className="whitespace-nowrap">
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
+                        aria-label="Edit salary entry"
+                        onClick={() => handleEditSalary(index)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Remove salary entry"
                         onClick={() => handleRemoveSalary(index)}
                       >
                         <Trash2 className="h-4 w-4" />

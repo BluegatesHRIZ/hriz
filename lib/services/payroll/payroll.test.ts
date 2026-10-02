@@ -236,6 +236,21 @@ test("late and undertime only accrue on days actually worked", () => {
   assert.equal(absent.undertimeMinutes, 0);
 });
 
+test("late and undertime are not charged on rest days or unscheduled days", () => {
+  // Rest-day work is paid as a premium; there is no schedule to be late for.
+  const rest = quantifyDeductions([
+    day({ restDay: true, lateMinutes: 367, undertimeMinutes: 236 }),
+  ]);
+  assert.equal(rest.lateMinutes, 0);
+  assert.equal(rest.undertimeMinutes, 0);
+
+  const unscheduled = quantifyDeductions([
+    day({ scheduled: false, lateMinutes: 30, undertimeMinutes: 15 }),
+  ]);
+  assert.equal(unscheduled.lateMinutes, 0);
+  assert.equal(unscheduled.undertimeMinutes, 0);
+});
+
 test("pricing reproduces the posted 148-minute undertime deduction", () => {
   // Posted run PR062024102, employees 000006/000007: D 250 -> 77.08 undertime.
   const rates = deriveRates(250, "D", FACTOR);
