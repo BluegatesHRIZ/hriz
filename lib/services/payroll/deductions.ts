@@ -64,7 +64,8 @@ export interface DeductionQuantities {
  * and is not covered by PAID leave. Unpaid leave deliberately falls through to
  * absence — that is the R7 fix.
  *
- * Rest days, unscheduled days and unworked holidays are never absences. An
+ * Rest days, unscheduled days and unworked holidays are never absences, and
+ * rest days and unscheduled days carry no late or undertime either. An
  * unworked regular holiday still counts toward `paidDays` (daily-paid staff
  * are paid for it); worked holidays' premiums are priced by `premiums.ts`.
  *
@@ -85,13 +86,15 @@ export function quantifyDeductions(
     const leaveFraction = Math.min(paidLeave.get(day.date) ?? 0, 1);
     if (leaveFraction > 0) paidLeaveDays += leaveFraction;
 
+    // Rest days and unscheduled days owe no attendance: work on them is paid
+    // as a premium, so there is nothing to be late for or leave early from.
+    if (!day.scheduled || day.restDay) continue;
+
     // Lates and undertime only exist on days actually worked.
     if (day.hasPunch) {
       lateMinutes += Math.max(0, day.lateMinutes);
       undertimeMinutes += Math.max(0, day.undertimeMinutes);
     }
-
-    if (!day.scheduled || day.restDay) continue;
 
     // A holiday is never an absence. Unworked, a regular holiday (Y1) is still
     // a paid day; a special holiday (Y2) is "no work, no pay". Worked holidays
