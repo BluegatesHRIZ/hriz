@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { applyPresent, countPresent } from "@/lib/utils/salaryHistory";
 import {
   Table,
   TableBody,
@@ -160,14 +161,35 @@ export function SalaryHistoryTab({
       return;
     }
 
-    if (editingIndex !== null) {
-      setSalaries(salaries.map((s, i) => (i === editingIndex ? formData : s)));
-    } else {
-      const newSalary: SalaryForm = {
-        ...formData,
-        SalId: nextTempId.current--, // Temporary ID
-      };
-      setSalaries([...salaries, newSalary]);
+    const index = editingIndex ?? salaries.length;
+    const withRow =
+      editingIndex !== null
+        ? salaries.map((s, i) => (i === editingIndex ? formData : s))
+        : [...salaries, { ...formData, SalId: nextTempId.current-- }]; // Temporary ID
+
+    // Only one Present salary: a new one ends the salary it replaces.
+    const result = applyPresent(withRow, index);
+    if (!result.ok) {
+      toast({
+        title: "Two Present salaries",
+        description: result.error,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSalaries(result.rows);
+    for (const ended of result.ended) {
+      toast({
+        title: "Previous salary ended",
+        description: `${
+          PAYROLL_TYPES.find((t) => t.value === ended.SalPayrollType)?.label ||
+          ended.SalPayrollType
+        } ${ended.SalAmount.toFixed(2)} now ends ${format(
+          ended.SalDateTo as Date,
+          "PPP",
+        )}. Click Save Changes to keep it.`,
+      });
     }
 
     resetForm();
@@ -228,6 +250,16 @@ export function SalaryHistoryTab({
         toast({
           title: "No Data",
           description: "Please add at least one salary entry",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (countPresent(salaries) > 1) {
+        toast({
+          title: "Only one salary can be Present",
+          description:
+            "Edit the salaries marked Not in effect and set a Date To to end them.",
           variant: "destructive",
         });
         return;
