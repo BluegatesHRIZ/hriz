@@ -34,6 +34,7 @@ import { MemosTab } from "@/components/employee/MemosTab";
 import { TrainingsTab } from "@/components/employee/TrainingsTab";
 import { RequirementsTab } from "@/components/employee/RequirementsTab";
 import { ApprovalLevelsTab } from "@/components/employee/ApprovalLevelsTab";
+import { useEmployeeListUrl } from "@/lib/utils/employeeListUrl";
 
 const TABS = [
   { value: "account", label: "Account Information" },
@@ -54,6 +55,7 @@ const TABS = [
 
 export default function EmployeeDetailPage() {
   const router = useRouter();
+  const listUrl = useEmployeeListUrl();
   const params = useParams();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const empId = params.id as string;
@@ -95,7 +97,7 @@ export default function EmployeeDetailPage() {
     return (
       <div className="w-full px-4 md:px-6 lg:px-8 pt-5 pb-8">
         <Button variant="ghost" size="sm" asChild className="mb-4 -ml-1 text-muted-foreground hover:text-foreground">
-          <Link href="/employees">
+          <Link href={listUrl}>
             <ArrowLeft className="mr-1.5 h-4 w-4" />
             Employee Management
           </Link>
@@ -127,7 +129,7 @@ export default function EmployeeDetailPage() {
           asChild
           className="mb-3 -ml-1 text-muted-foreground hover:text-foreground"
         >
-          <Link href="/employees">
+          <Link href={listUrl}>
             <ArrowLeft className="mr-1.5 h-4 w-4" />
             Employee Management
           </Link>
