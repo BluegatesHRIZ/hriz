@@ -13,7 +13,8 @@ import { getAvatarUrls } from "@/lib/services/avatars.service"
  * behaviour):
  *   page, limit          server-side pagination
  *   search               free text over id / last / first / middle name
- *   dept, loc, pos       exact-match code filters
+ *   dept, loc, pos       exact-match code filters; `loc` also takes a
+ *                        comma-separated list (any of)
  *   idsOnly=1            every matching id, unpaginated. Powers
  *                        "select all N matching" without walking each page.
  *
@@ -24,12 +25,16 @@ import { getAvatarUrls } from "@/lib/services/avatars.service"
 function buildWhere(searchParams: URLSearchParams) {
   const search = (searchParams.get("search") ?? "").trim()
   const dept = (searchParams.get("dept") ?? "").trim()
-  const loc = (searchParams.get("loc") ?? "").trim()
+  const locs = (searchParams.get("loc") ?? "")
+    .split(",")
+    .map((l) => l.trim())
+    .filter(Boolean)
   const pos = (searchParams.get("pos") ?? "").trim()
 
   const where: Record<string, unknown> = { emp_status: 1 } // active only
   if (dept) where.emp_dept = dept
-  if (loc) where.emp_loc = loc
+  if (locs.length === 1) where.emp_loc = locs[0]
+  else if (locs.length > 1) where.emp_loc = { in: locs }
   if (pos) where.emp_pos = pos
   if (search) {
     where.OR = [

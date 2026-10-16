@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { BranchFilter } from "./BranchFilter";
 import {
   usePayrollEmployees,
   useAllMatchingEmployeeIds,
@@ -161,9 +162,10 @@ function RunPayrollForm({
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [branches, setBranches] = useState<string[]>([]);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const filters = { page, limit: PAGE_SIZE, search };
+  const filters = { page, limit: PAGE_SIZE, search, loc: branches };
   const employees = usePayrollEmployees(filters);
   const allIds = useAllMatchingEmployeeIds();
   const types = usePayrollTypes();
@@ -171,6 +173,11 @@ function RunPayrollForm({
   const rows = employees.data?.data ?? [];
   const meta = employees.data?.meta;
   const needsAttendance = !NO_ATTENDANCE_TYPES.includes(form.type);
+
+  const onBranchesChange = (next: string[]) => {
+    setBranches(next);
+    setPage(1);
+  };
 
   const onSearchChange = (v: string) => {
     setSearchInput(v);
@@ -214,7 +221,15 @@ function RunPayrollForm({
     setSelected((prev) => new Set([...prev, ...ids]));
   };
 
-  const submit = (action: "save" | "generate") =>
+  // "Select none" means every payable employee — but with branches picked the
+  // user means everyone in those branches, so resolve them before submitting.
+  const submit = async (action: "save" | "generate") => {
+    let employeeIds = [...selected];
+    if (employeeIds.length === 0 && branches.length > 0) {
+      employeeIds = await allIds.mutateAsync({ loc: branches });
+      // Never fall through to "everyone" when the branches came back empty.
+      if (employeeIds.length === 0) return;
+    }
     onSubmit(
       {
         month: form.month,
@@ -230,9 +245,14 @@ function RunPayrollForm({
         philhealth: form.philhealth,
         pagibig: form.pagibig,
       },
-      [...selected],
+      employeeIds,
       action,
     );
+  };
+
+  // Nobody to include: branches picked, none of them has an active employee.
+  const nothingToRun = branches.length > 0 && meta?.total === 0;
+  const busy = saving || allIds.isPending;
 
   const periodOptions = Array.from({ length: Math.max(periodCount, 1) }, (_, i) => i + 1);
   const ordinal = (p: number) =>
@@ -437,6 +457,10 @@ function RunPayrollForm({
             </div>
           </div>
 
+          <div className="mb-2">
+            <BranchFilter selected={branches} onChange={onBranchesChange} />
+          </div>
+
           <div className="overflow-hidden rounded-lg border">
             <table className="w-full text-sm">
               <thead>
@@ -473,7 +497,11 @@ function RunPayrollForm({
                 ) : rows.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-3 py-10 text-center text-muted-foreground">
-                      {search ? `No employees match “${search}”.` : "No active employees."}
+                      {search
+                        ? `No employees match “${search}”.`
+                        : branches.length
+                          ? "No active employees in the selected branches."
+                          : "No active employees."}
                     </td>
                   </tr>
                 ) : (
@@ -544,7 +572,11 @@ function RunPayrollForm({
                 Clear selection
               </Button>
             )}
-            <span>Select none to include every payable employee.</span>
+            <span>
+              {branches.length
+                ? "Select none to include every payable employee in these branches."
+                : "Select none to include every payable employee."}
+            </span>
           </div>
         </div>
       </div>
@@ -553,10 +585,10 @@ function RunPayrollForm({
         <Button variant="outline" onClick={() => onOpenChange(false)}>
           Close
         </Button>
-        <Button variant="secondary" disabled={saving} onClick={() => submit("save")}>
+        <Button variant="secondary" disabled={busy || nothingToRun} onClick={() => submit("save")}>
           Save
         </Button>
-        <Button disabled={saving} onClick={() => submit("generate")}>
+        <Button disabled={busy || nothingToRun} onClick={() => submit("generate")}>
           {saving ? "Working…" : "Generate"}
         </Button>
       </DialogFooter>

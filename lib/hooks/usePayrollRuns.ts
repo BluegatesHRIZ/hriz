@@ -192,7 +192,8 @@ export interface PayrollEmployeeFilters {
   limit?: number;
   search?: string;
   dept?: string;
-  loc?: string;
+  /** Location ids — matches employees in any of them. */
+  loc?: string[];
   pos?: string;
 }
 
@@ -202,7 +203,7 @@ function employeeQuery(f: PayrollEmployeeFilters): string {
   params.set("limit", String(f.limit ?? 10));
   if (f.search?.trim()) params.set("search", f.search.trim());
   if (f.dept) params.set("dept", f.dept);
-  if (f.loc) params.set("loc", f.loc);
+  if (f.loc?.length) params.set("loc", f.loc.join(","));
   if (f.pos) params.set("pos", f.pos);
   return params.toString();
 }
