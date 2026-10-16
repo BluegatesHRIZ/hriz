@@ -49,8 +49,26 @@ export interface PayrollRunDetail {
     postedBy: string | null;
     postedDate: string | null;
   };
+  settings: PayrollRunSettings;
   slips: PayrollSlip[];
   totals: { gross: number; deductions: number; net: number };
+}
+
+/** How a statutory contribution was applied to a run. */
+export type ContributionMode = "full" | "half" | "none";
+
+/** The options a run was generated with — its `pay_header` flags. */
+export interface PayrollRunSettings {
+  type: string | null;
+  typeDescription: string | null;
+  month: number | null;
+  year: number | null;
+  period: number | null;
+  tax: boolean;
+  loans: boolean;
+  sss: ContributionMode;
+  philhealth: ContributionMode;
+  pagibig: ContributionMode;
 }
 
 /** Full / Half / None, as the legacy Run Payroll dialog offers. */
@@ -122,6 +140,17 @@ export const RUN_STATUS_LABEL: Record<string, string> = {
   "1": "Posted",
   "5": "Saved",
 };
+
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+/** "January 2026" — blank when either part is missing. */
+export function monthYear(month: number | null, year: number | null): string {
+  if (!month || !year) return "";
+  return `${MONTHS[month - 1]} ${year}`;
+}
 
 /** "1st Period", "2nd Period" — matches the legacy ordinal display. */
 export function ordinalPeriod(period: number | null): string {

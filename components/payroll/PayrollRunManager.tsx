@@ -37,6 +37,7 @@ import {
   useDeletePayrollRun,
   RUN_STATUS_LABEL,
   ordinalPeriod,
+  monthYear,
   type CreateRunInput,
 } from "@/lib/hooks/usePayrollRuns";
 
@@ -48,16 +49,6 @@ import {
  * drills into the register), and a delete action available only while a run is
  * unposted.
  */
-
-const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
-
-function monthYear(month: number | null, year: number | null): string {
-  if (!month || !year) return "";
-  return `${MONTHS[month - 1]} ${year}`;
-}
 
 function StatusBadge({ status }: { status: string | null }) {
   const label = RUN_STATUS_LABEL[status ?? ""] ?? "Undefined";

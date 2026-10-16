@@ -33,6 +33,10 @@ import {
   usePostRun,
   useUnpostRun,
   RUN_STATUS_LABEL,
+  monthYear,
+  ordinalPeriod,
+  type ContributionMode,
+  type PayrollRunSettings,
   type PayrollSlip,
 } from "@/lib/hooks/usePayrollRuns";
 
@@ -87,6 +91,63 @@ const GROUPS: Array<{
     ],
   },
 ];
+
+const MODE_LABEL: Record<ContributionMode, string> = {
+  full: "Full",
+  half: "Half",
+  none: "None",
+};
+
+/**
+ * The options the run was generated with. Anything switched off is dimmed so a
+ * run that skipped tax or a contribution is obvious at a glance.
+ */
+function RunSettings({ settings }: { settings: PayrollRunSettings }) {
+  const items: Array<{ label: string; value: string; off?: boolean }> = [
+    {
+      label: "Type",
+      value: settings.typeDescription ?? settings.type ?? "—",
+    },
+    {
+      label: "Period",
+      value:
+        [monthYear(settings.month, settings.year), ordinalPeriod(settings.period)]
+          .filter(Boolean)
+          .join(" · ") || "—",
+    },
+    { label: "Tax", value: settings.tax ? "With" : "Without", off: !settings.tax },
+    { label: "SSS", value: MODE_LABEL[settings.sss], off: settings.sss === "none" },
+    {
+      label: "PHIC",
+      value: MODE_LABEL[settings.philhealth],
+      off: settings.philhealth === "none",
+    },
+    {
+      label: "HDMF",
+      value: MODE_LABEL[settings.pagibig],
+      off: settings.pagibig === "none",
+    },
+    { label: "Loans", value: settings.loans ? "Deducted" : "Not deducted", off: !settings.loans },
+  ];
+
+  return (
+    <dl className="flex flex-wrap gap-x-8 gap-y-3 rounded-lg border bg-card px-4 py-3">
+      {items.map((item) => (
+        <div key={item.label} className="min-w-0">
+          <dt className="text-xs text-muted-foreground">{item.label}</dt>
+          <dd
+            className={cn(
+              "text-sm font-medium text-foreground",
+              item.off && "text-muted-foreground/60",
+            )}
+          >
+            {item.value}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
 
 /** Zeros are dimmed so the figures that matter stand out. */
 function Amount({ value }: { value: number }) {
@@ -221,6 +282,8 @@ export function PayrollRegister({ code }: { code: string }) {
           )}
         </div>
       </div>
+
+      {detail.data?.settings && <RunSettings settings={detail.data.settings} />}
 
       <CardWithHeader
         title="Register"
