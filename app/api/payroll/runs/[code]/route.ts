@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { authorizeApiRequest } from "@/lib/auth/authorization";
 import { RUN_POSTED } from "@/lib/services/payroll/post";
+import { contributionModeFromFlag } from "@/lib/services/payroll/statutory";
 
 /**
  * GET /api/payroll/runs/[code] — a run header plus its computed payslips.
@@ -23,6 +24,13 @@ export async function GET(
     if (!header) {
       return NextResponse.json({ message: "Payroll run not found" }, { status: 404 });
     }
+
+    const payType = header.pyh_type
+      ? await prisma.paytypes.findUnique({
+          where: { pyt_code: header.pyh_type },
+          select: { pyt_desc: true },
+        })
+      : null;
 
     const details = await prisma.pay_details.findMany({
       where: { pyd_code: code },
@@ -111,6 +119,20 @@ export async function GET(
         status: header.pyh_status,
         postedBy: header.pyh_postedby,
         postedDate: header.pyh_posteddate ? header.pyh_posteddate.toISOString() : null,
+      },
+      // Read the flags exactly as the compute step does (post.ts), so the strip
+      // shows what the figures were actually generated with.
+      settings: {
+        type: header.pyh_type,
+        typeDescription: payType?.pyt_desc ?? null,
+        month: header.pyh_month,
+        year: header.pyh_year,
+        period: header.pyh_per,
+        tax: header.pyh_tax !== "0",
+        loans: header.pyh_loan !== "0",
+        sss: contributionModeFromFlag(header.pyh_sss),
+        philhealth: contributionModeFromFlag(header.pyh_phl),
+        pagibig: contributionModeFromFlag(header.pyh_pag),
       },
       slips,
       totals: {
