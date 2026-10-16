@@ -96,7 +96,7 @@ importers:
         specifier: ^0.563.0
         version: 0.563.0(react@19.2.3)
       mariadb:
-        specifier: ^3.4.5
+        specifier: 3.4.5
         version: 3.4.5
       next:
         specifier: 16.1.5

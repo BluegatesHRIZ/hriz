@@ -6,7 +6,8 @@
  * provides a direct `callProc` helper that properly handles multiple result
  * sets returned by MariaDB stored procedures.
  */
-import mariadb from "mariadb";
+// Namespace import: mariadb 3.5.1/3.5.2 ship as ESM with no default export.
+import * as mariadb from "mariadb";
 
 function getConnectionConfig() {
   // @ts-ignore - Cloudflare runtime types
