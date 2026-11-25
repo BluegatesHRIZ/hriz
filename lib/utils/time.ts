@@ -77,6 +77,47 @@ export function formatTimeForDatabase(timeStr: string): string {
 }
 
 /**
+ * Timezone the business runs in. The stored procedures relied on the MySQL
+ * server clock (CURDATE()/CURTIME()), which was Philippine time. The Node
+ * server's own timezone is not reliable: it is UTC on Cloudflare Workers and
+ * whatever the machine is set to in local dev.
+ */
+export const APP_TIMEZONE = process.env.APP_TIMEZONE || "Asia/Manila"
+
+/**
+ * Current wall-clock date and time in APP_TIMEZONE, returned as a Date whose
+ * UTC components hold that wall clock (e.g. 09:15 in Manila -> getUTCHours()
+ * is 9). This is the same convention Prisma uses for MySQL DATE, TIME and
+ * DATETIME columns, so read it with getUTC*() and store it as is.
+ *
+ * Equivalent of concat(CURDATE(), ' ', CURTIME()) in the stored procedures.
+ */
+export function getAppWallClock(instant: Date = new Date()): Date {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: APP_TIMEZONE,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(instant)
+  const part = (type: Intl.DateTimeFormatPartTypes): number =>
+    Number(parts.find((p) => p.type === type)?.value ?? 0)
+  return new Date(
+    Date.UTC(
+      part("year"),
+      part("month") - 1,
+      part("day"),
+      part("hour"),
+      part("minute"),
+      part("second")
+    )
+  )
+}
+
+/**
  * Get current time in HH:mm:ss format for attendance/biolog
  * Uses local time since this is for recording actual clock times
  */

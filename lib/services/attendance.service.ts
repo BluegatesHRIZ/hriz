@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { randomUUID } from "crypto";
+import { getAppWallClock } from "@/lib/utils/time";
 
 /** Output row for GET /api/biolog (get_attendance). */
 export type BioGridRow = {
@@ -88,22 +89,27 @@ function isAfterDay(a: Date, b: Date): boolean {
   return dateOnly(a).getTime() > dateOnly(b).getTime();
 }
 
-/** CURTIME() as time-only Date (1970-01-01 HH:mm:ss) for comparison. */
-function getCurrentTimeDate(now: Date): Date {
-  return new Date(1970, 0, 1, now.getHours(), now.getMinutes(), now.getSeconds());
+/*
+ * Every Date in this file holds a wall-clock value in its UTC components
+ * (that is how Prisma maps MySQL DATE, TIME and DATETIME). Always read and
+ * build them with the UTC methods; the local ones (getHours, new Date(y, m, d))
+ * shift the value by the server's timezone offset.
+ */
+
+/** Extract time part as a time-only Date (1970-01-01 HH:mm:ss). */
+function timeOnly(d: Date): Date {
+  return new Date(Date.UTC(1970, 0, 1, d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds()));
 }
 
-/** Extract time part as Date(1970,0,1,h,m,s). */
-function timeOnly(d: Date): Date {
-  return new Date(1970, 0, 1, d.getHours(), d.getMinutes(), d.getSeconds());
+/** Seconds since midnight of the time part. */
+function timeSeconds(d: Date): number {
+  return d.getUTCHours() * 3600 + d.getUTCMinutes() * 60 + d.getUTCSeconds();
 }
 
 /** True if time t is >= start and <= end (time parts only). */
 function timeInRange(t: Date, start: Date, end: Date): boolean {
-  const tm = t.getHours() * 3600 + t.getMinutes() * 60 + t.getSeconds();
-  const sm = start.getHours() * 3600 + start.getMinutes() * 60 + start.getSeconds();
-  const em = end.getHours() * 3600 + end.getMinutes() * 60 + end.getSeconds();
-  return tm >= sm && tm <= em;
+  const tm = timeSeconds(t);
+  return tm >= timeSeconds(start) && tm <= timeSeconds(end);
 }
 
 /**
@@ -171,7 +177,7 @@ async function ensureAttendanceForDate(biodate: Date): Promise<void> {
     // att_schhrs = cast(floor(sch_hrs):(mod*60) as time) in SP
     const attSchhrs =
       schHrs != null
-        ? new Date(1970, 0, 1, Math.floor(schHrs), Math.round((schHrs % 1) * 60), 0)
+        ? new Date(Date.UTC(1970, 0, 1, Math.floor(schHrs), Math.round((schHrs % 1) * 60), 0))
         : undefined;
     // att_schbreak = timediff(sch_bout, sch_bin) in SP
     const attSchbreak =
@@ -180,10 +186,10 @@ async function ensureAttendanceForDate(biodate: Date): Promise<void> {
             new Date(schedule.sch_bout).getTime() - new Date(schedule.sch_bin).getTime()
           )
         : undefined;
-    const attSchin = schIn ? new Date(biodate.getFullYear(), biodate.getMonth(), biodate.getDate(), new Date(schIn).getUTCHours(), new Date(schIn).getUTCMinutes()) : null;
-    const attSchout = schOut ? new Date(biodate.getFullYear(), biodate.getMonth(), biodate.getDate(), new Date(schOut).getUTCHours(), new Date(schOut).getUTCMinutes()) : null;
-    const attSchbin = schBin ? new Date(biodate.getFullYear(), biodate.getMonth(), biodate.getDate(), new Date(schBin).getUTCHours(), new Date(schBin).getUTCMinutes()) : null;
-    const attSchbout = schBout ? new Date(biodate.getFullYear(), biodate.getMonth(), biodate.getDate(), new Date(schBout).getUTCHours(), new Date(schBout).getUTCMinutes()) : null;
+    const attSchin = schIn ? new Date(Date.UTC(biodate.getUTCFullYear(), biodate.getUTCMonth(), biodate.getUTCDate(), new Date(schIn).getUTCHours(), new Date(schIn).getUTCMinutes())) : null;
+    const attSchout = schOut ? new Date(Date.UTC(biodate.getUTCFullYear(), biodate.getUTCMonth(), biodate.getUTCDate(), new Date(schOut).getUTCHours(), new Date(schOut).getUTCMinutes())) : null;
+    const attSchbin = schBin ? new Date(Date.UTC(biodate.getUTCFullYear(), biodate.getUTCMonth(), biodate.getUTCDate(), new Date(schBin).getUTCHours(), new Date(schBin).getUTCMinutes())) : null;
+    const attSchbout = schBout ? new Date(Date.UTC(biodate.getUTCFullYear(), biodate.getUTCMonth(), biodate.getUTCDate(), new Date(schBout).getUTCHours(), new Date(schBout).getUTCMinutes())) : null;
     await prisma.attendance.create({
       data: {
         att_date: biodate,
@@ -247,7 +253,7 @@ async function ensureAttendanceRowForPunch(biodate: Date, empId: string): Promis
   const schRest = schedule?.sch_rest;
   const attSchhrs =
     schHrs != null
-      ? new Date(1970, 0, 1, Math.floor(schHrs), Math.round((schHrs % 1) * 60), 0)
+      ? new Date(Date.UTC(1970, 0, 1, Math.floor(schHrs), Math.round((schHrs % 1) * 60), 0))
       : undefined;
   const attSchbreak =
     schedule?.sch_bout && schedule?.sch_bin
@@ -282,7 +288,8 @@ async function ensureAttendanceRowForPunch(biodate: Date, empId: string): Promis
 /**
  * Attendance/biolog service (Prisma-based).
  * Exact line-by-line conversion of InsertUserAttendance (sql/stored_proc.sql).
- * SP uses CURDATE()/CURTIME() (server time) - we use server Date() for consistency.
+ * SP uses CURDATE()/CURTIME() (MySQL server time, i.e. Philippine time) - we read the
+ * same wall clock with getAppWallClock() so the result does not depend on the Node server's timezone.
  * Bio_id uses UUID instead of counter-based ID from SP.
  */
 export async function insertUserAttendance(params: {
@@ -303,9 +310,9 @@ export async function insertUserAttendance(params: {
   const bio_id = randomUUID();
 
   // SP: CALL make_daily(curdate());
-  const now = new Date(); // Server CURDATE()/CURTIME()
+  const now = getAppWallClock(); // concat(CURDATE(),' ',CURTIME()) in APP_TIMEZONE
   const curdate = dateOnly(now); // CURDATE()
-  const curtime = getCurrentTimeDate(now); // CURTIME() as time-only Date
+  const curtime = timeOnly(now); // CURTIME() as time-only Date
   await makeDaily(curdate);
 
   // SP: SET _counter = (SELECT COUNT(`bio_emp`) FROM `biologs` WHERE `bio_emp` = _bio_emp and `bio_date`= date(now())) + 1;
@@ -322,7 +329,7 @@ export async function insertUserAttendance(params: {
 
   // SP: SELECT subtime(concat(CURDATE(),' ',time(sch_in)),_minin),concat(CURDATE(),' ',CURTIME()) INTO _in,_now
   // SP: FROM schedule WHERE sch_emp = _bio_emp AND sch_day = DAYNAME(CURDATE());
-  const dayName = now.toLocaleDateString("en-US", { weekday: "long" }).toUpperCase(); // DAYNAME(CURDATE())
+  const dayName = now.toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" }).toUpperCase(); // DAYNAME(CURDATE())
   const schedule = await prisma.schedule.findFirst({
     where: { sch_emp: params.bioEmp, sch_day: dayName },
     select: { sch_in: true },
@@ -347,10 +354,9 @@ export async function insertUserAttendance(params: {
   // SP: SET _maxin = ADDTIME(time(_in),time(_gp));
   let _maxin: Date | null = null;
   if (_in && _gp) {
-    const inTime = timeOnly(_in);
-    const inMin = inTime.getHours() * 60 + inTime.getMinutes() + inTime.getSeconds() / 60;
-    const gpMin = _gp.getUTCHours() * 60 + _gp.getUTCMinutes() + _gp.getUTCSeconds() / 60;
-    _maxin = new Date(1970, 0, 1, 0, Math.round(inMin + gpMin), 0);
+    const inMin = timeSeconds(_in) / 60;
+    const gpMin = timeSeconds(_gp) / 60;
+    _maxin = new Date(Date.UTC(1970, 0, 1, 0, Math.round(inMin + gpMin), 0));
   }
 
   // SP: IF _bio_type = "I" THEN ... ELSEIF "O" ... ELSEIF "BO" ... ELSEIF "BI" ...
@@ -447,6 +453,10 @@ export async function insertUserAttendance(params: {
       bio_date: normalizedFinalDate,
       bio_type: params.bioType,
       bio_time: finalTime,
+      // Column default is CURRENT_TIMESTAMP (Philippine time on the DB server), but Prisma's
+      // @default(now()) would send a UTC value instead. The biologs_AFTER_INSERT trigger copies
+      // bio_logdate into attendance.att_bioin/att_bioout, so it must be the real wall clock.
+      bio_logdate: now,
       bio_ip: params.ipAddress,
       bio_loc: params.location,
       bio_local: params.local || "L1",
@@ -474,7 +484,7 @@ export async function insertUserAttendance(params: {
 
   // SP: CASE WHEN _bio_type = "I" THEN UPDATE attendance SET ...
   // Use UTC to ensure correct date/time representation (normalizedFinalDate is defined above)
-  const finalDateTime = new Date(Date.UTC(normalizedFinalDate.getUTCFullYear(), normalizedFinalDate.getUTCMonth(), normalizedFinalDate.getUTCDate(), finalTime.getHours(), finalTime.getMinutes(), finalTime.getSeconds()));
+  const finalDateTime = new Date(Date.UTC(normalizedFinalDate.getUTCFullYear(), normalizedFinalDate.getUTCMonth(), normalizedFinalDate.getUTCDate(), finalTime.getUTCHours(), finalTime.getUTCMinutes(), finalTime.getUTCSeconds()));
 
   // Ensure attendance row exists (SP assumes make_daily created it)
   await ensureAttendanceRowForPunch(normalizedFinalDate, params.bioEmp);
@@ -537,7 +547,7 @@ export async function insertUserAttendance(params: {
  * No raw SQL: fetches attendance, holiday, leave, COA, undertime via Prisma and computes msg/filed in JS.
  */
 export async function getAttendance(empId: string): Promise<BioGridRow[]> {
-  const today = dateOnly(new Date());
+  const today = dateOnly(getAppWallClock());
   const todayTime = today.getTime();
   const dayOfMonth = today.getUTCDate();
   const isFirstHalf = dayOfMonth <= 15;
@@ -774,7 +784,7 @@ export async function getAttendance(empId: string): Promise<BioGridRow[]> {
  * Returns attendance for team members based on employee type and supervisor hierarchy.
  */
 export async function getTeamAttendance(empId: string): Promise<TeamGridRow[]> {
-  const today = dateOnly(new Date());
+  const today = dateOnly(getAppWallClock());
   const todayTime = today.getTime();
 
   // Get employee info: emp_type, emp_supervisor, emp_dept, emp_loc
@@ -1307,7 +1317,7 @@ function buildRow(
     ? formatTimeAmPm(coa_out)
     : formatTimeAmPm(att.att_bioout);
   const mid = midTime(sch_in, sch_out);
-  const now = new Date();
+  const now = getAppWallClock(); // SP now(), compared against wall-clock att_schin
   const isPrevCutoff = currentCutoff === 0;
   const isTodayOrAfter = isPrevCutoff
     ? !isBeforeDay(attDate, today)
