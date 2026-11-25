@@ -5,7 +5,7 @@ import { timeStringToDate } from "@/lib/services/schedule.service";
 
 /**
  * A single day of a saved schedule template. Same shape the frontend day editor
- * uses, so a template's days can be fed straight into `bulkApplySchedule`.
+ * uses. Manage Schedules fills a date range from a template by weekday.
  */
 export interface TemplateDay {
   sch_day: string;

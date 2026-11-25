@@ -2,41 +2,33 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { authorizeApiRequest } from "@/lib/auth/authorization";
 import { parsePagination, paginate } from "@/lib/pagination";
+import { getDatedSchedules } from "@/lib/services/dated-schedule.service";
 import { formatTimeForInput } from "@/lib/utils/time";
+import {
+  MAX_SCHEDULE_RANGE_DAYS,
+  isIsoDate,
+  rangeLength,
+} from "@/lib/utils/scheduleDates";
+import type {
+  DatedScheduleEntry,
+  EmployeeDatedScheduleRow,
+  WeeklyScheduleDay,
+} from "@/lib/types";
 
 /**
- * GET /api/schedules
+ * GET /api/schedules[?from=YYYY-MM-DD&to=YYYY-MM-DD]
  *
- * Backing list for the Schedule Management module. Returns active employees
- * (paginated) plus each employee's current weekly schedule, filterable by
- * department, location, and a free-text search over id/name.
+ * Backing list for Manage Schedules. Returns active employees (paginated) plus,
+ * when a range is given, each employee's dated entries between `from` and `to`:
+ * the ones set here and their own approved schedule change requests. Without a
+ * range `days` is empty. `weekly` is the employee's weekly schedule, which
+ * attendance uses on dates with no entry. Filterable by department,
+ * location, and a free-text search over id/name.
  *
  * `?idsOnly=1` returns just `{ ids: [...] }` for every employee matching the
- * current filters (no pagination) — this powers the "Select all N matching"
- * button without pulling every employee's full schedule.
+ * current filters (no pagination). This powers the "Select all N matching"
+ * button without pulling every employee's schedule.
  */
-const DAY_ORDER = [
-  "MONDAY",
-  "TUESDAY",
-  "WEDNESDAY",
-  "THURSDAY",
-  "FRIDAY",
-  "SATURDAY",
-  "SUNDAY",
-];
-
-export interface ScheduleDayForm {
-  sch_day: string;
-  sch_in: string;
-  sch_out: string;
-  sch_bin: string;
-  sch_bout: string;
-  sch_hrs: number;
-  sch_rest: boolean;
-  sch_shift: string;
-  have_break: boolean;
-}
-
 function buildWhere(searchParams: URLSearchParams) {
   const search = (searchParams.get("search") ?? "").trim();
   const dept = (searchParams.get("dept") ?? "").trim();
@@ -73,6 +65,27 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ ids: rows.map((r) => r.emp_id) });
     }
 
+    const from = searchParams.get("from");
+    const to = searchParams.get("to");
+    const hasRange = from !== null || to !== null;
+    if (hasRange && (!isIsoDate(from) || !isIsoDate(to))) {
+      return NextResponse.json(
+        { message: "Pick a date range." },
+        { status: 400 }
+      );
+    }
+    if (
+      isIsoDate(from) &&
+      isIsoDate(to) &&
+      (rangeLength(from, to) === 0 ||
+        rangeLength(from, to) > MAX_SCHEDULE_RANGE_DAYS)
+    ) {
+      return NextResponse.json(
+        { message: `Pick a range of 1 to ${MAX_SCHEDULE_RANGE_DAYS} days.` },
+        { status: 400 }
+      );
+    }
+
     const { page, limit, skip, take } = parsePagination(searchParams);
     const [total, employees] = await Promise.all([
       prisma.employee.count({ where }),
@@ -93,10 +106,10 @@ export async function GET(request: NextRequest) {
     ]);
 
     const empIds = employees.map((e) => e.emp_id);
-
-    // Single query for all schedules on this page (uses idx_schedule_emp),
-    // grouped in memory — avoids an N+1 per-employee fetch.
-    const [schedules, departments, locations] = await Promise.all([
+    const [datedByEmp, weeklyRows, departments, locations] = await Promise.all([
+      isIsoDate(from) && isIsoDate(to)
+        ? getDatedSchedules(empIds, from, to)
+        : Promise.resolve(new Map<string, DatedScheduleEntry[]>()),
       empIds.length
         ? prisma.schedule.findMany({ where: { sch_emp: { in: empIds } } })
         : Promise.resolve([]),
@@ -107,30 +120,25 @@ export async function GET(request: NextRequest) {
     const depMap = new Map(departments.map((d) => [d.dep_id, d.dep_desc]));
     const locMap = new Map(locations.map((l) => [l.loc_id, l.loc_desc]));
 
-    const schedByEmp = new Map<string, ScheduleDayForm[]>();
-    for (const s of schedules) {
-      if (!s.sch_emp) continue;
-      const list = schedByEmp.get(s.sch_emp) ?? [];
+    const weeklyByEmp = new Map<string, WeeklyScheduleDay[]>();
+    for (const s of weeklyRows) {
+      if (!s.sch_emp || !s.sch_day) continue;
+      const rest = s.sch_rest === 1;
+      const list = weeklyByEmp.get(s.sch_emp) ?? [];
       list.push({
-        sch_day: s.sch_day ?? "",
+        sch_day: s.sch_day.toUpperCase(),
         sch_in: formatTimeForInput(s.sch_in) ?? "",
         sch_out: formatTimeForInput(s.sch_out) ?? "",
         sch_bin: formatTimeForInput(s.sch_bin) ?? "",
         sch_bout: formatTimeForInput(s.sch_bout) ?? "",
-        sch_hrs: s.sch_hrs ?? 0,
-        sch_rest: s.sch_rest === 1,
+        sch_rest: rest,
         sch_shift: s.sch_shift ?? "R",
-        have_break: s.sch_break === 1,
+        have_break: !rest && s.sch_break === 1,
       });
-      schedByEmp.set(s.sch_emp, list);
+      weeklyByEmp.set(s.sch_emp, list);
     }
 
-    const dayRank = (d: string) => {
-      const i = DAY_ORDER.indexOf(d.toUpperCase());
-      return i === -1 ? 99 : i;
-    };
-
-    const data = employees.map((e) => ({
+    const data: EmployeeDatedScheduleRow[] = employees.map((e) => ({
       emp_id: e.emp_id,
       emp_name: [e.emp_last, e.emp_first, e.emp_mid]
         .filter(Boolean)
@@ -139,9 +147,8 @@ export async function GET(request: NextRequest) {
       emp_dept_desc: e.emp_dept ? depMap.get(e.emp_dept) ?? null : null,
       emp_loc: e.emp_loc,
       emp_loc_desc: e.emp_loc ? locMap.get(e.emp_loc) ?? null : null,
-      days: (schedByEmp.get(e.emp_id) ?? []).sort(
-        (a, b) => dayRank(a.sch_day) - dayRank(b.sch_day)
-      ),
+      days: datedByEmp.get(e.emp_id) ?? [],
+      weekly: weeklyByEmp.get(e.emp_id) ?? [],
     }));
 
     return NextResponse.json(paginate(data, total, page, limit));

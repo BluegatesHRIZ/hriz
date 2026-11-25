@@ -106,37 +106,3 @@ export async function saveEmployeeScheduleBatch(
   ]);
   return rows.length;
 }
-
-const BULK_CHUNK_SIZE = 200;
-
-/**
- * Apply the same weekly schedule (`days`) to many employees at once.
- *
- * Employees are processed in chunks; each chunk is one
- * `deleteMany({ sch_id IN [...] })` + one `createMany([...])` inside a
- * transaction. This turns e.g. 1,000 employees × 7 days into a handful of
- * round-trips instead of thousands of sequential queries. Replaces each
- * target employee's full weekly template (insert-only semantics). Returns the
- * number of employees updated.
- */
-export async function bulkApplySchedule(
-  empIds: string[],
-  days: ScheduleForm[]
-): Promise<number> {
-  const uniqueEmpIds = Array.from(new Set(empIds.filter(Boolean)));
-  if (!uniqueEmpIds.length || !days.length) return 0;
-
-  for (let i = 0; i < uniqueEmpIds.length; i += BULK_CHUNK_SIZE) {
-    const chunk = uniqueEmpIds.slice(i, i + BULK_CHUNK_SIZE);
-    const rows = chunk.flatMap((empId) =>
-      days.map((d) => buildScheduleRow(d, empId))
-    );
-    const ids = rows.map((r) => r.sch_id);
-    await prisma.$transaction([
-      prisma.schedule.deleteMany({ where: { sch_id: { in: ids } } }),
-      prisma.schedule.createMany({ data: rows }),
-    ]);
-  }
-
-  return uniqueEmpIds.length;
-}

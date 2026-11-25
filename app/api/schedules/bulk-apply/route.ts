@@ -1,57 +1,74 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeApiRequest } from "@/lib/auth/authorization";
 import {
-  bulkApplySchedule,
-  ScheduleForm,
-} from "@/lib/services/schedule.service";
+  parseDatedDays,
+  saveDatedSchedules,
+} from "@/lib/services/dated-schedule.service";
+import type {
+  DatedScheduleBulkRequest,
+  DatedScheduleSaveResponse,
+} from "@/lib/types";
+
+const MAX_EMPLOYEES = 2000;
 
 /**
  * POST /api/schedules/bulk-apply
  *
- * Applies one weekly schedule (`days`) to many employees at once. Replaces each
- * target employee's full weekly template. Body:
- *   { empIds: string[], days: Omit<ScheduleForm, "sch_emp">[] }
+ * Sets the same dated schedule for many employees. Each date replaces the
+ * employee's earlier Manage Schedules entry for that date; dates covered by the
+ * employee's own approved schedule change request are skipped.
  */
 export async function POST(request: NextRequest) {
   const auth = await authorizeApiRequest(request, "apiScheduleManagement");
   if (!auth.ok) return auth.response;
 
   try {
-    const body = (await request.json()) as {
-      empIds?: unknown;
-      days?: unknown;
-    };
+    const body = (await request.json()) as Partial<DatedScheduleBulkRequest>;
 
     const empIds = Array.isArray(body.empIds)
-      ? (body.empIds.filter((x) => typeof x === "string") as string[])
+      ? body.empIds.filter((x): x is string => typeof x === "string" && !!x)
       : [];
-    const days = Array.isArray(body.days)
-      ? (body.days as Omit<ScheduleForm, "sch_emp">[])
-      : [];
-
     if (!empIds.length) {
       return NextResponse.json(
         { message: "Select at least one employee." },
         { status: 400 }
       );
     }
-    if (!days.length) {
+    if (empIds.length > MAX_EMPLOYEES) {
       return NextResponse.json(
-        { message: "Provide a schedule to apply." },
+        { message: `Apply to ${MAX_EMPLOYEES} employees or fewer at a time.` },
         { status: 400 }
       );
     }
 
-    // sch_emp is set per-employee inside the service.
-    const withEmp = days.map((d) => ({ ...d, sch_emp: "" })) as ScheduleForm[];
-    const count = await bulkApplySchedule(empIds, withEmp);
+    const parsed = parseDatedDays(body.days);
+    if (!parsed.ok) {
+      return NextResponse.json({ message: parsed.message }, { status: 400 });
+    }
+    if (!parsed.days.length) {
+      return NextResponse.json(
+        { message: "Pick at least one date." },
+        { status: 400 }
+      );
+    }
 
-    return NextResponse.json({
-      message: `Schedule applied to ${count} employee${count === 1 ? "" : "s"}.`,
-      count,
+    const result = await saveDatedSchedules({
+      empIds,
+      days: parsed.days,
+      adminId: auth.payload.name,
     });
+
+    const n = result.employees;
+    const skippedNote = result.skipped
+      ? ` ${result.skipped} date${result.skipped === 1 ? " was" : "s were"} skipped because the employee already has an approved schedule change for ${result.skipped === 1 ? "it" : "them"}.`
+      : "";
+    const response: DatedScheduleSaveResponse = {
+      message: `Schedule set for ${n} employee${n === 1 ? "" : "s"}.${skippedNote}`,
+      ...result,
+    };
+    return NextResponse.json(response);
   } catch (error) {
-    console.error("Bulk apply schedule error:", error);
+    console.error("Bulk apply dated schedule error:", error);
     return NextResponse.json(
       {
         message: "Internal server error",

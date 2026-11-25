@@ -2,23 +2,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { queryKeys } from "@/lib/hooks/queries";
 import type { Paginated } from "@/lib/pagination";
-import {
-  toScheduleForm,
-  type ScheduleDayValue,
-} from "@/components/schedules/scheduleDays";
-
-/** The API write shape for a set of days (times as HH:mm:00). */
-export type ScheduleFormDay = ReturnType<typeof toScheduleForm>[number];
-
-export interface EmployeeScheduleRow {
-  emp_id: string;
-  emp_name: string;
-  emp_dept: string | null;
-  emp_dept_desc: string | null;
-  emp_loc: string | null;
-  emp_loc_desc: string | null;
-  days: ScheduleDayValue[];
-}
+import type {
+  DatedScheduleBulkRequest,
+  DatedScheduleGridRequest,
+  DatedScheduleSaveResponse,
+  EmployeeDatedScheduleRow,
+} from "@/lib/types";
 
 export interface ScheduleListFilters {
   page?: number;
@@ -28,45 +17,63 @@ export interface ScheduleListFilters {
   loc?: string;
 }
 
+export interface ScheduleRange {
+  from: string;
+  to: string;
+}
+
 function authHeaders() {
   const token = localStorage.getItem("auth_token");
   if (!token) throw new ApiError("No token found", 401);
   return { Authorization: `Bearer ${token}` };
 }
 
-function buildQuery(filters: ScheduleListFilters): string {
+function filterParams(
+  filters: Omit<ScheduleListFilters, "page" | "limit">
+): URLSearchParams {
   const params = new URLSearchParams();
-  params.set("page", String(filters.page ?? 1));
-  params.set("limit", String(filters.limit ?? 10));
   if (filters.search) params.set("search", filters.search);
   if (filters.dept) params.set("dept", filters.dept);
   if (filters.loc) params.set("loc", filters.loc);
-  return params.toString();
+  return params;
 }
 
-/** Paginated employees + their current weekly schedule, with filters. */
-export function useSchedulesList(filters: ScheduleListFilters) {
-  return useQuery<Paginated<EmployeeScheduleRow>, ApiError>({
-    queryKey: queryKeys.schedules.list(filters as Record<string, unknown>),
+/**
+ * Paginated employees, with their dated schedule entries in `range` when one
+ * is given (otherwise `days` is empty).
+ */
+export function useSchedulesList(
+  filters: ScheduleListFilters,
+  range?: ScheduleRange
+) {
+  const params = filterParams(filters);
+  params.set("page", String(filters.page ?? 1));
+  params.set("limit", String(filters.limit ?? 10));
+  if (range) {
+    params.set("from", range.from);
+    params.set("to", range.to);
+  }
+
+  return useQuery<Paginated<EmployeeDatedScheduleRow>, ApiError>({
+    queryKey: queryKeys.schedules.list({ ...filters, ...range }),
     queryFn: () =>
-      apiFetch<Paginated<EmployeeScheduleRow>>(
-        `/schedules?${buildQuery(filters)}`,
+      apiFetch<Paginated<EmployeeDatedScheduleRow>>(
+        `/schedules?${params.toString()}`,
         { headers: authHeaders() }
       ),
+    enabled: !range || (!!range.from && !!range.to && range.from <= range.to),
   });
 }
 
 /**
  * Fetch every employee id matching the current filters (no pagination),
- * for the "Select all N matching" action. Not auto-run — call `refetch`.
+ * for the "Select all N matching" action. Not auto-run: call `refetch`.
  */
 export function useMatchingEmployeeIds(
   filters: Omit<ScheduleListFilters, "page" | "limit">
 ) {
-  const params = new URLSearchParams({ idsOnly: "1" });
-  if (filters.search) params.set("search", filters.search);
-  if (filters.dept) params.set("dept", filters.dept);
-  if (filters.loc) params.set("loc", filters.loc);
+  const params = filterParams(filters);
+  params.set("idsOnly", "1");
 
   return useQuery<{ ids: string[] }, ApiError>({
     queryKey: [...queryKeys.schedules.all, "ids", filters],
@@ -78,16 +85,16 @@ export function useMatchingEmployeeIds(
   });
 }
 
-/** Apply one weekly schedule to many employees at once. */
+/** Set the same dated schedule for many employees at once. */
 export function useBulkApplySchedule() {
   const qc = useQueryClient();
   return useMutation<
-    { message: string; count: number },
+    DatedScheduleSaveResponse,
     ApiError,
-    { empIds: string[]; days: ScheduleFormDay[] }
+    DatedScheduleBulkRequest
   >({
     mutationFn: (body) =>
-      apiFetch("/schedules/bulk-apply", {
+      apiFetch<DatedScheduleSaveResponse>("/schedules/bulk-apply", {
         method: "POST",
         headers: authHeaders(),
         body: JSON.stringify(body),
@@ -98,21 +105,16 @@ export function useBulkApplySchedule() {
   });
 }
 
-/** Save per-employee edits from the grid view. */
+/** Save one employee's dates from the grid view. */
 export function useSaveScheduleGrid() {
   const qc = useQueryClient();
   return useMutation<
-    { message: string; count: number },
+    DatedScheduleSaveResponse,
     ApiError,
-    {
-      employees: Array<{
-        empId: string;
-        days: ScheduleFormDay[];
-      }>;
-    }
+    DatedScheduleGridRequest
   >({
     mutationFn: (body) =>
-      apiFetch("/schedules/grid", {
+      apiFetch<DatedScheduleSaveResponse>("/schedules/grid", {
         method: "PUT",
         headers: authHeaders(),
         body: JSON.stringify(body),
