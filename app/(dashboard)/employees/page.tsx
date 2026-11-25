@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic"
 
-import { useEffect, useRef, useState } from "react"
+import { Suspense, useEffect, useRef, useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/lib/auth/context"
 import { useEmployees, useManageEmployeeStatus } from "@/lib/hooks/useEmployees"
@@ -48,7 +48,16 @@ import {
 /** Radix Select forbids an empty item value, so "all" stands in for no filter. */
 const ALL = "all"
 
+// useSearchParams needs a Suspense boundary, or `next build` fails to prerender /employees.
 export default function EmployeesPage() {
+  return (
+    <Suspense fallback={null}>
+      <EmployeesPageContent />
+    </Suspense>
+  )
+}
+
+function EmployeesPageContent() {
   const router = useRouter()
   const pathname = usePathname()
   const params = useSearchParams()
