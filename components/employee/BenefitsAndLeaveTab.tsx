@@ -5,6 +5,7 @@ import { EmployeeDetail, useSaveBenefitsAndLeaves } from "@/lib/hooks/useEmploye
 import { useLeaveTypes } from "@/lib/hooks/useLeaveTypes"
 import { useComded } from "@/lib/hooks/useComded"
 import { Input } from "@/components/ui/input"
+import { MoneyInput } from "@/components/ui/money-input"
 import { Label } from "@/components/ui/label"
 import {
   Select,
@@ -271,16 +272,9 @@ export function BenefitsAndLeaveTab({
                   />
                 </div>
                 <div className="col-span-2">
-                  <Input
-                    type="number"
+                  <MoneyInput
                     value={benefit.EmbAmt}
-                    onChange={(e) =>
-                      updateBenefit(index, "EmbAmt", parseFloat(e.target.value) || 0)
-                    }
-                    step="0.01"
-                    min="0"
-                    className="text-right"
-                    placeholder="0.00"
+                    onValueChange={(n) => updateBenefit(index, "EmbAmt", n)}
                   />
                 </div>
                 <div className="col-span-2 flex gap-2">

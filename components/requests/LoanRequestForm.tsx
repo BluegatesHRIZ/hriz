@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { MoneyInput } from "@/components/ui/money-input";
 import { useToast } from "@/lib/hooks/use-toast";
 
 const loanSchema = z.object({
@@ -108,13 +109,10 @@ export function LoanRequestForm({ loanId, onSuccess }: LoanRequestFormProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Loan Amount</Label>
-              <Input
-                type="number"
-                min={0}
-                step="0.01"
+              <MoneyInput
                 value={form.watch("LoaAmt")}
-                onChange={(e) =>
-                  form.setValue("LoaAmt", Number(e.target.value), {
+                onValueChange={(n) =>
+                  form.setValue("LoaAmt", n, {
                     shouldDirty: true,
                     shouldValidate: true,
                   })

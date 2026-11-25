@@ -6,6 +6,7 @@ import { Check, Pencil, Plus, Trash2, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { MoneyInput } from "@/components/ui/money-input";
 import {
   Dialog,
   DialogContent,
@@ -318,16 +319,11 @@ function PayslipDetailBody({
                           />
 
                           <div className="flex items-center gap-2">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              className="flex-1 text-right tabular-nums"
+                            <MoneyInput
+                              containerClassName="flex-1"
                               value={r.amount}
                               disabled={posted}
-                              onChange={(e) =>
-                                update(r.id, { amount: Number(e.target.value) })
-                              }
+                              onValueChange={(n) => update(r.id, { amount: n })}
                             />
                             <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
                               <Checkbox
