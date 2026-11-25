@@ -68,11 +68,29 @@ export interface DeviceListCounts {
   all: number;
 }
 
+/** One limit from Settings and how much of it is used. */
+export interface DeviceLimitUsage {
+  /** Most authorized at once; null when there is no limit (a negative setting). */
+  limit: number | null;
+  /** How many are authorized now. */
+  authorized: number;
+  /** True when no more can be authorized. */
+  full: boolean;
+}
+
+export interface DeviceLimits {
+  /** "Number of Terminals": ter_type 0, which includes browsers registered from the sign-in page. */
+  terminal: DeviceLimitUsage;
+  /** "Number of Devices": ter_type 1, biometric devices. */
+  device: DeviceLimitUsage;
+}
+
 /** GET /api/admin/devices: one page of devices plus the count behind each tab. */
 export interface DeviceListResponse {
   data: DeviceDTO[];
   meta: { total: number; page: number; limit: number; pageCount: number; hasMore: boolean };
   counts: DeviceListCounts;
+  limits: DeviceLimits;
 }
 
 /** A `terminal` row as the Register Device page sees it. */

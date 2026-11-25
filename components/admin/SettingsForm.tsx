@@ -264,10 +264,20 @@ export function SettingsForm() {
               <Input type="number" value={numUsers} onChange={(e) => setNumUsers(e.target.value === "" ? "" : Number(e.target.value))} className="w-36" />
             </FieldRow>
             <FieldRow label="Number of Terminals">
-              <Input type="number" value={numTerminals} onChange={(e) => setNumTerminals(e.target.value === "" ? "" : Number(e.target.value))} className="w-36" />
+              <div className="flex items-center gap-3">
+                <Input type="number" value={numTerminals} onChange={(e) => setNumTerminals(e.target.value === "" ? "" : Number(e.target.value))} className="w-36 shrink-0" />
+                <p className="text-sm text-muted-foreground">
+                  Most authorized terminals and registered browsers. -1 for no limit.
+                </p>
+              </div>
             </FieldRow>
             <FieldRow label="Number of Devices">
-              <Input type="number" value={numDevices} onChange={(e) => setNumDevices(e.target.value === "" ? "" : Number(e.target.value))} className="w-36" />
+              <div className="flex items-center gap-3">
+                <Input type="number" value={numDevices} onChange={(e) => setNumDevices(e.target.value === "" ? "" : Number(e.target.value))} className="w-36 shrink-0" />
+                <p className="text-sm text-muted-foreground">
+                  Most authorized biometric devices. -1 for no limit.
+                </p>
+              </div>
             </FieldRow>
 
             <p className="text-sm text-muted-foreground mb-5 mt-6 font-medium">Security</p>

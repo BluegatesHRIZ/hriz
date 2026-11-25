@@ -30,15 +30,18 @@ export async function PUT(
       ter_status?: number;
     };
 
-    // Enforce limits when authorizing (status → 1)
+    // Enforce the limit in Settings when authorizing (status 1)
     if (body.ter_status === 1) {
       const existing = await prisma.terminal.findUnique({
         where: { ter_code: id },
         select: { ter_type: true, ter_status: true },
       });
       if (existing && existing.ter_status !== 1 && (await isTerminalLimitReached(existing.ter_type))) {
+        const setting = existing.ter_type === 1 ? "Number of Devices" : "Number of Terminals";
         return NextResponse.json(
-          { message: existing.ter_type === 0 ? "Terminal limit reached." : "Device limit reached." },
+          {
+            message: `The limit in Settings (${setting}) is reached. Unauthorize or remove a device, or raise the limit, to approve this one.`,
+          },
           { status: 400 }
         );
       }
