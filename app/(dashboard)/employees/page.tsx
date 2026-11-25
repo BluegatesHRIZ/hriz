@@ -3,7 +3,7 @@
 export const dynamic = "force-dynamic"
 
 import { useEffect, useRef, useState } from "react"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/lib/auth/context"
 import { useEmployees, useManageEmployeeStatus } from "@/lib/hooks/useEmployees"
 import {
@@ -35,6 +35,7 @@ import {
 import Link from "next/link"
 import { Plus, Search } from "lucide-react"
 import { Pagination } from "@/components/ui/Pagination"
+import { EMPLOYEE_LIST_URL_KEY } from "@/lib/utils/employeeListUrl"
 import {
   Select,
   SelectContent,
@@ -48,17 +49,40 @@ const ALL = "all"
 
 export default function EmployeesPage() {
   const router = useRouter()
+  const pathname = usePathname()
+  const params = useSearchParams()
   const { isAuthenticated, isLoading: authLoading } = useAuth()
-  const [page, setPage] = useState(1)
+
+  // Filters live in the URL so they survive opening an employee and coming
+  // back, a refresh, and the browser Back button.
+  const [page, setPage] = useState(() => Math.max(1, Number(params.get("page")) || 1))
 
   // `searchInput` is what the user sees; `search` is the debounced value the
   // server actually queries on.
-  const [searchInput, setSearchInput] = useState("")
-  const [search, setSearch] = useState("")
-  const [dept, setDept] = useState(ALL)
-  const [loc, setLoc] = useState(ALL)
-  const [pos, setPos] = useState(ALL)
+  const [searchInput, setSearchInput] = useState(() => params.get("q") ?? "")
+  const [search, setSearch] = useState(() => params.get("q") ?? "")
+  const [dept, setDept] = useState(() => params.get("dept") ?? ALL)
+  const [loc, setLoc] = useState(() => params.get("loc") ?? ALL)
+  const [pos, setPos] = useState(() => params.get("pos") ?? ALL)
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    const qs = new URLSearchParams()
+    if (search) qs.set("q", search)
+    if (dept !== ALL) qs.set("dept", dept)
+    if (pos !== ALL) qs.set("pos", pos)
+    if (loc !== ALL) qs.set("loc", loc)
+    if (page > 1) qs.set("page", String(page))
+    const url = qs.size ? `${pathname}?${qs}` : pathname
+
+    router.replace(url, { scroll: false })
+    // Remembered so the employee page's back link returns to this view.
+    try {
+      sessionStorage.setItem(EMPLOYEE_LIST_URL_KEY, url)
+    } catch {
+      // Storage can be blocked; the back link then falls back to the bare list.
+    }
+  }, [router, pathname, search, dept, pos, loc, page])
 
   const { data: employeesPage, isLoading, error } = useEmployees({
     page,
