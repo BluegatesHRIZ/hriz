@@ -1,7 +1,12 @@
 const API_BASE = "/api";
 
 export class ApiError extends Error {
-  constructor(message: string, public readonly status?: number) {
+  constructor(
+    message: string,
+    public readonly status?: number,
+    /** Machine-readable reason, when the API sends one (e.g. "DEVICE_PENDING"). */
+    public readonly code?: string
+  ) {
     super(message);
     this.name = "ApiError";
     Object.setPrototypeOf(this, ApiError.prototype);
@@ -62,16 +67,18 @@ export async function apiFetch<T = unknown>(
 
   if (!response.ok) {
     let message = response.statusText || "Request failed";
+    let code: string | undefined;
     const contentType = response.headers.get("Content-Type");
     if (contentType?.includes("application/json")) {
       try {
-        const data = await response.json();
-        message = (data as { message?: string }).message ?? message;
+        const data = (await response.json()) as { message?: string; code?: unknown };
+        message = data.message ?? message;
+        if (typeof data.code === "string") code = data.code;
       } catch {
         // use statusText
       }
     }
-    throw new ApiError(message, response.status);
+    throw new ApiError(message, response.status, code);
   }
 
   const contentType = response.headers.get("Content-Type");

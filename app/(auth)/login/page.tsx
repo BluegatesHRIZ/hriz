@@ -8,7 +8,14 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { useLogin, useLoginWithQr } from "@/lib/hooks/useAuth"
+import { getDeviceKeyId, useDeviceGate } from "@/lib/hooks/useDevice"
 import { useSettings } from "@/lib/hooks/useSettings"
+import { ApiError } from "@/lib/api/client"
+import type { DeviceRegisterCredentials } from "@/lib/types/devices"
+import {
+  DeviceRegistrationPanel,
+  type DeviceStep,
+} from "@/components/auth/DeviceRegistrationPanel"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -46,6 +53,12 @@ export default function LoginPage() {
   const html5QrCodeRef = useRef<any>(null)
   const scannerStoppingRef = useRef(false)
   const [scannerError, setScannerError] = useState<string | null>(null)
+  // Set when the server refuses the sign-in because of this device.
+  const [deviceStep, setDeviceStep] = useState<DeviceStep | null>(null)
+  const lastCredentials = useRef<DeviceRegisterCredentials | null>(null)
+  // Where this browser stands, read when the page opens.
+  const gate = useDeviceGate()
+  const [gateDismissed, setGateDismissed] = useState(false)
 
   const {
     register,
@@ -66,20 +79,47 @@ export default function LoginPage() {
     }
   }, [settings, setValue])
 
+  /** Switches to the device screens when the refusal is about this device. */
+  const handleDeviceRefusal = async (err: unknown): Promise<boolean> => {
+    if (!(err instanceof ApiError)) return false
+    switch (err.code) {
+      case "DEVICE_NOT_REGISTERED":
+        setDeviceStep({ kind: "register" })
+        return true
+      case "DEVICE_PENDING":
+        setDeviceStep({ kind: "pending", keyId: await getDeviceKeyId(), terCode: null })
+        return true
+      case "DEVICE_REJECTED":
+        setDeviceStep({ kind: "rejected" })
+        return true
+      default:
+        return false
+    }
+  }
+
+  const goToDashboard = () => {
+    // Token is stored in the mutation's onSuccess callback
+    // Wait a moment for auth context to update, then redirect
+    setTimeout(() => {
+      router.push("/dashboard")
+    }, 200)
+  }
+
   const onSubmit = async (data: LoginFormData) => {
     setError(null)
+    lastCredentials.current = {
+      EmpId: data.EmpId,
+      EmpPswd: data.EmpPswd,
+      external_id: data.external_id,
+    }
     try {
       await loginMutation.mutateAsync({
         ...data,
         IpAddress: "", // Can be filled from request headers on server
       })
-
-      // Token is stored in the mutation's onSuccess callback
-      // Wait a moment for auth context to update, then redirect
-      setTimeout(() => {
-        router.push("/dashboard")
-      }, 200)
+      goToDashboard()
     } catch (err: unknown) {
+      if (await handleDeviceRefusal(err)) return
       if (err instanceof Error) {
         setError(err.message)
       } else {
@@ -87,6 +127,45 @@ export default function LoginPage() {
       }
     }
   }
+
+  /** The device was approved while waiting: sign in again with what was entered. */
+  const retryAfterApproval = async () => {
+    const credentials = lastCredentials.current
+    try {
+      if (!credentials) throw new Error("This device is approved. Sign in to continue.")
+      if ("qrToken" in credentials) {
+        await loginQrMutation.mutateAsync({ qrToken: credentials.qrToken })
+      } else {
+        await loginMutation.mutateAsync({ ...credentials, IpAddress: "" })
+      }
+      goToDashboard()
+    } catch (err: unknown) {
+      showSignInForm(
+        err instanceof Error
+          ? err.message
+          : "This device is approved. Sign in to continue.",
+      )
+    }
+  }
+
+  /** Leave the device screens for the normal form (admins, or once approved). */
+  const showSignInForm = (message: string | null = null) => {
+    setDeviceStep(null)
+    setGateDismissed(true)
+    setError(message)
+  }
+
+  // Before anyone signs in: if devices must be approved and this browser isn't,
+  // show the device screen instead of the form. The server checks again at sign-in.
+  const gateStep: DeviceStep | null =
+    gateDismissed || !gate.data?.required || gate.data.status === "approved"
+      ? null
+      : gate.data.status === "pending"
+        ? { kind: "pending", keyId: gate.data.keyId, terCode: gate.data.ter_code }
+        : gate.data.status === "rejected"
+          ? { kind: "rejected" }
+          : { kind: "register" }
+  const activeDeviceStep = deviceStep ?? gateStep
 
   const setIncludes = settings?.set_includes || 0
 
@@ -111,14 +190,16 @@ export default function LoginPage() {
   }
 
   const handleQrScan = async (decodedText: string) => {
+    lastCredentials.current = { qrToken: decodedText }
     try {
       await loginQrMutation.mutateAsync({ qrToken: decodedText })
       setQrScannerOpen(false)
-      // Wait a moment for auth context to update, then redirect
-      setTimeout(() => {
-        router.push("/dashboard")
-      }, 200)
+      goToDashboard()
     } catch (err: unknown) {
+      if (await handleDeviceRefusal(err)) {
+        setQrScannerOpen(false)
+        return
+      }
       if (err instanceof Error) {
         setError(err.message)
       } else {
@@ -219,6 +300,20 @@ export default function LoginPage() {
 
         {/* Form, vertically centered */}
         <div className="flex flex-1 items-center justify-center py-10">
+          {gate.isLoading && !deviceStep ? (
+            <p className="text-sm text-muted-foreground">Checking this device…</p>
+          ) : activeDeviceStep ? (
+            <DeviceRegistrationPanel
+              step={activeDeviceStep}
+              credentials={lastCredentials.current}
+              onStepChange={setDeviceStep}
+              onCredentials={(c) => {
+                lastCredentials.current = c
+              }}
+              onApproved={retryAfterApproval}
+              onSignInInstead={() => showSignInForm()}
+            />
+          ) : (
           <form
             onSubmit={handleSubmit(onSubmit)}
             className="w-full max-w-[380px] animate-rise"
@@ -336,6 +431,7 @@ export default function LoginPage() {
               </Button>
             </div>
           </form>
+          )}
         </div>
 
         {/* Copyright */}

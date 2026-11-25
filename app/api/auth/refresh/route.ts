@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyToken } from "@/lib/auth/jwt-edge";
+import { verifyToken, createToken, generateRefreshToken } from "@/lib/auth/jwt-edge";
 import { prisma } from "@/lib/db/prisma";
-import { createToken, generateRefreshToken } from "@/lib/auth/jwt-edge";
+import { DEVICE_SESSION_COOKIE } from "@/lib/auth/device-crypto";
+import { setSessionCookies } from "@/lib/auth/session-cookies";
+import { getRolePermissionMask } from "@/lib/services/authorization.service";
+import { checkDeviceForRefresh } from "@/lib/services/device.service";
+import type { JWTPayload, LoginResponse } from "@/lib/types/auth";
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,12 +28,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // The token is usually expired by now; its signature still proves which
+    // device the session was bound to.
     const currentToken = authHeader.substring(7);
-    let payload;
+    let payload: JWTPayload | undefined;
     try {
-      payload = await verifyToken(currentToken);
+      payload = await verifyToken(currentToken, { allowExpired: true });
     } catch {
-      // Token might be expired, which is okay for refresh
       // We'll verify using the refresh token instead
     }
 
@@ -85,8 +90,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get permissions (TODO: Fetch from Accrolepermission table)
-    const permissions = "0";
+    // Same permissions a fresh sign-in would get.
+    const permissionMask = await getRolePermissionMask(employee.emp_role);
+
+    // A device rejected or unauthorized since sign-in ends the session here.
+    const device = await checkDeviceForRefresh(
+      permissionMask,
+      { dev: payload?.dev, dvh: payload?.dvh },
+      request.cookies.get(DEVICE_SESSION_COOKIE)?.value
+    );
+    if (!device.ok) {
+      return NextResponse.json(
+        { message: device.message, code: device.code },
+        { status: 401 }
+      );
+    }
 
     // Generate new tokens
     const newToken = await createToken(
@@ -94,8 +112,9 @@ export async function POST(request: NextRequest) {
       employee.emp_role || "",
       employee.emp_first || "",
       employee.emp_last || "",
-      permissions,
-      60
+      permissionMask.toString(),
+      60,
+      device.claims ?? undefined
     );
 
     const newRefreshToken = generateRefreshToken();
@@ -115,16 +134,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Set new refresh token in cookie
-    const response = NextResponse.json({ token: newToken });
-
-    response.cookies.set("auth_refresh_token", newRefreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-    });
-
+    const response = NextResponse.json<LoginResponse>({ token: newToken });
+    // Device session cookie stays as it is: the new token carries the same binding.
+    setSessionCookies(response, { token: newToken, refreshToken: newRefreshToken });
     return response;
   } catch (error) {
     console.error("Refresh token error:", error);

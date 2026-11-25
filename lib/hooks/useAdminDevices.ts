@@ -2,8 +2,8 @@
 
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { ApiError, apiFetch } from "@/lib/api/client";
-import type { Paginated } from "@/lib/pagination";
 import { DEFAULT_LIMIT } from "@/lib/pagination";
+import type { DeviceDTO, DeviceListFilter, DeviceListResponse } from "@/lib/types/devices";
 
 function authHeader(): Record<string, string> {
   const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
@@ -11,20 +11,7 @@ function authHeader(): Record<string, string> {
   return { Authorization: `Bearer ${token}` };
 }
 
-export interface DeviceDTO {
-  ter_code: string;
-  ter_id: string | null;
-  ter_loc: string | null;
-  ter_loc_desc: string | null;
-  ter_ip: string | null;
-  ter_status: number | null;
-  ter_biopass: string | null;
-  ter_type: number | null;
-  ter_device: string | null;
-  ter_biokey: string | null;
-  ter_logdate: string;
-  ter_clocking: number | null;
-}
+export type { DeviceDTO };
 
 export interface DeviceFormData {
   ter_code: string;
@@ -39,15 +26,17 @@ export interface DeviceFormData {
 
 const QK = ["admin", "devices"] as const;
 
-export function useAdminDevices(page = 1, limit = DEFAULT_LIMIT) {
-  return useQuery<Paginated<DeviceDTO>, ApiError>({
-    queryKey: [...QK, page, limit],
+export function useAdminDevices(filter: DeviceListFilter, page = 1, limit = DEFAULT_LIMIT) {
+  return useQuery<DeviceListResponse, ApiError>({
+    queryKey: [...QK, filter, page, limit],
     queryFn: () =>
-      apiFetch<Paginated<DeviceDTO>>(
-        `/admin/devices?page=${page}&limit=${limit}`,
+      apiFetch<DeviceListResponse>(
+        `/admin/devices?status=${filter}&page=${page}&limit=${limit}`,
         { headers: authHeader() }
       ),
     placeholderData: keepPreviousData,
+    // New requests show up without a reload while the page is open.
+    refetchInterval: 30_000,
   });
 }
 

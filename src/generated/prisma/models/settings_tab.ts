@@ -45,6 +45,7 @@ export type Settings_tabAvgAggregateOutputType = {
   set_flex: number | null
   set_period: number | null
   set_biobreak: number | null
+  set_devreg: number | null
 }
 
 export type Settings_tabSumAggregateOutputType = {
@@ -66,6 +67,7 @@ export type Settings_tabSumAggregateOutputType = {
   set_flex: number | null
   set_period: number | null
   set_biobreak: number | null
+  set_devreg: number | null
 }
 
 export type Settings_tabMinAggregateOutputType = {
@@ -100,6 +102,7 @@ export type Settings_tabMinAggregateOutputType = {
   set_period: number | null
   set_biobreak: number | null
   set_minin: Date | null
+  set_devreg: number | null
 }
 
 export type Settings_tabMaxAggregateOutputType = {
@@ -134,6 +137,7 @@ export type Settings_tabMaxAggregateOutputType = {
   set_period: number | null
   set_biobreak: number | null
   set_minin: Date | null
+  set_devreg: number | null
 }
 
 export type Settings_tabCountAggregateOutputType = {
@@ -168,6 +172,7 @@ export type Settings_tabCountAggregateOutputType = {
   set_period: number
   set_biobreak: number
   set_minin: number
+  set_devreg: number
   _all: number
 }
 
@@ -191,6 +196,7 @@ export type Settings_tabAvgAggregateInputType = {
   set_flex?: true
   set_period?: true
   set_biobreak?: true
+  set_devreg?: true
 }
 
 export type Settings_tabSumAggregateInputType = {
@@ -212,6 +218,7 @@ export type Settings_tabSumAggregateInputType = {
   set_flex?: true
   set_period?: true
   set_biobreak?: true
+  set_devreg?: true
 }
 
 export type Settings_tabMinAggregateInputType = {
@@ -246,6 +253,7 @@ export type Settings_tabMinAggregateInputType = {
   set_period?: true
   set_biobreak?: true
   set_minin?: true
+  set_devreg?: true
 }
 
 export type Settings_tabMaxAggregateInputType = {
@@ -280,6 +288,7 @@ export type Settings_tabMaxAggregateInputType = {
   set_period?: true
   set_biobreak?: true
   set_minin?: true
+  set_devreg?: true
 }
 
 export type Settings_tabCountAggregateInputType = {
@@ -314,6 +323,7 @@ export type Settings_tabCountAggregateInputType = {
   set_period?: true
   set_biobreak?: true
   set_minin?: true
+  set_devreg?: true
   _all?: true
 }
 
@@ -435,6 +445,7 @@ export type Settings_tabGroupByOutputType = {
   set_period: number | null
   set_biobreak: number | null
   set_minin: Date | null
+  set_devreg: number | null
   _count: Settings_tabCountAggregateOutputType | null
   _avg: Settings_tabAvgAggregateOutputType | null
   _sum: Settings_tabSumAggregateOutputType | null
@@ -492,6 +503,7 @@ export type settings_tabWhereInput = {
   set_period?: Prisma.IntNullableFilter<"settings_tab"> | number | null
   set_biobreak?: Prisma.IntNullableFilter<"settings_tab"> | number | null
   set_minin?: Prisma.DateTimeNullableFilter<"settings_tab"> | Date | string | null
+  set_devreg?: Prisma.IntNullableFilter<"settings_tab"> | number | null
 }
 
 export type settings_tabOrderByWithRelationInput = {
@@ -526,6 +538,7 @@ export type settings_tabOrderByWithRelationInput = {
   set_period?: Prisma.SortOrderInput | Prisma.SortOrder
   set_biobreak?: Prisma.SortOrderInput | Prisma.SortOrder
   set_minin?: Prisma.SortOrderInput | Prisma.SortOrder
+  set_devreg?: Prisma.SortOrderInput | Prisma.SortOrder
   _relevance?: Prisma.settings_tabOrderByRelevanceInput
 }
 
@@ -564,6 +577,7 @@ export type settings_tabWhereUniqueInput = Prisma.AtLeast<{
   set_period?: Prisma.IntNullableFilter<"settings_tab"> | number | null
   set_biobreak?: Prisma.IntNullableFilter<"settings_tab"> | number | null
   set_minin?: Prisma.DateTimeNullableFilter<"settings_tab"> | Date | string | null
+  set_devreg?: Prisma.IntNullableFilter<"settings_tab"> | number | null
 }, "set_id">
 
 export type settings_tabOrderByWithAggregationInput = {
@@ -598,6 +612,7 @@ export type settings_tabOrderByWithAggregationInput = {
   set_period?: Prisma.SortOrderInput | Prisma.SortOrder
   set_biobreak?: Prisma.SortOrderInput | Prisma.SortOrder
   set_minin?: Prisma.SortOrderInput | Prisma.SortOrder
+  set_devreg?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.settings_tabCountOrderByAggregateInput
   _avg?: Prisma.settings_tabAvgOrderByAggregateInput
   _max?: Prisma.settings_tabMaxOrderByAggregateInput
@@ -640,6 +655,7 @@ export type settings_tabScalarWhereWithAggregatesInput = {
   set_period?: Prisma.IntNullableWithAggregatesFilter<"settings_tab"> | number | null
   set_biobreak?: Prisma.IntNullableWithAggregatesFilter<"settings_tab"> | number | null
   set_minin?: Prisma.DateTimeNullableWithAggregatesFilter<"settings_tab"> | Date | string | null
+  set_devreg?: Prisma.IntNullableWithAggregatesFilter<"settings_tab"> | number | null
 }
 
 export type settings_tabCreateInput = {
@@ -674,6 +690,7 @@ export type settings_tabCreateInput = {
   set_period?: number | null
   set_biobreak?: number | null
   set_minin?: Date | string | null
+  set_devreg?: number | null
 }
 
 export type settings_tabUncheckedCreateInput = {
@@ -708,6 +725,7 @@ export type settings_tabUncheckedCreateInput = {
   set_period?: number | null
   set_biobreak?: number | null
   set_minin?: Date | string | null
+  set_devreg?: number | null
 }
 
 export type settings_tabUpdateInput = {
@@ -742,6 +760,7 @@ export type settings_tabUpdateInput = {
   set_period?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   set_biobreak?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   set_minin?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  set_devreg?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
 }
 
 export type settings_tabUncheckedUpdateInput = {
@@ -776,6 +795,7 @@ export type settings_tabUncheckedUpdateInput = {
   set_period?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   set_biobreak?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   set_minin?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  set_devreg?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
 }
 
 export type settings_tabCreateManyInput = {
@@ -810,6 +830,7 @@ export type settings_tabCreateManyInput = {
   set_period?: number | null
   set_biobreak?: number | null
   set_minin?: Date | string | null
+  set_devreg?: number | null
 }
 
 export type settings_tabUpdateManyMutationInput = {
@@ -844,6 +865,7 @@ export type settings_tabUpdateManyMutationInput = {
   set_period?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   set_biobreak?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   set_minin?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  set_devreg?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
 }
 
 export type settings_tabUncheckedUpdateManyInput = {
@@ -878,6 +900,7 @@ export type settings_tabUncheckedUpdateManyInput = {
   set_period?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   set_biobreak?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   set_minin?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  set_devreg?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
 }
 
 export type settings_tabOrderByRelevanceInput = {
@@ -918,6 +941,7 @@ export type settings_tabCountOrderByAggregateInput = {
   set_period?: Prisma.SortOrder
   set_biobreak?: Prisma.SortOrder
   set_minin?: Prisma.SortOrder
+  set_devreg?: Prisma.SortOrder
 }
 
 export type settings_tabAvgOrderByAggregateInput = {
@@ -939,6 +963,7 @@ export type settings_tabAvgOrderByAggregateInput = {
   set_flex?: Prisma.SortOrder
   set_period?: Prisma.SortOrder
   set_biobreak?: Prisma.SortOrder
+  set_devreg?: Prisma.SortOrder
 }
 
 export type settings_tabMaxOrderByAggregateInput = {
@@ -973,6 +998,7 @@ export type settings_tabMaxOrderByAggregateInput = {
   set_period?: Prisma.SortOrder
   set_biobreak?: Prisma.SortOrder
   set_minin?: Prisma.SortOrder
+  set_devreg?: Prisma.SortOrder
 }
 
 export type settings_tabMinOrderByAggregateInput = {
@@ -1007,6 +1033,7 @@ export type settings_tabMinOrderByAggregateInput = {
   set_period?: Prisma.SortOrder
   set_biobreak?: Prisma.SortOrder
   set_minin?: Prisma.SortOrder
+  set_devreg?: Prisma.SortOrder
 }
 
 export type settings_tabSumOrderByAggregateInput = {
@@ -1028,6 +1055,7 @@ export type settings_tabSumOrderByAggregateInput = {
   set_flex?: Prisma.SortOrder
   set_period?: Prisma.SortOrder
   set_biobreak?: Prisma.SortOrder
+  set_devreg?: Prisma.SortOrder
 }
 
 
@@ -1064,6 +1092,7 @@ export type settings_tabSelect<ExtArgs extends runtime.Types.Extensions.Internal
   set_period?: boolean
   set_biobreak?: boolean
   set_minin?: boolean
+  set_devreg?: boolean
 }, ExtArgs["result"]["settings_tab"]>
 
 
@@ -1100,9 +1129,10 @@ export type settings_tabSelectScalar = {
   set_period?: boolean
   set_biobreak?: boolean
   set_minin?: boolean
+  set_devreg?: boolean
 }
 
-export type settings_tabOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"set_id" | "set_din" | "set_dbin" | "set_dbout" | "set_dout" | "set_timeout" | "set_graceperiod" | "set_extid" | "set_beta" | "set_user" | "set_terminal" | "set_device" | "set_timeoffset" | "set_coabefore" | "set_coaafter" | "set_utmlead" | "set_utmafter" | "set_otmbefore" | "set_otmafter" | "set_scabefore" | "set_scaafter" | "set_ndst" | "set_nden" | "set_yrdays" | "set_wkdays" | "set_halfmon" | "set_includes" | "set_flex" | "set_period" | "set_biobreak" | "set_minin", ExtArgs["result"]["settings_tab"]>
+export type settings_tabOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"set_id" | "set_din" | "set_dbin" | "set_dbout" | "set_dout" | "set_timeout" | "set_graceperiod" | "set_extid" | "set_beta" | "set_user" | "set_terminal" | "set_device" | "set_timeoffset" | "set_coabefore" | "set_coaafter" | "set_utmlead" | "set_utmafter" | "set_otmbefore" | "set_otmafter" | "set_scabefore" | "set_scaafter" | "set_ndst" | "set_nden" | "set_yrdays" | "set_wkdays" | "set_halfmon" | "set_includes" | "set_flex" | "set_period" | "set_biobreak" | "set_minin" | "set_devreg", ExtArgs["result"]["settings_tab"]>
 
 export type $settings_tabPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "settings_tab"
@@ -1139,6 +1169,7 @@ export type $settings_tabPayload<ExtArgs extends runtime.Types.Extensions.Intern
     set_period: number | null
     set_biobreak: number | null
     set_minin: Date | null
+    set_devreg: number | null
   }, ExtArgs["result"]["settings_tab"]>
   composites: {}
 }
@@ -1539,6 +1570,7 @@ export interface settings_tabFieldRefs {
   readonly set_period: Prisma.FieldRef<"settings_tab", 'Int'>
   readonly set_biobreak: Prisma.FieldRef<"settings_tab", 'Int'>
   readonly set_minin: Prisma.FieldRef<"settings_tab", 'DateTime'>
+  readonly set_devreg: Prisma.FieldRef<"settings_tab", 'Int'>
 }
     
 

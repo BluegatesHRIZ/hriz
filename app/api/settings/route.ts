@@ -69,6 +69,7 @@ export async function GET(request: NextRequest) {
       set_period: settings.set_period,
       set_biobreak: settings.set_biobreak,
       set_minin: settings.set_minin,
+      set_devreg: Number(settings.set_devreg ?? 0) === 1 ? 1 : 0,
     }
 
     return NextResponse.json(settingsDTO)
@@ -103,6 +104,7 @@ export async function PUT(request: NextRequest) {
         set_utmafter?: number; set_otmbefore?: number; set_otmafter?: number;
         set_scabefore?: number; set_scaafter?: number; set_yrdays?: number;
         set_wkdays?: number; set_halfmon?: number; set_includes?: number;
+        set_devreg?: number;
       };
       company: {
         com_name?: string; com_address?: string; com_email?: string;
@@ -148,6 +150,7 @@ export async function PUT(request: NextRequest) {
           set_wkdays: settings.set_wkdays,
           set_halfmon: settings.set_halfmon,
           set_includes: settings.set_includes,
+          set_devreg: settings.set_devreg === undefined ? undefined : settings.set_devreg === 1 ? 1 : 0,
         },
       }),
       prisma.company.updateMany({

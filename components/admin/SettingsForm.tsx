@@ -77,6 +77,7 @@ export function SettingsForm() {
   const [scaAfter, setScaAfter] = useState<number | "">(0);
   const [yrDays, setYrDays] = useState<number | "">(0);
   const [wkDays, setWkDays] = useState<number | "">(0);
+  const [deviceReg, setDeviceReg] = useState(false);
 
   useEffect(() => {
     if (settings) {
@@ -102,6 +103,7 @@ export function SettingsForm() {
       setScaAfter(settings.set_scaafter ?? 0);
       setYrDays(settings.set_yrdays ?? 0);
       setWkDays(settings.set_wkdays ?? 0);
+      setDeviceReg(settings.set_devreg === 1);
     }
   }, [settings]);
 
@@ -140,6 +142,7 @@ export function SettingsForm() {
         set_scaafter: scaAfter !== "" ? Number(scaAfter) : undefined,
         set_yrdays: yrDays !== "" ? Number(yrDays) : undefined,
         set_wkdays: wkDays !== "" ? Number(wkDays) : undefined,
+        set_devreg: deviceReg ? 1 : 0,
       },
       company: {
         com_name: comName,
@@ -148,9 +151,12 @@ export function SettingsForm() {
       },
     };
 
+    const turningOnDeviceReg = deviceReg && settings?.set_devreg !== 1;
     const ok = await confirm({
       title: "Save company and system settings?",
-      description: `The settings for ${comName.trim() || "the company"} are replaced with the values on both tabs.`,
+      description: turningOnDeviceReg
+        ? `The settings for ${comName.trim() || "the company"} are replaced with the values on both tabs. Device registration turns on: from their next sign-in, everyone without Register Device or All Access permission must use a device approved on the Register Device page.`
+        : `The settings for ${comName.trim() || "the company"} are replaced with the values on both tabs.`,
       confirmText: "Save settings",
     });
     if (!ok) return;
@@ -262,6 +268,18 @@ export function SettingsForm() {
             </FieldRow>
             <FieldRow label="Number of Devices">
               <Input type="number" value={numDevices} onChange={(e) => setNumDevices(e.target.value === "" ? "" : Number(e.target.value))} className="w-36" />
+            </FieldRow>
+
+            <p className="text-sm text-muted-foreground mb-5 mt-6 font-medium">Security</p>
+
+            <FieldRow label="Require Device Registration">
+              <div className="flex items-start gap-3">
+                <Switch checked={deviceReg} onCheckedChange={setDeviceReg} className="mt-0.5 shrink-0" />
+                <p className="text-sm text-muted-foreground">
+                  People can only sign in on devices approved on the Register Device page.
+                  Users with Register Device or All Access permission can sign in anywhere.
+                </p>
+              </div>
             </FieldRow>
 
             <p className="text-sm text-muted-foreground mb-5 mt-6 font-medium">Request Windows (minutes)</p>

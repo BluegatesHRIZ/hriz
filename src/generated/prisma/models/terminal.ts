@@ -50,6 +50,12 @@ export type TerminalMinAggregateOutputType = {
   ter_device: string | null
   ter_biokey: string | null
   ter_clocking: number | null
+  ter_pubkey: string | null
+  ter_keyid: string | null
+  ter_reqemp: string | null
+  ter_agent: string | null
+  ter_chalts: Date | null
+  ter_lastseen: Date | null
 }
 
 export type TerminalMaxAggregateOutputType = {
@@ -64,6 +70,12 @@ export type TerminalMaxAggregateOutputType = {
   ter_device: string | null
   ter_biokey: string | null
   ter_clocking: number | null
+  ter_pubkey: string | null
+  ter_keyid: string | null
+  ter_reqemp: string | null
+  ter_agent: string | null
+  ter_chalts: Date | null
+  ter_lastseen: Date | null
 }
 
 export type TerminalCountAggregateOutputType = {
@@ -78,6 +90,12 @@ export type TerminalCountAggregateOutputType = {
   ter_device: number
   ter_biokey: number
   ter_clocking: number
+  ter_pubkey: number
+  ter_keyid: number
+  ter_reqemp: number
+  ter_agent: number
+  ter_chalts: number
+  ter_lastseen: number
   _all: number
 }
 
@@ -106,6 +124,12 @@ export type TerminalMinAggregateInputType = {
   ter_device?: true
   ter_biokey?: true
   ter_clocking?: true
+  ter_pubkey?: true
+  ter_keyid?: true
+  ter_reqemp?: true
+  ter_agent?: true
+  ter_chalts?: true
+  ter_lastseen?: true
 }
 
 export type TerminalMaxAggregateInputType = {
@@ -120,6 +144,12 @@ export type TerminalMaxAggregateInputType = {
   ter_device?: true
   ter_biokey?: true
   ter_clocking?: true
+  ter_pubkey?: true
+  ter_keyid?: true
+  ter_reqemp?: true
+  ter_agent?: true
+  ter_chalts?: true
+  ter_lastseen?: true
 }
 
 export type TerminalCountAggregateInputType = {
@@ -134,6 +164,12 @@ export type TerminalCountAggregateInputType = {
   ter_device?: true
   ter_biokey?: true
   ter_clocking?: true
+  ter_pubkey?: true
+  ter_keyid?: true
+  ter_reqemp?: true
+  ter_agent?: true
+  ter_chalts?: true
+  ter_lastseen?: true
   _all?: true
 }
 
@@ -235,6 +271,12 @@ export type TerminalGroupByOutputType = {
   ter_device: string | null
   ter_biokey: string | null
   ter_clocking: number | null
+  ter_pubkey: string | null
+  ter_keyid: string | null
+  ter_reqemp: string | null
+  ter_agent: string | null
+  ter_chalts: Date | null
+  ter_lastseen: Date | null
   _count: TerminalCountAggregateOutputType | null
   _avg: TerminalAvgAggregateOutputType | null
   _sum: TerminalSumAggregateOutputType | null
@@ -272,6 +314,12 @@ export type terminalWhereInput = {
   ter_device?: Prisma.StringNullableFilter<"terminal"> | string | null
   ter_biokey?: Prisma.StringNullableFilter<"terminal"> | string | null
   ter_clocking?: Prisma.IntNullableFilter<"terminal"> | number | null
+  ter_pubkey?: Prisma.StringNullableFilter<"terminal"> | string | null
+  ter_keyid?: Prisma.StringNullableFilter<"terminal"> | string | null
+  ter_reqemp?: Prisma.StringNullableFilter<"terminal"> | string | null
+  ter_agent?: Prisma.StringNullableFilter<"terminal"> | string | null
+  ter_chalts?: Prisma.DateTimeNullableFilter<"terminal"> | Date | string | null
+  ter_lastseen?: Prisma.DateTimeNullableFilter<"terminal"> | Date | string | null
 }
 
 export type terminalOrderByWithRelationInput = {
@@ -286,11 +334,18 @@ export type terminalOrderByWithRelationInput = {
   ter_device?: Prisma.SortOrderInput | Prisma.SortOrder
   ter_biokey?: Prisma.SortOrderInput | Prisma.SortOrder
   ter_clocking?: Prisma.SortOrderInput | Prisma.SortOrder
+  ter_pubkey?: Prisma.SortOrderInput | Prisma.SortOrder
+  ter_keyid?: Prisma.SortOrderInput | Prisma.SortOrder
+  ter_reqemp?: Prisma.SortOrderInput | Prisma.SortOrder
+  ter_agent?: Prisma.SortOrderInput | Prisma.SortOrder
+  ter_chalts?: Prisma.SortOrderInput | Prisma.SortOrder
+  ter_lastseen?: Prisma.SortOrderInput | Prisma.SortOrder
   _relevance?: Prisma.terminalOrderByRelevanceInput
 }
 
 export type terminalWhereUniqueInput = Prisma.AtLeast<{
   ter_code?: string
+  ter_keyid?: string
   AND?: Prisma.terminalWhereInput | Prisma.terminalWhereInput[]
   OR?: Prisma.terminalWhereInput[]
   NOT?: Prisma.terminalWhereInput | Prisma.terminalWhereInput[]
@@ -304,7 +359,12 @@ export type terminalWhereUniqueInput = Prisma.AtLeast<{
   ter_device?: Prisma.StringNullableFilter<"terminal"> | string | null
   ter_biokey?: Prisma.StringNullableFilter<"terminal"> | string | null
   ter_clocking?: Prisma.IntNullableFilter<"terminal"> | number | null
-}, "ter_code">
+  ter_pubkey?: Prisma.StringNullableFilter<"terminal"> | string | null
+  ter_reqemp?: Prisma.StringNullableFilter<"terminal"> | string | null
+  ter_agent?: Prisma.StringNullableFilter<"terminal"> | string | null
+  ter_chalts?: Prisma.DateTimeNullableFilter<"terminal"> | Date | string | null
+  ter_lastseen?: Prisma.DateTimeNullableFilter<"terminal"> | Date | string | null
+}, "ter_code" | "ter_keyid">
 
 export type terminalOrderByWithAggregationInput = {
   ter_code?: Prisma.SortOrder
@@ -318,6 +378,12 @@ export type terminalOrderByWithAggregationInput = {
   ter_device?: Prisma.SortOrderInput | Prisma.SortOrder
   ter_biokey?: Prisma.SortOrderInput | Prisma.SortOrder
   ter_clocking?: Prisma.SortOrderInput | Prisma.SortOrder
+  ter_pubkey?: Prisma.SortOrderInput | Prisma.SortOrder
+  ter_keyid?: Prisma.SortOrderInput | Prisma.SortOrder
+  ter_reqemp?: Prisma.SortOrderInput | Prisma.SortOrder
+  ter_agent?: Prisma.SortOrderInput | Prisma.SortOrder
+  ter_chalts?: Prisma.SortOrderInput | Prisma.SortOrder
+  ter_lastseen?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.terminalCountOrderByAggregateInput
   _avg?: Prisma.terminalAvgOrderByAggregateInput
   _max?: Prisma.terminalMaxOrderByAggregateInput
@@ -340,6 +406,12 @@ export type terminalScalarWhereWithAggregatesInput = {
   ter_device?: Prisma.StringNullableWithAggregatesFilter<"terminal"> | string | null
   ter_biokey?: Prisma.StringNullableWithAggregatesFilter<"terminal"> | string | null
   ter_clocking?: Prisma.IntNullableWithAggregatesFilter<"terminal"> | number | null
+  ter_pubkey?: Prisma.StringNullableWithAggregatesFilter<"terminal"> | string | null
+  ter_keyid?: Prisma.StringNullableWithAggregatesFilter<"terminal"> | string | null
+  ter_reqemp?: Prisma.StringNullableWithAggregatesFilter<"terminal"> | string | null
+  ter_agent?: Prisma.StringNullableWithAggregatesFilter<"terminal"> | string | null
+  ter_chalts?: Prisma.DateTimeNullableWithAggregatesFilter<"terminal"> | Date | string | null
+  ter_lastseen?: Prisma.DateTimeNullableWithAggregatesFilter<"terminal"> | Date | string | null
 }
 
 export type terminalCreateInput = {
@@ -354,6 +426,12 @@ export type terminalCreateInput = {
   ter_device?: string | null
   ter_biokey?: string | null
   ter_clocking?: number | null
+  ter_pubkey?: string | null
+  ter_keyid?: string | null
+  ter_reqemp?: string | null
+  ter_agent?: string | null
+  ter_chalts?: Date | string | null
+  ter_lastseen?: Date | string | null
 }
 
 export type terminalUncheckedCreateInput = {
@@ -368,6 +446,12 @@ export type terminalUncheckedCreateInput = {
   ter_device?: string | null
   ter_biokey?: string | null
   ter_clocking?: number | null
+  ter_pubkey?: string | null
+  ter_keyid?: string | null
+  ter_reqemp?: string | null
+  ter_agent?: string | null
+  ter_chalts?: Date | string | null
+  ter_lastseen?: Date | string | null
 }
 
 export type terminalUpdateInput = {
@@ -382,6 +466,12 @@ export type terminalUpdateInput = {
   ter_device?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   ter_biokey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   ter_clocking?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  ter_pubkey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  ter_keyid?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  ter_reqemp?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  ter_agent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  ter_chalts?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  ter_lastseen?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type terminalUncheckedUpdateInput = {
@@ -396,6 +486,12 @@ export type terminalUncheckedUpdateInput = {
   ter_device?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   ter_biokey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   ter_clocking?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  ter_pubkey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  ter_keyid?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  ter_reqemp?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  ter_agent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  ter_chalts?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  ter_lastseen?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type terminalCreateManyInput = {
@@ -410,6 +506,12 @@ export type terminalCreateManyInput = {
   ter_device?: string | null
   ter_biokey?: string | null
   ter_clocking?: number | null
+  ter_pubkey?: string | null
+  ter_keyid?: string | null
+  ter_reqemp?: string | null
+  ter_agent?: string | null
+  ter_chalts?: Date | string | null
+  ter_lastseen?: Date | string | null
 }
 
 export type terminalUpdateManyMutationInput = {
@@ -424,6 +526,12 @@ export type terminalUpdateManyMutationInput = {
   ter_device?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   ter_biokey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   ter_clocking?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  ter_pubkey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  ter_keyid?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  ter_reqemp?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  ter_agent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  ter_chalts?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  ter_lastseen?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type terminalUncheckedUpdateManyInput = {
@@ -438,6 +546,12 @@ export type terminalUncheckedUpdateManyInput = {
   ter_device?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   ter_biokey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   ter_clocking?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  ter_pubkey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  ter_keyid?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  ter_reqemp?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  ter_agent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  ter_chalts?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  ter_lastseen?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type terminalOrderByRelevanceInput = {
@@ -458,6 +572,12 @@ export type terminalCountOrderByAggregateInput = {
   ter_device?: Prisma.SortOrder
   ter_biokey?: Prisma.SortOrder
   ter_clocking?: Prisma.SortOrder
+  ter_pubkey?: Prisma.SortOrder
+  ter_keyid?: Prisma.SortOrder
+  ter_reqemp?: Prisma.SortOrder
+  ter_agent?: Prisma.SortOrder
+  ter_chalts?: Prisma.SortOrder
+  ter_lastseen?: Prisma.SortOrder
 }
 
 export type terminalAvgOrderByAggregateInput = {
@@ -478,6 +598,12 @@ export type terminalMaxOrderByAggregateInput = {
   ter_device?: Prisma.SortOrder
   ter_biokey?: Prisma.SortOrder
   ter_clocking?: Prisma.SortOrder
+  ter_pubkey?: Prisma.SortOrder
+  ter_keyid?: Prisma.SortOrder
+  ter_reqemp?: Prisma.SortOrder
+  ter_agent?: Prisma.SortOrder
+  ter_chalts?: Prisma.SortOrder
+  ter_lastseen?: Prisma.SortOrder
 }
 
 export type terminalMinOrderByAggregateInput = {
@@ -492,6 +618,12 @@ export type terminalMinOrderByAggregateInput = {
   ter_device?: Prisma.SortOrder
   ter_biokey?: Prisma.SortOrder
   ter_clocking?: Prisma.SortOrder
+  ter_pubkey?: Prisma.SortOrder
+  ter_keyid?: Prisma.SortOrder
+  ter_reqemp?: Prisma.SortOrder
+  ter_agent?: Prisma.SortOrder
+  ter_chalts?: Prisma.SortOrder
+  ter_lastseen?: Prisma.SortOrder
 }
 
 export type terminalSumOrderByAggregateInput = {
@@ -514,6 +646,12 @@ export type terminalSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs
   ter_device?: boolean
   ter_biokey?: boolean
   ter_clocking?: boolean
+  ter_pubkey?: boolean
+  ter_keyid?: boolean
+  ter_reqemp?: boolean
+  ter_agent?: boolean
+  ter_chalts?: boolean
+  ter_lastseen?: boolean
 }, ExtArgs["result"]["terminal"]>
 
 
@@ -530,9 +668,15 @@ export type terminalSelectScalar = {
   ter_device?: boolean
   ter_biokey?: boolean
   ter_clocking?: boolean
+  ter_pubkey?: boolean
+  ter_keyid?: boolean
+  ter_reqemp?: boolean
+  ter_agent?: boolean
+  ter_chalts?: boolean
+  ter_lastseen?: boolean
 }
 
-export type terminalOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"ter_code" | "ter_id" | "ter_loc" | "ter_ip" | "ter_status" | "ter_logdate" | "ter_biopass" | "ter_type" | "ter_device" | "ter_biokey" | "ter_clocking", ExtArgs["result"]["terminal"]>
+export type terminalOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"ter_code" | "ter_id" | "ter_loc" | "ter_ip" | "ter_status" | "ter_logdate" | "ter_biopass" | "ter_type" | "ter_device" | "ter_biokey" | "ter_clocking" | "ter_pubkey" | "ter_keyid" | "ter_reqemp" | "ter_agent" | "ter_chalts" | "ter_lastseen", ExtArgs["result"]["terminal"]>
 
 export type $terminalPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "terminal"
@@ -549,6 +693,30 @@ export type $terminalPayload<ExtArgs extends runtime.Types.Extensions.InternalAr
     ter_device: string | null
     ter_biokey: string | null
     ter_clocking: number | null
+    /**
+     * SPKI public key, base64
+     */
+    ter_pubkey: string | null
+    /**
+     * SHA-256 hex of the public key
+     */
+    ter_keyid: string | null
+    /**
+     * employee who requested the device
+     */
+    ter_reqemp: string | null
+    /**
+     * browser user agent at request time
+     */
+    ter_agent: string | null
+    /**
+     * issue time of the last sign-in challenge used
+     */
+    ter_chalts: Date | null
+    /**
+     * last successful sign-in
+     */
+    ter_lastseen: Date | null
   }, ExtArgs["result"]["terminal"]>
   composites: {}
 }
@@ -929,6 +1097,12 @@ export interface terminalFieldRefs {
   readonly ter_device: Prisma.FieldRef<"terminal", 'String'>
   readonly ter_biokey: Prisma.FieldRef<"terminal", 'String'>
   readonly ter_clocking: Prisma.FieldRef<"terminal", 'Int'>
+  readonly ter_pubkey: Prisma.FieldRef<"terminal", 'String'>
+  readonly ter_keyid: Prisma.FieldRef<"terminal", 'String'>
+  readonly ter_reqemp: Prisma.FieldRef<"terminal", 'String'>
+  readonly ter_agent: Prisma.FieldRef<"terminal", 'String'>
+  readonly ter_chalts: Prisma.FieldRef<"terminal", 'DateTime'>
+  readonly ter_lastseen: Prisma.FieldRef<"terminal", 'DateTime'>
 }
     
 
