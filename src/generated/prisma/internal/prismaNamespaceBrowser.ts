@@ -1289,7 +1289,8 @@ export const Settings_tabScalarFieldEnum = {
   set_flex: 'set_flex',
   set_period: 'set_period',
   set_biobreak: 'set_biobreak',
-  set_minin: 'set_minin'
+  set_minin: 'set_minin',
+  set_devreg: 'set_devreg'
 } as const
 
 export type Settings_tabScalarFieldEnum = (typeof Settings_tabScalarFieldEnum)[keyof typeof Settings_tabScalarFieldEnum]
@@ -1315,7 +1316,13 @@ export const TerminalScalarFieldEnum = {
   ter_type: 'ter_type',
   ter_device: 'ter_device',
   ter_biokey: 'ter_biokey',
-  ter_clocking: 'ter_clocking'
+  ter_clocking: 'ter_clocking',
+  ter_pubkey: 'ter_pubkey',
+  ter_keyid: 'ter_keyid',
+  ter_reqemp: 'ter_reqemp',
+  ter_agent: 'ter_agent',
+  ter_chalts: 'ter_chalts',
+  ter_lastseen: 'ter_lastseen'
 } as const
 
 export type TerminalScalarFieldEnum = (typeof TerminalScalarFieldEnum)[keyof typeof TerminalScalarFieldEnum]
@@ -2119,7 +2126,11 @@ export const terminalOrderByRelevanceFieldEnum = {
   ter_ip: 'ter_ip',
   ter_biopass: 'ter_biopass',
   ter_device: 'ter_device',
-  ter_biokey: 'ter_biokey'
+  ter_biokey: 'ter_biokey',
+  ter_pubkey: 'ter_pubkey',
+  ter_keyid: 'ter_keyid',
+  ter_reqemp: 'ter_reqemp',
+  ter_agent: 'ter_agent'
 } as const
 
 export type terminalOrderByRelevanceFieldEnum = (typeof terminalOrderByRelevanceFieldEnum)[keyof typeof terminalOrderByRelevanceFieldEnum]

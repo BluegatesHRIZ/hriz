@@ -2,13 +2,15 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, ApiError } from "@/lib/api/client";
-import { LoginDTO, QrLoginRequest, QrLoginGenerateRequest, QrLoginGenerateResponse } from "@/lib/types/auth";
+import {
+  LoginDTO,
+  LoginResponse,
+  QrLoginRequest,
+  QrLoginGenerateRequest,
+  QrLoginGenerateResponse,
+} from "@/lib/types/auth";
 import { queryKeys } from "./queries";
-
-interface LoginResponse {
-  token: string;
-  success?: boolean;
-}
+import { getDeviceProof } from "./useDevice";
 
 interface SessionResponse {
   valid: boolean;
@@ -22,9 +24,10 @@ export function useLogin() {
 
   return useMutation<LoginResponse, ApiError, LoginDTO>({
     mutationFn: async (credentials) => {
+      const device = await getDeviceProof();
       return apiFetch<LoginResponse>("/auth/login", {
         method: "POST",
-        body: JSON.stringify(credentials),
+        body: JSON.stringify({ ...credentials, device }),
       });
     },
     onSuccess: (data) => {
@@ -138,9 +141,10 @@ export function useLoginWithQr() {
 
   return useMutation<LoginResponse, ApiError, QrLoginRequest>({
     mutationFn: async (request) => {
+      const device = await getDeviceProof();
       return apiFetch<LoginResponse>("/auth/login-qr", {
         method: "POST",
-        body: JSON.stringify(request),
+        body: JSON.stringify({ ...request, device }),
       });
     },
     onSuccess: (data) => {

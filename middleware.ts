@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth/jwt-edge";
 import { getApiRouteKey, getPageRouteKey } from "@/lib/auth/routePermissions";
 import { PERMISSIONS, hasAnyPermission, parsePermissionMask } from "@/lib/auth/permissions";
+import { DEVICE_SESSION_COOKIE, safeEqual, sha256Hex } from "@/lib/auth/device-crypto";
 const BIGINT_ZERO = BigInt(0);
 
 const COARSE_ROUTE_PERMISSIONS: Record<string, bigint> = {
@@ -64,6 +65,7 @@ export async function middleware(request: NextRequest) {
     "/unauthorized",
     "/api/auth/login",
     "/api/auth/login-qr",
+    "/api/auth/device/",
   ];
   if (publicRoutes.some((route) => pathname.startsWith(route))) {
     return NextResponse.next();
@@ -91,6 +93,16 @@ export async function middleware(request: NextRequest) {
   // Verify token
   try {
     const payload = await verifyToken(token);
+
+    // A session started on an approved device only works alongside that
+    // device's httpOnly cookie, so a token copied off the device is useless.
+    if (payload.dvh) {
+      const deviceCookie = request.cookies.get(DEVICE_SESSION_COOKIE)?.value;
+      if (!deviceCookie || !safeEqual(await sha256Hex(deviceCookie), payload.dvh)) {
+        throw new Error("Device session mismatch");
+      }
+    }
+
     const routeKey = pathname.startsWith("/api/")
       ? getApiRouteKey(pathname)
       : getPageRouteKey(pathname);

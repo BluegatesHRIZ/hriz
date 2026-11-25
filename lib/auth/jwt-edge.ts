@@ -1,4 +1,4 @@
-import { JWTPayload } from "@/lib/types/auth";
+import { DeviceClaims, JWTPayload } from "@/lib/types/auth";
 
 // Lazy getter for JWT_SECRET to avoid throwing at module load time
 function getJwtSecret(): string {
@@ -64,7 +64,8 @@ export async function createToken(
   empFirst: string,
   empLast: string,
   permissions: string,
-  expiresInMinutes: number = 60
+  expiresInMinutes: number = 60,
+  device?: DeviceClaims
 ): Promise<string> {
   const header = {
     alg: "HS512",
@@ -78,6 +79,7 @@ export async function createToken(
     Firstname: empFirst || "",
     Lastname: empLast || "",
     permissions: permissions,
+    ...(device ? { dev: device.dev, dvh: device.dvh } : {}),
     exp: now + expiresInMinutes * 60,
     iat: now,
   };
@@ -106,7 +108,10 @@ export async function createToken(
  * Verifies and decodes a JWT token
  * Edge-compatible version using Web Crypto API
  */
-export async function verifyToken(token: string): Promise<JWTPayload> {
+export async function verifyToken(
+  token: string,
+  options: { allowExpired?: boolean } = {}
+): Promise<JWTPayload> {
   try {
     const parts = token.split(".");
     if (parts.length !== 3) {
@@ -139,7 +144,7 @@ export async function verifyToken(token: string): Promise<JWTPayload> {
     const payload = JSON.parse(payloadJson) as JWTPayload & { exp?: number };
 
     // Check expiration
-    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
+    if (!options.allowExpired && payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
       throw new Error("Token expired");
     }
 
@@ -149,6 +154,8 @@ export async function verifyToken(token: string): Promise<JWTPayload> {
       Firstname: payload.Firstname,
       Lastname: payload.Lastname,
       permissions: payload.permissions,
+      ...(payload.dev ? { dev: payload.dev } : {}),
+      ...(payload.dvh ? { dvh: payload.dvh } : {}),
     };
   } catch (error) {
     throw new Error(

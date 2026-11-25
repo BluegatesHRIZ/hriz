@@ -998,6 +998,7 @@ model settings_tab {
   set_period      Int?      @default(2)
   set_biobreak    Int?      @default(0) @db.TinyInt
   set_minin       DateTime? @db.Time(0)
+  set_devreg      Int?      @default(0) @db.TinyInt
 }
 
 model taxtab {
@@ -1019,6 +1020,18 @@ model terminal {
   ter_device   String?  @db.VarChar(100)
   ter_biokey   String?  @default("") @db.VarChar(45)
   ter_clocking Int?     @default(1)
+  /// SPKI public key, base64
+  ter_pubkey   String?  @db.Text
+  /// SHA-256 hex of the public key
+  ter_keyid    String?  @unique(map: "ux_terminal_keyid") @db.Char(64)
+  /// employee who requested the device
+  ter_reqemp   String?  @db.VarChar(6)
+  /// browser user agent at request time
+  ter_agent    String?  @db.VarChar(255)
+  /// issue time of the last sign-in challenge used
+  ter_chalts   DateTime? @db.DateTime(3)
+  /// last successful sign-in
+  ter_lastseen DateTime? @db.DateTime(0)
 }
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.

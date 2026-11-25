@@ -2,10 +2,26 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { authorizeApiRequest } from "@/lib/auth/authorization";
 import { parsePagination, paginate } from "@/lib/pagination";
+import {
+  TERMINAL_PRIVATE_COLUMNS,
+  TERMINAL_STATUS,
+  deviceLookups,
+  isTerminalLimitReached,
+  toDeviceDTO,
+} from "@/lib/services/device.service";
+import type { DeviceListFilter, DeviceListResponse } from "@/lib/types/devices";
+import type { Prisma } from "../../../../src/generated/prisma/client";
+
+const LIST_WHERE: Record<DeviceListFilter, Prisma.terminalWhereInput> = {
+  pending: { ter_status: TERMINAL_STATUS.pending },
+  authorized: { ter_status: TERMINAL_STATUS.approved },
+  all: { ter_status: { not: TERMINAL_STATUS.rejected } },
+};
 
 /**
- * GET /api/admin/devices
- * List all terminals (excluding rejected status=2). Requires RegisterDevice.
+ * GET /api/admin/devices?status=pending|authorized|all
+ * Lists terminals (never rejected ones) with the count behind each tab.
+ * Requires RegisterDevice.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -13,30 +29,34 @@ export async function GET(request: NextRequest) {
     if (!auth.ok) return auth.response;
 
     const { page, limit, skip, take } = parsePagination(request.nextUrl.searchParams);
+    const requested = request.nextUrl.searchParams.get("status");
+    const filter: DeviceListFilter =
+      requested === "pending" || requested === "authorized" ? requested : "all";
+    const where = LIST_WHERE[filter];
 
-    const where = { ter_status: { not: 2 } };
-    const [total, devices] = await Promise.all([
-      prisma.terminal.count({ where }),
+    const [devices, pending, authorized, all] = await Promise.all([
       prisma.terminal.findMany({
         where,
-        orderBy: { ter_logdate: "desc" },
+        omit: TERMINAL_PRIVATE_COLUMNS,
+        // Requests waiting for a decision first, newest first within each.
+        orderBy: [{ ter_status: "asc" }, { ter_logdate: "desc" }],
         skip,
         take,
       }),
+      prisma.terminal.count({ where: LIST_WHERE.pending }),
+      prisma.terminal.count({ where: LIST_WHERE.authorized }),
+      prisma.terminal.count({ where: LIST_WHERE.all }),
     ]);
+    const counts = { pending, authorized, all };
 
-    // Enrich location codes with human-readable descriptions
-    const locations = await prisma.location.findMany({
-      select: { loc_id: true, loc_desc: true },
+    // Location descriptions and the names of the people who requested each device
+    const lookups = await deviceLookups(devices);
+    const enriched = devices.map((d) => toDeviceDTO(d, lookups));
+
+    return NextResponse.json<DeviceListResponse>({
+      ...paginate(enriched, counts[filter], page, limit),
+      counts,
     });
-    const locMap = new Map(locations.map((l) => [l.loc_id, l.loc_desc]));
-
-    const enriched = devices.map((d) => ({
-      ...d,
-      ter_loc_desc: d.ter_loc ? locMap.get(d.ter_loc) ?? null : null,
-    }));
-
-    return NextResponse.json(paginate(enriched, total, page, limit));
   } catch (error) {
     console.error("Admin devices GET error:", error);
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
@@ -68,20 +88,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Enforce terminal/device limits from settings
-    const settings = await prisma.settings_tab.findFirst();
-    if (settings) {
-      if (body.ter_type === 0) {
-        const count = await prisma.terminal.count({ where: { ter_type: 0, ter_status: 1 } });
-        if (count >= (settings.set_terminal ?? 0)) {
-          return NextResponse.json({ message: "Terminal limit reached." }, { status: 400 });
-        }
-      }
-      if (body.ter_type === 1) {
-        const count = await prisma.terminal.count({ where: { ter_type: 1, ter_status: 1 } });
-        if (count >= (settings.set_device ?? 0)) {
-          return NextResponse.json({ message: "Device limit reached." }, { status: 400 });
-        }
-      }
+    if (await isTerminalLimitReached(body.ter_type)) {
+      return NextResponse.json(
+        { message: body.ter_type === 0 ? "Terminal limit reached." : "Device limit reached." },
+        { status: 400 }
+      );
     }
 
     const created = await prisma.terminal.create({
@@ -96,9 +107,10 @@ export async function POST(request: NextRequest) {
         ter_type: body.ter_type ?? 0,
         ter_status: 0, // pending authorization
       },
+      omit: TERMINAL_PRIVATE_COLUMNS,
     });
 
-    return NextResponse.json(created, { status: 201 });
+    return NextResponse.json(toDeviceDTO(created, await deviceLookups([created])), { status: 201 });
   } catch (error: unknown) {
     if ((error as { code?: string }).code === "P2002") {
       return NextResponse.json({ message: "Device code already exists." }, { status: 409 });

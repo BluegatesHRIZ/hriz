@@ -2,6 +2,8 @@
  * Auth-related types: login, JWT payload, refresh token.
  */
 
+import type { DeviceProof } from "../devices";
+
 export interface LoginDTO {
   EmpId: string;
   EmpPswd: string;
@@ -9,6 +11,8 @@ export interface LoginDTO {
   longitude?: string;
   latitude?: string;
   external_id?: boolean;
+  /** Sent when this browser holds a device key. */
+  device?: DeviceProof;
 }
 
 export interface JWTPayload {
@@ -17,8 +21,18 @@ export interface JWTPayload {
   Firstname: string;
   Lastname: string;
   permissions: string;
+  /** ter_code of the approved device the session was started on. */
+  dev?: string;
+  /** SHA-256 hex of the device session cookie; the session only works alongside that cookie. */
+  dvh?: string;
   iat?: number;
   exp?: number;
+}
+
+/** Device claims added to a session token signed in on an approved device. */
+export interface DeviceClaims {
+  dev: string;
+  dvh: string;
 }
 
 export interface RefreshToken {
@@ -37,4 +51,11 @@ export interface QrLoginGenerateResponse {
 
 export interface QrLoginRequest {
   qrToken: string;
+  /** Sent when this browser holds a device key. */
+  device?: DeviceProof;
+}
+
+export interface LoginResponse {
+  token: string;
+  success?: boolean;
 }

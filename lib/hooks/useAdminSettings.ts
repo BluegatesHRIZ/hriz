@@ -47,6 +47,7 @@ export interface SettingsUpdatePayload {
     set_wkdays?: number;
     set_halfmon?: number;
     set_includes?: number;
+    set_devreg?: number;
   };
   company: {
     com_name?: string;

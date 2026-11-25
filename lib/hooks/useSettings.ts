@@ -35,6 +35,8 @@ export interface SettingsDTO {
   set_period: number | null
   set_biobreak: number | null
   set_minin: Date | null
+  /** 1 = every sign-in must come from an approved device */
+  set_devreg: number
 }
 
 export interface CompanyDTO {
