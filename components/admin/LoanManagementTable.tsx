@@ -293,7 +293,7 @@ export function LoanManagementTable() {
 
       {/* Release Dialog: review and edit the repayment terms before the loan is posted */}
       <Dialog open={!!releaseTarget} onOpenChange={(v) => { if (!v) setReleaseTarget(null); }}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Release Loan: {releaseTarget?.EmpName ?? releaseTarget?.LoaEmp}</DialogTitle>
             <DialogDescription>
