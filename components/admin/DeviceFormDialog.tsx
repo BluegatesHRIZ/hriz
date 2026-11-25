@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   Select,
   SelectContent,
@@ -49,6 +50,7 @@ export function DeviceFormDialog({ open, onOpenChange, editTarget }: Props) {
   const { data: locations = [] } = useAdminLocations();
   const create = useCreateDevice();
   const update = useUpdateDevice();
+  const confirm = useConfirm();
 
   const isEdit = !!editTarget;
   const pending = create.isPending || update.isPending;
@@ -93,6 +95,21 @@ export function DeviceFormDialog({ open, onOpenChange, editTarget }: Props) {
       setError("IP address format is invalid (e.g. 192.168.1.100).");
       return;
     }
+
+    const ok = await confirm(
+      isEdit
+        ? {
+            title: `Save settings for ${editTarget?.ter_id ?? form.ter_id}?`,
+            description: `Punches from ${form.ter_code} are matched by its IP address and device key, so check those before saving.`,
+            confirmText: "Save device",
+          }
+        : {
+            title: `Register device ${form.ter_code}?`,
+            description: `${form.ter_id}${form.ter_ip ? ` at ${form.ter_ip}` : ""} is added to the device list.`,
+            confirmText: "Register device",
+          }
+    );
+    if (!ok) return;
 
     try {
       if (isEdit) {

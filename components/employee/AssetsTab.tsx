@@ -8,9 +8,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useAssets, useAddAsset, useUpdateAsset, useDeleteAsset, type EmpAsset } from "@/lib/hooks/useEmployeeDetail";
 
-interface Props { empId: string }
+interface Props {
+  empId: string;
+  /** "First Last", used in confirm messages. */
+  employeeName?: string;
+}
 
 const EMPTY: Omit<EmpAsset, "emp_asid"> = { emp_asitem: "", emp_assn: "", emp_asissue: null, emp_asreturn: null, emp_ascond: "" };
 
@@ -19,8 +24,10 @@ function fmtDate(d: Date | null): string {
   return new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 }
 
-export function AssetsTab({ empId }: Props) {
+export function AssetsTab({ empId, employeeName }: Props) {
+  const who = employeeName || "this employee";
   const { toast } = useToast();
+  const confirm = useConfirm();
   const { data: assets = [], isLoading } = useAssets(empId);
   const addMutation = useAddAsset(empId);
   const updateMutation = useUpdateAsset(empId);
@@ -38,6 +45,14 @@ export function AssetsTab({ empId }: Props) {
   }
 
   async function handleSave() {
+    const ok = await confirm({
+      title: editing ? "Update this asset?" : "Assign this asset?",
+      description: editing
+        ? `Your changes to ${form.emp_asitem || "this item"} on ${who}'s asset list will be saved.`
+        : `${form.emp_asitem || "This item"}${form.emp_assn ? ` (S/N ${form.emp_assn})` : ""} will be listed as issued to ${who}${form.emp_asissue ? ` on ${fmtDate(form.emp_asissue)}` : ""}.`,
+      confirmText: editing ? "Update asset" : "Assign asset",
+    });
+    if (!ok) return;
     try {
       if (editing) {
         await updateMutation.mutateAsync({ ...form, emp_asid: editing.emp_asid });
@@ -52,6 +67,14 @@ export function AssetsTab({ empId }: Props) {
   }
 
   async function handleDelete(asid: string) {
+    const target = assets.find((a) => a.emp_asid === asid);
+    const ok = await confirm({
+      title: "Remove this asset?",
+      description: `${target?.emp_asitem || "This asset"} will be deleted from ${who}'s asset list. This can't be undone.`,
+      confirmText: "Remove asset",
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await deleteMutation.mutateAsync(asid);
       toast({ title: "Deleted", description: "Asset removed." });

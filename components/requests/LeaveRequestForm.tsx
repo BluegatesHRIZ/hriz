@@ -37,6 +37,7 @@ import { format, eachDayOfInterval } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   Table,
   TableBody,
@@ -73,6 +74,7 @@ export function LeaveRequestForm({
   onSuccess,
 }: LeaveRequestFormProps) {
   const { toast } = useToast();
+  const confirm = useConfirm();
   const [leaveDetails, setLeaveDetails] = useState<LeaveDetailDTO[]>([]);
   const [selectedLeaveType, setSelectedLeaveType] = useState<string>("");
   const [availableCredit, setAvailableCredit] = useState(0);
@@ -334,6 +336,27 @@ export function LeaveRequestForm({
       });
       return;
     }
+
+    const leaveTypeName =
+      leaveTypes?.find((lt) => lt.lev_id === data.LeaStype)?.lev_desc || "leave";
+    const leaveFrom = format(data.LeaSfrom, "MMM d, yyyy");
+    const leaveTo = format(data.LeaSto, "MMM d, yyyy");
+    const leaveRange = leaveFrom === leaveTo ? leaveFrom : `${leaveFrom} to ${leaveTo}`;
+    const dayWord = countLeave === 1 ? "day" : "days";
+    const ok = await confirm(
+      leaveId
+        ? {
+            title: "Change the dates on this leave?",
+            description: `Your ${leaveTypeName} will now run ${leaveRange}, ${countLeave} ${dayWord} in total.`,
+            confirmText: "Save leave",
+          }
+        : {
+            title: `File ${leaveTypeName}?`,
+            description: `${countLeave} ${dayWord}, ${leaveRange}: ${withPay} with pay and ${withoutPay} without, based on your remaining credits. It goes in for approval once filed.`,
+            confirmText: "File leave",
+          },
+    );
+    if (!ok) return;
 
     try {
       const leaveRequest = {

@@ -8,12 +8,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useRequirements, useAddRequirement, useDeleteRequirement } from "@/lib/hooks/useEmployeeDetail";
 
-interface Props { empId: string }
+interface Props {
+  empId: string;
+  /** "First Last", used in confirm messages. */
+  employeeName?: string;
+}
 
-export function RequirementsTab({ empId }: Props) {
+export function RequirementsTab({ empId, employeeName }: Props) {
+  const who = employeeName || "this employee";
   const { toast } = useToast();
+  const confirm = useConfirm();
   const { data: records = [], isLoading } = useRequirements(empId);
   const addMutation = useAddRequirement(empId);
   const deleteMutation = useDeleteRequirement(empId);
@@ -26,6 +33,12 @@ export function RequirementsTab({ empId }: Props) {
       toast({ title: "Validation", description: "Requirement name is required.", variant: "destructive" });
       return;
     }
+    const ok = await confirm({
+      title: "Add this requirement?",
+      description: `${form.emp_rqname} will be added to ${who}'s list of requirements.`,
+      confirmText: "Add requirement",
+    });
+    if (!ok) return;
     try {
       await addMutation.mutateAsync(form);
       toast({ title: "Added", description: "Requirement added." });
@@ -37,6 +50,14 @@ export function RequirementsTab({ empId }: Props) {
   }
 
   async function handleDelete(rqid: string) {
+    const target = records.find((r) => r.emp_rqid === rqid);
+    const ok = await confirm({
+      title: "Remove this requirement?",
+      description: `${target?.emp_rqname || "This requirement"} will be taken off ${who}'s file. You can't undo this.`,
+      confirmText: "Remove requirement",
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await deleteMutation.mutateAsync(rqid);
       toast({ title: "Deleted", description: "Requirement removed." });

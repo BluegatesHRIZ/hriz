@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Save, Plus, Pencil, Trash2, X } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
@@ -99,6 +100,7 @@ export function SalaryHistoryTab({
   positions = [],
 }: SalaryHistoryTabProps) {
   const { toast } = useToast();
+  const confirm = useConfirm();
   const saveMutation = useSaveSalaryHistory(employee.Account.EmpId);
 
   // Initialize salaries from employee data
@@ -293,6 +295,13 @@ export function SalaryHistoryTab({
         });
         return;
       }
+
+      const ok = await confirm({
+        title: "Save salary history?",
+        description: `${salaries.length} salary ${salaries.length === 1 ? "entry" : "entries"} will be saved for ${employee.Account.EmpFirst} ${employee.Account.EmpLast}. Payroll computes pay from the one marked Present.`,
+        confirmText: "Save salaries",
+      });
+      if (!ok) return;
 
       const salariesToSave: SalaryHistoryData[] =
         salaries.map((sal) => ({

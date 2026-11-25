@@ -28,6 +28,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { RunPayrollDialog } from "./RunPayrollDialog";
 import { PayComponentsPanel } from "./PayComponentsPanel";
 import {
@@ -57,8 +58,17 @@ function StatusBadge({ status }: { status: string | null }) {
   return <Badge variant={variant}>{label}</Badge>;
 }
 
+const fmtDay = (d: string | null | undefined) => {
+  if (!d) return "";
+  const t = new Date(d.length === 10 ? `${d}T00:00:00` : d);
+  return Number.isNaN(t.getTime())
+    ? d
+    : t.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+};
+
 export function PayrollRunManager() {
   const { toast } = useToast();
+  const confirm = useConfirm();
   const router = useRouter();
 
   const [year, setYear] = useState(() => new Date().getFullYear());
@@ -88,6 +98,29 @@ export function PayrollRunManager() {
     employees: string[],
     action: "save" | "generate",
   ) => {
+    const who =
+      employees.length === 0
+        ? "every payable employee"
+        : `${employees.length} employee${employees.length === 1 ? "" : "s"}`;
+    const range = `${fmtDay(input.from)} to ${fmtDay(input.to)}`;
+    const monthName = new Date(input.year, input.month - 1, 1).toLocaleDateString("en-US", {
+      month: "long",
+      year: "numeric",
+    });
+    const ok = await confirm(
+      action === "save"
+        ? {
+            title: `Park the ${monthName} run as a draft?`,
+            description: `Period ${input.period} (${range}) is saved with no payslips yet. You can generate it when you are ready.`,
+            confirmText: "Save draft",
+          }
+        : {
+            title: `Run ${monthName} payroll now?`,
+            description: `Payslips are computed for ${who} covering ${range}, then the register opens.`,
+            confirmText: "Generate payslips",
+          },
+    );
+    if (!ok) return;
     try {
       const { code } = await createRun.mutateAsync({ ...input, action });
 

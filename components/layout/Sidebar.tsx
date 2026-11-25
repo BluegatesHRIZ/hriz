@@ -41,6 +41,7 @@ import { cn } from "@/lib/utils";
 import { hasAnyPermission, parsePermissionMask } from "@/lib/auth/permissions";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 const COLLAPSE_STORAGE_KEY = "sidebar-collapsed";
 
@@ -109,6 +110,7 @@ function SidebarLink({ title, href, icon, className, collapsed }: SidebarLinkPro
 
 export function Sidebar() {
   const { user, logout } = useAuth();
+  const confirm = useConfirm();
   const { data: menus, isLoading: menusLoading } = useMenuList();
   const { data: authMap, isLoading: authMapLoading } = useAuthorizationMap();
   const { data: company, isLoading: companyLoading } = useCompanySettings();
@@ -407,9 +409,17 @@ export function Sidebar() {
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"
-                onSelect={(e) => {
-                  e.preventDefault();
-                  logout();
+                onSelect={() => {
+                  // Let the menu close before the dialog opens, so Radix does
+                  // not leave the page with pointer-events disabled.
+                  setTimeout(async () => {
+                    const ok = await confirm({
+                      title: "Ready to log out?",
+                      description: "Your session on this device ends, and you will need to sign in again.",
+                      confirmText: "Log out",
+                    });
+                    if (ok) logout();
+                  }, 0);
                 }}
               >
                 <LogOut className="w-4 h-4" />

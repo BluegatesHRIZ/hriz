@@ -9,9 +9,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useMovements, useAddMovement, type EmpMovement } from "@/lib/hooks/useEmployeeDetail";
 
-interface Props { empId: string }
+interface Props {
+  empId: string;
+  /** "First Last", used in confirm messages. */
+  employeeName?: string;
+}
 
 const MOVEMENT_TYPES = ["Promotion", "Transfer", "Demotion", "Regularization", "Resignation", "Termination", "Rehired"];
 const EMP_STATUSES = ["Regular", "Probationary", "Contractual", "Part-time", "Resigned", "Terminated"];
@@ -21,8 +26,10 @@ function fmtDate(d: Date | null): string {
   return new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 }
 
-export function MovementTab({ empId }: Props) {
+export function MovementTab({ empId, employeeName }: Props) {
+  const who = employeeName || "this employee";
   const { toast } = useToast();
+  const confirm = useConfirm();
   const { data: records = [], isLoading } = useMovements(empId);
   const addMutation = useAddMovement(empId);
 
@@ -33,6 +40,14 @@ export function MovementTab({ empId }: Props) {
   });
 
   async function handleAdd() {
+    const kind = form.emp_mvtype?.toLowerCase() || "movement";
+    const route = [form.emp_mvposfrm && `from ${form.emp_mvposfrm}`, form.emp_mvposto && `to ${form.emp_mvposto}`].filter(Boolean).join(" ");
+    const ok = await confirm({
+      title: `Record this ${kind}?`,
+      description: `Logs a ${kind} for ${who}${form.emp_mvdate ? ` dated ${fmtDate(form.emp_mvdate)}` : ""}${route ? `, ${route}` : ""}. It is added to their movement history.`,
+      confirmText: "Record movement",
+    });
+    if (!ok) return;
     try {
       await addMutation.mutateAsync(form);
       toast({ title: "Added", description: "Movement record added." });

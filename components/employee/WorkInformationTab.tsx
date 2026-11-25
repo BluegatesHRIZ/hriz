@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Save, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
@@ -79,6 +80,7 @@ export function WorkInformationTab({
   employeeList = [],
 }: WorkInformationTabProps) {
   const { toast } = useToast();
+  const confirm = useConfirm();
   const saveMutation = useSaveWorkInformation(employee.Account.EmpId);
 
   const wrk = employee.EmpWrk;
@@ -223,6 +225,12 @@ export function WorkInformationTab({
   };
 
   const handleSave = async () => {
+    const ok = await confirm({
+      title: "Save work information?",
+      description: `Updates ${employee.Account.EmpFirst} ${employee.Account.EmpLast}'s employment type and dates, supervisor, government numbers and approvers.`,
+      confirmText: "Save work info",
+    });
+    if (!ok) return;
     try {
       await saveMutation.mutateAsync({
         emp_code: emp_code || null,

@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Save, Plus, Trash2 } from "lucide-react"
 import { useToast } from "@/lib/hooks/use-toast"
+import { useConfirm } from "@/components/ui/confirm-dialog"
 
 interface LeaveForm {
   EmlLeave: string
@@ -39,6 +40,7 @@ export function BenefitsAndLeaveTab({
   isNewEmployee = false,
 }: BenefitsAndLeaveTabProps) {
   const { toast } = useToast()
+  const confirm = useConfirm()
   const { data: leaveTypes } = useLeaveTypes()
   const { data: comdedList } = useComded()
   const saveMutation = useSaveBenefitsAndLeaves(employee.Account.EmpId)
@@ -82,6 +84,14 @@ export function BenefitsAndLeaveTab({
   }, [initialBenefits])
 
   const handleSave = async () => {
+    const benefitCount = benefits.filter((b) => b.EmbBcode && b.EmbBcode !== "").length
+    const leaveCount = leaves.filter((l) => l.EmlLeave && l.EmlLeave !== "").length
+    const ok = await confirm({
+      title: "Replace benefits and leave credits?",
+      description: `${employee.Account.EmpFirst} ${employee.Account.EmpLast}'s saved benefits and leave credits are cleared and replaced with the ${benefitCount} benefit(s) and ${leaveCount} leave type(s) listed here.`,
+      confirmText: "Save benefits",
+    })
+    if (!ok) return
     try {
       await saveMutation.mutateAsync({
         leaves: leaves.filter((l) => l.EmlLeave && l.EmlLeave !== ""),

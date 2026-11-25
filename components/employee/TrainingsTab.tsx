@@ -9,9 +9,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useTrainings, useAddTraining, useDeleteTraining, type EmpTraining } from "@/lib/hooks/useEmployeeDetail";
 
-interface Props { empId: string }
+interface Props {
+  empId: string;
+  /** "First Last", used in confirm messages. */
+  employeeName?: string;
+}
 
 const TRAINING_TYPES = ["In-house", "External", "Online", "Seminar", "Workshop", "Conference", "Other"];
 
@@ -20,8 +25,10 @@ function fmtDate(d: Date | null): string {
   return new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 }
 
-export function TrainingsTab({ empId }: Props) {
+export function TrainingsTab({ empId, employeeName }: Props) {
+  const who = employeeName || "this employee";
   const { toast } = useToast();
+  const confirm = useConfirm();
   const { data: records = [], isLoading } = useTrainings(empId);
   const addMutation = useAddTraining(empId);
   const deleteMutation = useDeleteTraining(empId);
@@ -36,6 +43,12 @@ export function TrainingsTab({ empId }: Props) {
       toast({ title: "Validation", description: "Training description is required.", variant: "destructive" });
       return;
     }
+    const ok = await confirm({
+      title: "Add this training?",
+      description: `${form.emp_trdesc}${form.emp_trdate ? ` (${fmtDate(form.emp_trdate)})` : ""} goes on ${who}'s training record.`,
+      confirmText: "Add training",
+    });
+    if (!ok) return;
     try {
       await addMutation.mutateAsync(form);
       toast({ title: "Added", description: "Training record added." });
@@ -47,6 +60,14 @@ export function TrainingsTab({ empId }: Props) {
   }
 
   async function handleDelete(trid: string) {
+    const target = records.find((r) => r.emp_trid === trid);
+    const ok = await confirm({
+      title: "Delete this training?",
+      description: `${target?.emp_trdesc || "This training"}${target?.emp_trdate ? ` (${fmtDate(target.emp_trdate)})` : ""} will be erased from ${who}'s training history. There is no way to restore it.`,
+      confirmText: "Delete training",
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await deleteMutation.mutateAsync(trid);
       toast({ title: "Deleted", description: "Training record removed." });

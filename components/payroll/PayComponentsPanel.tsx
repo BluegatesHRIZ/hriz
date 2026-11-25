@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   usePayComponents,
   useUpdatePayComponents,
@@ -27,6 +28,7 @@ import {
  */
 export function PayComponentsPanel() {
   const { toast } = useToast();
+  const confirm = useConfirm();
   const { data, isLoading, isError } = usePayComponents();
   const update = useUpdatePayComponents();
 
@@ -54,6 +56,21 @@ export function PayComponentsPanel() {
   );
 
   const handleSave = async () => {
+    const label = (r: PayComponentRule) => r.cd_desc || r.cd_code;
+    const change = (r: PayComponentRule) =>
+      `${label(r)} becomes ${draft[r.cd_code] ? "taxable" : "non-taxable"}`;
+    const ok = await confirm({
+      title:
+        dirty.length <= 2
+          ? `Change tax treatment of ${dirty.map(label).join(" and ")}?`
+          : `Change tax treatment of ${dirty.length} components?`,
+      description:
+        dirty.length <= 2
+          ? `${dirty.map(change).join("; ")}. Draft runs keep the old figures until you recompute them.`
+          : `${dirty.filter((r) => draft[r.cd_code]).length} become taxable and ${dirty.filter((r) => !draft[r.cd_code]).length} become non-taxable. Draft runs keep the old figures until you recompute them.`,
+      confirmText: "Apply tax changes",
+    });
+    if (!ok) return;
     try {
       await update.mutateAsync(
         dirty.map((r) => ({ code: r.cd_code, taxable: draft[r.cd_code] })),

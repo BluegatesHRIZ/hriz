@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   Select,
   SelectContent,
@@ -72,6 +73,7 @@ function RoleFormBody({
   onClose: () => void;
 }) {
   const { toast } = useToast();
+  const confirm = useConfirm();
   const { data: permissions = [], isLoading: permissionsLoading } = usePermissionsList();
   const createMutation = useCreateRole();
   const updateMutation = useUpdateRole(role?.RolId ?? "");
@@ -140,6 +142,22 @@ function RoleFormBody({
       RolDesc: trimmedDesc,
       RolPermission: Array.from(selectedPermIds).map((PerId) => ({ PerId })),
     };
+
+    const permCount = `${selectedPermIds.size} permission${selectedPermIds.size === 1 ? "" : "s"}`;
+    const ok = await confirm(
+      mode === "add"
+        ? {
+            title: `Create the ${trimmedName} role?`,
+            description: `It starts with ${permCount}. Nobody has it until you assign it to a user.`,
+            confirmText: "Create role",
+          }
+        : {
+            title: `Change access for ${role?.RolName ?? trimmedName}?`,
+            description: `${role?.RolName && role.RolName !== trimmedName ? `The role is renamed to ${trimmedName}. ` : ""}Every user with this role gets exactly these ${permCount}.`,
+            confirmText: "Save role",
+          }
+    );
+    if (!ok) return;
 
     try {
       if (mode === "add") {

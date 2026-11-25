@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { useConfirm } from "@/components/ui/confirm-dialog"
 
 const ITEMS_PER_PAGE = 5
 
@@ -35,6 +36,7 @@ export function Approval() {
   const rejectMutation = useRejectRequests()
   const resendMutation = useResendRequests()
   const reasonMutation = usePostApprovalReason()
+  const confirm = useConfirm()
   const { toast } = useToast()
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set())
   const [remarkDialogOpen, setRemarkDialogOpen] = useState(false)
@@ -86,6 +88,25 @@ export function Approval() {
     setDiscrepancyPage(1)
   }, [discrepancyItems.length])
 
+  // Wording helpers for the confirm prompts.
+  const whoFiled = (a: ApprovalDTO) => a.employee || a.Fa_Emp || "this employee"
+  const kindOf = (a: ApprovalDTO) => (a.Fa_Module || "request").toLowerCase()
+  const filedOn = (a: ApprovalDTO) =>
+    a.Fa_Datetime
+      ? new Date(a.Fa_Datetime).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })
+      : null
+  const joinList = (parts: string[]) =>
+    parts.length <= 1
+      ? parts.join("")
+      : `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`
+  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`
+  const employeeCount = (items: ApprovalDTO[]) =>
+    new Set(items.map((a) => a.Fa_Emp || a.employee)).size
+
   const toggleSelection = (index: number, e?: React.MouseEvent) => {
     if (e) {
       e.stopPropagation()
@@ -118,6 +139,18 @@ export function Approval() {
         module: item.Fa_Module || "",
       }
     })
+
+    const picked = Array.from(selectedItems).map((idx) => approvalItems[idx])
+    const n = picked.length
+    const ok = await confirm({
+      title: n === 1 ? `Approve ${whoFiled(picked[0])}'s ${kindOf(picked[0])}?` : `Approve all ${n} selected?`,
+      description:
+        n <= 3
+          ? `${joinList(picked.map((a) => `${whoFiled(a)}'s ${kindOf(a)}`))} get${n === 1 ? "s" : ""} your sign-off. Where you are the last approver, the request takes effect right away.`
+          : `Your sign-off goes on ${n} requests from ${plural(employeeCount(picked), "employee")}. Any request where you are the last approver takes effect right away.`,
+      confirmText: n === 1 ? `Approve ${kindOf(picked[0])}` : `Approve ${n} requests`,
+    })
+    if (!ok) return
 
     try {
       await approveMutation.mutateAsync(selectedApprovals)
@@ -220,6 +253,14 @@ export function Approval() {
   const handleApproveFromDetail = async () => {
     if (!selectedRequest) return
 
+    const filed = filedOn(selectedRequest)
+    const ok = await confirm({
+      title: `Approve ${whoFiled(selectedRequest)}'s ${kindOf(selectedRequest)}?`,
+      description: `${filed ? `Filed ${filed}. ` : ""}If yours is the final level, it is approved outright; otherwise it moves on to the next approver.`,
+      confirmText: `Approve ${kindOf(selectedRequest)}`,
+    })
+    if (!ok) return
+
     setBtnEnabled(false)
     const approvalObj: ApprovalObject = {
       mod_id: selectedRequest.Fa_TaskId || "",
@@ -269,6 +310,25 @@ export function Approval() {
     }
 
     if (!selectedRequest) return
+
+    const who = whoFiled(selectedRequest)
+    const kind = kindOf(selectedRequest)
+    const filed = filedOn(selectedRequest)
+    const ok = await confirm(
+      actionMode === "reject"
+        ? {
+            title: `Turn down this ${kind} request?`,
+            description: `${who}'s ${kind}${filed ? ` from ${filed}` : ""} will be rejected for every approver, with your remark on record. It drops out of your queue.`,
+            confirmText: `Reject ${kind}`,
+            destructive: true,
+          }
+        : {
+            title: `Return this to ${who}?`,
+            description: `Instead of a decision, the ${kind}${filed ? ` filed ${filed}` : ""} is marked for resubmission and leaves the approval queue. Your remark goes with it.`,
+            confirmText: `Resend to ${who}`,
+          }
+    )
+    if (!ok) return
 
     setBtnEnabled(false)
     const approvalObj: ApprovalObject = {
@@ -336,6 +396,19 @@ export function Approval() {
         module: item.Fa_Module || "",
       }
     })
+
+    const picked = Array.from(selectedItems).map((idx) => approvalItems[idx])
+    const n = picked.length
+    const ok = await confirm({
+      title: n === 1 ? `Reject ${whoFiled(picked[0])}'s ${kindOf(picked[0])}?` : `Reject ${n} requests at once?`,
+      description:
+        n <= 3
+          ? `${joinList(picked.map((a) => `${whoFiled(a)}'s ${kindOf(a)}`))} will be rejected and taken out of every approver's queue.`
+          : `${n} requests from ${plural(employeeCount(picked), "employee")} will be closed as rejected and taken off every approver's list.`,
+      confirmText: n === 1 ? `Reject ${kindOf(picked[0])}` : `Reject ${n} requests`,
+      destructive: true,
+    })
+    if (!ok) return
 
     try {
       await rejectMutation.mutateAsync(selectedApprovals)

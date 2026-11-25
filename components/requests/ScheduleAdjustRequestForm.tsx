@@ -28,6 +28,7 @@ import { CalendarIcon, Plus, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { beforeAfter } from "@/lib/utils/requestLimit";
 import {
   Table,
@@ -120,6 +121,7 @@ function midpointBreak(
 
 export function ScheduleAdjustRequestForm({ empId, scaId, onSuccess }: Props) {
   const { toast } = useToast();
+  const confirm = useConfirm();
   const { data: settings } = useSettings();
   const { data: scheduleDays } = useUserLeaveScheduleList();
   const { data: existing } = useScheduleAdjustById(scaId || "");
@@ -372,6 +374,27 @@ export function ScheduleAdjustRequestForm({ empId, scaId, onSuccess }: Props) {
       ScaSreason: values.ScaSreason || "",
       SchedDetail: details,
     };
+
+    const scaRange = `${format(values.ScaSdatefrom, "MMM d")} to ${format(values.ScaSdateto, "MMM d, yyyy")}`;
+    const scaWorkDay = details.find((d) => d.ScaDrest !== 1 && d.ScaDshiftstart && d.ScaDshiftend);
+    const scaShift = scaWorkDay
+      ? `${format(new Date(scaWorkDay.ScaDshiftstart as Date | string), "h:mm a")} to ${format(new Date(scaWorkDay.ScaDshiftend as Date | string), "h:mm a")}`
+      : "";
+    const scaRestDays = details.filter((d) => d.ScaDrest === 1).length;
+    const ok = await confirm(
+      scaId
+        ? {
+            title: "Save the revised schedule?",
+            description: `The request will cover ${scaRange}${scaShift ? `, first shift ${scaShift}` : ""}.`,
+            confirmText: "Save schedule",
+          }
+        : {
+            title: "Ask to change your schedule?",
+            description: `${details.length} ${details.length === 1 ? "day" : "days"} from ${scaRange}${scaShift ? `, first shift ${scaShift}` : ""}${scaRestDays ? `, ${scaRestDays} rest ${scaRestDays === 1 ? "day" : "days"}` : ""}. It goes to approval before it applies.`,
+            confirmText: "Request change",
+          },
+    );
+    if (!ok) return;
 
     try {
       if (scaId) {

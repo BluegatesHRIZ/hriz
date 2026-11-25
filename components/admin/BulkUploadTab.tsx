@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { apiFetch, ApiError } from "@/lib/api/client";
 
 interface BulkRowResult {
@@ -43,6 +44,7 @@ interface Props {
 
 export function BulkUploadTab({ type, title, description }: Props) {
   const { toast } = useToast();
+  const confirm = useConfirm();
   const fileRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -58,6 +60,21 @@ export function BulkUploadTab({ type, title, description }: Props) {
 
   async function handleUpload() {
     if (!file) { toast({ title: "Please select a file.", variant: "destructive" }); return; }
+
+    const ok = await confirm(
+      type === "employees"
+        ? {
+            title: `Import employees from ${file.name}?`,
+            description: "A new employee record is created for each valid row. Rows with problems are listed after the upload.",
+            confirmText: "Import employees",
+          }
+        : {
+            title: `Apply schedules from ${file.name}?`,
+            description: "Each listed employee's schedule is updated to the shift in their row. Rows that fail are listed afterwards.",
+            confirmText: "Apply schedules",
+          }
+    );
+    if (!ok) return;
 
     setUploading(true);
     setResults(null);

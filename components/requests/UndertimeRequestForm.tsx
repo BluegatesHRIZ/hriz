@@ -26,6 +26,7 @@ import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { beforeAfter } from "@/lib/utils/requestLimit";
 
 const undertimeSchema = z.object({
@@ -78,6 +79,7 @@ export function UndertimeRequestForm({
   onSuccess,
 }: UndertimeRequestFormProps) {
   const { toast } = useToast();
+  const confirm = useConfirm();
   const { data: settings } = useSettings();
   const { data: existing } = useUndertimeById(utId || "");
 
@@ -135,6 +137,22 @@ export function UndertimeRequestForm({
       UtmTo: toDate,
       UtmReason: values.UtmReason || "",
     };
+
+    const utWindow = `${format(fromDate, "h:mm a")} to ${format(toDate, "h:mm a")}`;
+    const ok = await confirm(
+      utId
+        ? {
+            title: "Save changes to this undertime?",
+            description: `The request moves to ${format(values.UtmDate, "MMM d, yyyy")}, ${utWindow}.`,
+            confirmText: "Save undertime",
+          }
+        : {
+            title: `File undertime for ${format(values.UtmDate, "MMM d")}?`,
+            description: `You are filing for ${utWindow} on ${format(values.UtmDate, "EEEE")}. Approval comes next.`,
+            confirmText: "File undertime",
+          },
+    );
+    if (!ok) return;
 
     try {
       if (utId) {
