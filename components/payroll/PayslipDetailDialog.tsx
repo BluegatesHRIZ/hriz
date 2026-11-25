@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
 import {
   usePayslipDetail,
@@ -87,6 +88,7 @@ function PayslipDetailBody({
   onSaved,
 }: PayslipDetailDialogProps & { pk: string }) {
   const { toast } = useToast();
+  const confirm = useConfirm();
   const detail = usePayslipDetail(code, pk);
   const save = useSaveAdjustments(code);
 
@@ -170,6 +172,13 @@ function PayslipDetailBody({
   }, [computed, rows]);
 
   const handleSave = async () => {
+    const slipName = detail.data?.slip.name || detail.data?.slip.employee || "this employee";
+    const ok = await confirm({
+      title: `Update ${slipName}'s adjustments?`,
+      description: `${rows.length} adjustment line${rows.length === 1 ? "" : "s"} will be kept on this payslip in run ${code}. Totals and tax only catch up after you regenerate the run.`,
+      confirmText: "Save adjustments",
+    });
+    if (!ok) return;
     try {
       await save.mutateAsync({
         pk,

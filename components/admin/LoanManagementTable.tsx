@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   Table,
   TableBody,
@@ -77,6 +78,7 @@ export function LoanManagementTable() {
   const { data: loans = [], isLoading } = useLoanManagementList();
   const manageLoan = useManageLoan();
   const { toast } = useToast();
+  const confirm = useConfirm();
   const { user } = useAuth();
   const { data: authMap } = useAuthorizationMap();
   const userMask = parsePermissionMask(user?.permissions ?? "0");
@@ -109,6 +111,12 @@ export function LoanManagementTable() {
 
   async function handleApprove(loan: LoanGridManagement) {
     if (!loan.LoaId || !loan.LoaEmp) return;
+    const ok = await confirm({
+      title: `Approve ${loan.EmpName ?? loan.LoaEmp}'s loan?`,
+      description: `Loan ${loan.LoaId}, a ${loan.LoaType ?? "loan"} of PHP ${fmtAmt(loan.LoaAmt)}, will be marked approved.`,
+      confirmText: `Approve PHP ${fmtAmt(loan.LoaAmt)}`,
+    });
+    if (!ok) return;
     try {
       const dto: LoanManagementDTO = {
         LoaId: loan.LoaId,
@@ -137,6 +145,12 @@ export function LoanManagementTable() {
       toast({ title: "Check the loan terms", description: problem, variant: "destructive" });
       return;
     }
+    const ok = await confirm({
+      title: `Release PHP ${fmtAmt(releaseTerms.loanAmount)} to ${releaseTarget.EmpName ?? releaseTarget.LoaEmp}?`,
+      description: `Loan ${releaseTarget.LoaId} goes into their advances, deducted at PHP ${fmtAmt(releaseTerms.installmentAmount)} per installment starting ${releaseTerms.dateStart}.`,
+      confirmText: `Release PHP ${fmtAmt(releaseTerms.loanAmount)}`,
+    });
+    if (!ok) return;
     try {
       const once = releaseTerms.payPerMonth === "1";
       const dto: LoanManagementDTO = {

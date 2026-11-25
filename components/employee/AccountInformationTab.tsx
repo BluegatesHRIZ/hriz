@@ -23,6 +23,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Save, Plus, Pencil } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import Image from "next/image";
 import { useUploadFile } from "@/lib/hooks/useUpload";
 import { IMAGE_ACCEPT, MAX_UPLOAD_LABEL } from "@/lib/storage/limits";
@@ -77,6 +78,7 @@ export function AccountInformationTab({
   );
   const createMutation = useCreateEmployeeAccount();
   const { toast } = useToast();
+  const confirm = useConfirm();
   const uploadMutation = useUploadFile();
 
   const {
@@ -114,6 +116,15 @@ export function AccountInformationTab({
   });
 
   const onSubmit = async (data: AccountFormData) => {
+    const creating = isNewEmployee || !employee.Account.EmpId;
+    const ok = await confirm({
+      title: creating ? "Create this employee?" : "Save account details?",
+      description: creating
+        ? `${data.EmpFirst} ${data.EmpLast} will be added as a new employee. The other tabs open up once the record exists.`
+        : `Updates the name, assignment, contact and personal details on ${data.EmpFirst} ${data.EmpLast}'s account.`,
+      confirmText: creating ? "Create employee" : "Save details",
+    });
+    if (!ok) return;
     try {
       if (isNewEmployee || !employee.Account.EmpId) {
         // Create new employee

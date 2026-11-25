@@ -20,6 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import type { BioGrid } from "@/lib/types/attendance";
 
 const ITEMS_PER_PAGE = 5;
@@ -31,6 +32,7 @@ export function Biolog() {
   const { data: settings } = useSettings();
   const clockMutation = useClockAttendance();
   const { toast } = useToast();
+  const confirm = useConfirm();
   const [isEnabled, setIsEnabled] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [teamPage, setTeamPage] = useState(1);
@@ -100,6 +102,35 @@ export function Biolog() {
 
   const handleClock = async (type: "I" | "O" | "BI" | "BO") => {
     if (!isEnabled) return;
+
+    const now = new Date();
+    const time = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+    const hour = now.getHours();
+    const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+    const prompts = {
+      I: {
+        title: "Clock in now?",
+        description: `${greeting}. This logs your time in at ${time}.`,
+        confirmText: "Clock in",
+      },
+      O: {
+        title: "Clock out now?",
+        description: `Done for the day? This logs your time out at ${time}.`,
+        confirmText: "Clock out",
+      },
+      BI: {
+        title: "Log break in?",
+        description: `Your break in will be recorded at ${time}.`,
+        confirmText: "Break in",
+      },
+      BO: {
+        title: "Log break out?",
+        description: `Your break out will be recorded at ${time}.`,
+        confirmText: "Break out",
+      },
+    } as const;
+    const ok = await confirm(prompts[type]);
+    if (!ok) return;
 
     setIsEnabled(false);
     try {

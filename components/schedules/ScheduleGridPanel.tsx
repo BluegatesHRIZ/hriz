@@ -13,6 +13,8 @@ import {
 import { Pagination } from "@/components/ui/Pagination";
 import { Pencil } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
+import { summariseWeek } from "./scheduleDays";
 import {
   useSchedulesList,
   useSaveScheduleGrid,
@@ -42,6 +44,7 @@ function dayLabel(day: ScheduleDayValue | undefined): string {
 
 export function ScheduleGridPanel() {
   const { toast } = useToast();
+  const confirm = useConfirm();
   const [filters, setFilters] = useState<ScheduleFilters>(EMPTY_FILTERS);
   const [page, setPage] = useState(1);
 
@@ -67,6 +70,13 @@ export function ScheduleGridPanel() {
 
   const handleSave = async () => {
     if (!editing) return;
+    const name = editing.emp_name || editing.emp_id;
+    const ok = await confirm({
+      title: `Change ${name}'s weekly schedule?`,
+      description: `From now on their week reads: ${summariseWeek(editDays)}.`,
+      confirmText: "Save schedule",
+    });
+    if (!ok) return;
     try {
       const res = await saveGrid.mutateAsync({
         employees: [{ empId: editing.emp_id, days: toScheduleForm(editDays) }],

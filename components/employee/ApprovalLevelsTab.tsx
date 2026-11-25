@@ -25,6 +25,7 @@ import {
 import { initialsOf } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useEmployees } from "@/lib/hooks/useEmployees";
 import {
   useAddApprover,
@@ -144,6 +145,7 @@ function LevelLabel({ level }: { level: number }) {
 
 export function ApprovalLevelsTab({ empId, employeeName }: Props) {
   const { toast } = useToast();
+  const confirm = useConfirm();
   const { data: chain, isLoading } = useApprovalChain(empId);
   const addApprover = useAddApprover(empId);
   const removeApprover = useRemoveApprover(empId);
@@ -171,6 +173,14 @@ export function ApprovalLevelsTab({ empId, employeeName }: Props) {
 
   async function confirmAdd() {
     if (addLevel == null || !picked) return;
+    // employeeName arrives as "Last, First"; read it as "First Last" in the sentence.
+    const forName = employeeName.includes(", ") ? employeeName.split(", ").reverse().join(" ") : employeeName;
+    const ok = await confirm({
+      title: `Add ${picked.name} as approver?`,
+      description: `${picked.name} will approve requests from ${forName} at Level ${addLevel}.`,
+      confirmText: "Add approver",
+    });
+    if (!ok) return;
     try {
       const res = await addApprover.mutateAsync({ ApproverId: picked.id, Level: addLevel });
       toast({ title: res.message });

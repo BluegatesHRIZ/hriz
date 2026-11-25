@@ -9,9 +9,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useMemos, useAddMemo, type EmpMemo } from "@/lib/hooks/useEmployeeDetail";
 
-interface Props { empId: string }
+interface Props {
+  empId: string;
+  /** "First Last", used in confirm messages. */
+  employeeName?: string;
+}
 
 const MEMO_LEVELS = ["Warning", "Final Warning", "Commendation", "Notice", "Other"];
 const MEMO_TYPES = ["Written Warning", "Verbal Warning", "Suspension", "Award", "Notice to Explain", "Other"];
@@ -21,8 +26,10 @@ function fmtDate(d: Date | null): string {
   return new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 }
 
-export function MemosTab({ empId }: Props) {
+export function MemosTab({ empId, employeeName }: Props) {
+  const who = employeeName || "this employee";
   const { toast } = useToast();
+  const confirm = useConfirm();
   const { data: records = [], isLoading } = useMemos(empId);
   const addMutation = useAddMemo(empId);
 
@@ -32,6 +39,13 @@ export function MemosTab({ empId }: Props) {
   });
 
   async function handleAdd() {
+    const memoLabel = [form.emp_mmtype, form.emp_mmlev && `(${form.emp_mmlev})`].filter(Boolean).join(" ") || "This memo";
+    const ok = await confirm({
+      title: "File this memo?",
+      description: `${memoLabel}${form.emp_mmcode ? `, code ${form.emp_mmcode},` : ""} will be logged under ${who}'s memos with today's date.`,
+      confirmText: "File memo",
+    });
+    if (!ok) return;
     try {
       await addMutation.mutateAsync(form);
       toast({ title: "Added", description: "Memo record added." });

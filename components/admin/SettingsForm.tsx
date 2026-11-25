@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -46,6 +47,7 @@ export function SettingsForm() {
   const { data: periodTypes = [], isLoading: loadingPeriod } = usePeriodTypes();
   const updateSettings = useUpdateSettings();
   const { toast } = useToast();
+  const confirm = useConfirm();
 
   // Company tab state
   const [comName, setComName] = useState("");
@@ -145,6 +147,13 @@ export function SettingsForm() {
         com_email: comEmail,
       },
     };
+
+    const ok = await confirm({
+      title: "Save company and system settings?",
+      description: `The settings for ${comName.trim() || "the company"} are replaced with the values on both tabs.`,
+      confirmText: "Save settings",
+    });
+    if (!ok) return;
 
     updateSettings.mutate(payload, {
       onSuccess: () => toast({ title: "Settings saved successfully." }),

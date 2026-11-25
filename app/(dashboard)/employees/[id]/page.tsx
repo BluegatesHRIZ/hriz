@@ -118,6 +118,7 @@ export default function EmployeeDetailPage() {
   const displayEmployee: EmployeeDetail = isNewEmployee
     ? EMPTY_EMPLOYEE_DETAIL
     : employee!;
+  const employeeFullName = `${displayEmployee.Account.EmpFirst ?? ""} ${displayEmployee.Account.EmpLast ?? ""}`.trim();
 
   return (
     <div className="w-full px-4 md:px-6 lg:px-8 pt-5 pb-8">
@@ -214,27 +215,27 @@ export default function EmployeeDetailPage() {
         </TabsContent>
 
         <TabsContent value="medical" className="mt-0">
-          {!isNewEmployee && <MedicalRecordsTab empId={empId} />}
+          {!isNewEmployee && <MedicalRecordsTab empId={empId} employeeName={employeeFullName} />}
         </TabsContent>
 
         <TabsContent value="assets" className="mt-0">
-          {!isNewEmployee && <AssetsTab empId={empId} />}
+          {!isNewEmployee && <AssetsTab empId={empId} employeeName={employeeFullName} />}
         </TabsContent>
 
         <TabsContent value="movement" className="mt-0">
-          {!isNewEmployee && <MovementTab empId={empId} />}
+          {!isNewEmployee && <MovementTab empId={empId} employeeName={employeeFullName} />}
         </TabsContent>
 
         <TabsContent value="memos" className="mt-0">
-          {!isNewEmployee && <MemosTab empId={empId} />}
+          {!isNewEmployee && <MemosTab empId={empId} employeeName={employeeFullName} />}
         </TabsContent>
 
         <TabsContent value="trainings" className="mt-0">
-          {!isNewEmployee && <TrainingsTab empId={empId} />}
+          {!isNewEmployee && <TrainingsTab empId={empId} employeeName={employeeFullName} />}
         </TabsContent>
 
         <TabsContent value="requirements" className="mt-0">
-          {!isNewEmployee && <RequirementsTab empId={empId} />}
+          {!isNewEmployee && <RequirementsTab empId={empId} employeeName={employeeFullName} />}
         </TabsContent>
 
         <TabsContent value="approvals" className="mt-0">

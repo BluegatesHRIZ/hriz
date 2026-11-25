@@ -8,12 +8,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useMedicalRecords, useAddMedicalRecord, useDeleteMedicalRecord } from "@/lib/hooks/useEmployeeDetail";
 
-interface Props { empId: string }
+interface Props {
+  empId: string;
+  /** "First Last", used in confirm messages. */
+  employeeName?: string;
+}
 
-export function MedicalRecordsTab({ empId }: Props) {
+export function MedicalRecordsTab({ empId, employeeName }: Props) {
+  const who = employeeName || "this employee";
   const { toast } = useToast();
+  const confirm = useConfirm();
   const { data: records = [], isLoading } = useMedicalRecords(empId);
   const addMutation = useAddMedicalRecord(empId);
   const deleteMutation = useDeleteMedicalRecord(empId);
@@ -26,6 +33,12 @@ export function MedicalRecordsTab({ empId }: Props) {
       toast({ title: "Validation", description: "Enter a file reference or remarks.", variant: "destructive" });
       return;
     }
+    const ok = await confirm({
+      title: "File this medical record?",
+      description: `"${form.emp_mrfile || form.emp_mrrem}" will be filed in ${who}'s medical records.`,
+      confirmText: "File record",
+    });
+    if (!ok) return;
     try {
       await addMutation.mutateAsync(form);
       toast({ title: "Added", description: "Medical record added." });
@@ -37,6 +50,14 @@ export function MedicalRecordsTab({ empId }: Props) {
   }
 
   async function handleDelete(mrid: string) {
+    const target = records.find((r) => r.emp_mrid === mrid);
+    const ok = await confirm({
+      title: "Delete this medical record?",
+      description: `This permanently deletes "${target?.emp_mrfile || target?.emp_mrrem || "this record"}" from ${who}'s medical file.`,
+      confirmText: "Delete record",
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await deleteMutation.mutateAsync(mrid);
       toast({ title: "Deleted", description: "Record removed." });

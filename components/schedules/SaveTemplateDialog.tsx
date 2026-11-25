@@ -14,6 +14,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
+import { summariseWeek } from "./scheduleDays";
 import { useCreateScheduleTemplate } from "@/lib/hooks/useScheduleTemplates";
 import type { ScheduleDayValue } from "./scheduleDays";
 
@@ -30,6 +32,7 @@ export function SaveTemplateDialog({
   days,
 }: SaveTemplateDialogProps) {
   const { toast } = useToast();
+  const confirm = useConfirm();
   const createTemplate = useCreateScheduleTemplate();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -43,6 +46,12 @@ export function SaveTemplateDialog({
       });
       return;
     }
+    const ok = await confirm({
+      title: `Keep "${name.trim()}" as a template?`,
+      description: `${summariseWeek(days)}. It will be listed with your saved templates for reuse.`,
+      confirmText: "Save template",
+    });
+    if (!ok) return;
     try {
       await createTemplate.mutateAsync({
         name: name.trim(),

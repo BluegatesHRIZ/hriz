@@ -37,6 +37,7 @@ import {
   useDeleteAdvance,
 } from "@/lib/hooks/useEmployeeDetail";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import type { EmployeeAdvance, LoanTerms } from "@/lib/types";
 import {
   emptyLoanTerms,
@@ -97,6 +98,7 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
 
 export function AdvancesAndLoansTab({ employee }: AdvancesAndLoansTabProps) {
   const { toast } = useToast();
+  const confirm = useConfirm();
   const empId = employee.Account.EmpId;
   const addAdvance = useAddAdvance(empId);
   const deleteAdvance = useDeleteAdvance(empId);
@@ -125,6 +127,12 @@ export function AdvancesAndLoansTab({ employee }: AdvancesAndLoansTabProps) {
       toast({ title: "Check the loan details", description: problem, variant: "destructive" });
       return;
     }
+    const ok = await confirm({
+      title: `Add ₱${formatMoney(terms.loanAmount)} ${terms.loanType}?`,
+      description: `${employee.Account.EmpFirst} ${employee.Account.EmpLast} pays ₱${formatMoney(terms.installmentAmount)} per instalment, collected through payroll starting ${formatInputDate(terms.dateStart)}.`,
+      confirmText: "Add loan",
+    });
+    if (!ok) return;
     try {
       await addAdvance.mutateAsync({
         AdvType: terms.loanType,

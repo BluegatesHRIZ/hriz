@@ -27,6 +27,7 @@ import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { beforeAfter } from "@/lib/utils/requestLimit";
 import { format as formatDate } from "date-fns";
 
@@ -78,6 +79,7 @@ export function OvertimeRequestForm({
   onSuccess,
 }: OvertimeRequestFormProps) {
   const { toast } = useToast();
+  const confirm = useConfirm();
   const { data: settings } = useSettings();
   const { data: scheduleDays } = useUserLeaveScheduleList();
 
@@ -246,6 +248,25 @@ export function OvertimeRequestForm({
       otm_to: toDate,
       otm_reason: values.otm_reason,
     };
+
+    const otTypeLabel =
+      OT_TYPES.find((t) => t.value === values.otm_type)?.label ?? "Overtime";
+    const otHours = Number(((toDate.getTime() - fromDate.getTime()) / 3_600_000).toFixed(2));
+    const otWindow = `${format(fromDate, "h:mm a")} to ${format(toDate, "h:mm a")}`;
+    const ok = await confirm(
+      otId && existing
+        ? {
+            title: "Change this overtime request?",
+            description: `It will read ${otTypeLabel} on ${format(otDate, "MMM d, yyyy")}, ${otWindow} (${otHours} ${otHours === 1 ? "hour" : "hours"}).`,
+            confirmText: "Save overtime",
+          }
+        : {
+            title: `Send ${otHours} ${otHours === 1 ? "hour" : "hours"} of overtime?`,
+            description: `${otTypeLabel} on ${format(otDate, "EEE, MMM d")}, ${otWindow}. It joins your pending requests until it is approved.`,
+            confirmText: "Send overtime",
+          },
+    );
+    if (!ok) return;
 
     try {
       if (otId && existing) {

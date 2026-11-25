@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic"
 
-import { useEffect, useRef, useState } from "react"
+import { Suspense, useEffect, useRef, useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/lib/auth/context"
 import { useEmployees, useManageEmployeeStatus } from "@/lib/hooks/useEmployees"
@@ -12,6 +12,7 @@ import {
   usePositions,
 } from "@/lib/hooks/useEmployeeDetail"
 import { useGenerateQrToken } from "@/lib/hooks/useAuth"
+import { useConfirm } from "@/components/ui/confirm-dialog"
 import { CardWithHeader } from "@/components/cards/CardWithHeader"
 import { Users, QrCode } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -47,7 +48,16 @@ import {
 /** Radix Select forbids an empty item value, so "all" stands in for no filter. */
 const ALL = "all"
 
+// useSearchParams needs a Suspense boundary, or `next build` fails to prerender /employees.
 export default function EmployeesPage() {
+  return (
+    <Suspense fallback={null}>
+      <EmployeesPageContent />
+    </Suspense>
+  )
+}
+
+function EmployeesPageContent() {
   const router = useRouter()
   const pathname = usePathname()
   const params = useSearchParams()
@@ -98,6 +108,7 @@ export default function EmployeesPage() {
   const { data: locations } = useLocations()
   const manageStatusMutation = useManageEmployeeStatus()
   const generateQrMutation = useGenerateQrToken()
+  const confirm = useConfirm()
   const [qrDialogOpen, setQrDialogOpen] = useState(false)
   const [selectedEmpId, setSelectedEmpId] = useState<string | null>(null)
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null)
@@ -135,9 +146,29 @@ export default function EmployeesPage() {
     setPage(1)
   }
 
-  const handleStatusChange = (empId: string, value: string) => {
+  const STATUS_LABELS: Record<number, string> = {
+    1: "Active",
+    2: "Resigned",
+    3: "End of Contract",
+    4: "Terminated",
+    5: "AWOL",
+  }
+
+  const handleStatusChange = async (
+    empId: string,
+    value: string,
+    name: string,
+    current: number
+  ) => {
     const status = Number(value)
     if (!status || ![1, 2, 3, 4, 5].includes(status)) return
+    const ok = await confirm({
+      title: `Mark ${name} as ${STATUS_LABELS[status]}?`,
+      description: `${name}'s employment status goes from ${STATUS_LABELS[current] ?? "its current value"} to ${STATUS_LABELS[status]}.`,
+      confirmText: `Mark as ${STATUS_LABELS[status]}`,
+      destructive: status !== 1,
+    })
+    if (!ok) return
     manageStatusMutation.mutate({ empId, status })
   }
 
@@ -289,7 +320,12 @@ export default function EmployeesPage() {
                         <Select
                           value={String(emp.emp_status ?? 1)}
                           onValueChange={(value) =>
-                            handleStatusChange(emp.emp_id, value)
+                            handleStatusChange(
+                              emp.emp_id,
+                              value,
+                              `${emp.emp_first} ${emp.emp_last}`,
+                              emp.emp_status ?? 1
+                            )
                           }
                           disabled={manageStatusMutation.isPending}
                         >

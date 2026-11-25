@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   Table,
   TableBody,
@@ -120,6 +121,7 @@ export function DepartmentTab() {
   const update = useUpdateDepartment();
   const del = useDeleteDepartment();
   const { toast } = useToast();
+  const confirm = useConfirm();
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<DepartmentDTO | null>(null);
@@ -131,8 +133,29 @@ export function DepartmentTab() {
   function openAdd() { setEditing(null); setId(""); setDesc(""); setStatus("1"); setShowForm(true); }
   function openEdit(d: DepartmentDTO) { setEditing(d); setId(d.dep_id); setDesc(d.dep_desc ?? ""); setStatus(String(d.dep_status ?? 1)); setShowForm(true); }
 
-  function handleSave() {
+  async function handleSave() {
     if (!id.trim() || !desc.trim()) { toast({ title: "ID and description required.", variant: "destructive" }); return; }
+    const oldName = editing?.dep_desc ?? "";
+    const goingInactive = editing && editing.dep_status !== 0 && status === "0";
+    const ok = await confirm(
+      editing
+        ? {
+            title: `Update the ${oldName || editing.dep_id} department?`,
+            description:
+              oldName && oldName !== desc.trim()
+                ? `${oldName} will be renamed to ${desc.trim()}.${goingInactive ? " It will also be marked inactive." : ""}`
+                : goingInactive
+                  ? `${desc.trim()} will be marked inactive.`
+                  : `Your edits to ${desc.trim()} (code ${editing.dep_id}) will be saved.`,
+            confirmText: "Update department",
+          }
+        : {
+            title: `Add the ${desc.trim()} department?`,
+            description: `${desc.trim()} is created under code ${id.trim()}${status === "0" ? " and starts out inactive" : ""}.`,
+            confirmText: "Add department",
+          }
+    );
+    if (!ok) return;
     const onSuccess = () => { toast({ title: editing ? "Department updated." : "Department added." }); setShowForm(false); };
     const onError = (e: ApiError) => toast({ title: "Error.", description: e.message, variant: "destructive" });
 
@@ -205,6 +228,7 @@ export function LocationTab() {
   const update = useUpdateLocation();
   const del = useDeleteLocation();
   const { toast } = useToast();
+  const confirm = useConfirm();
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<LocationDTO | null>(null);
@@ -217,8 +241,26 @@ export function LocationTab() {
   function openAdd() { setEditing(null); setId(""); setDesc(""); setCode(""); setStatus("1"); setShowForm(true); }
   function openEdit(l: LocationDTO) { setEditing(l); setId(l.loc_id); setDesc(l.loc_desc ?? ""); setCode(l.loc_code ?? ""); setStatus(String(l.loc_status ?? 1)); setShowForm(true); }
 
-  function handleSave() {
+  async function handleSave() {
     if (!id.trim() || !desc.trim()) { toast({ title: "ID and description required.", variant: "destructive" }); return; }
+    const oldName = editing?.loc_desc ?? "";
+    const ok = await confirm(
+      editing
+        ? {
+            title: `Save changes to ${oldName || editing.loc_id}?`,
+            description:
+              oldName && oldName !== desc.trim()
+                ? `Location ${editing.loc_id} changes its name from ${oldName} to ${desc.trim()}.`
+                : `The ${desc.trim()} location record is overwritten with what you entered${code.trim() ? ` (short code ${code.trim()})` : ""}.`,
+            confirmText: "Save location",
+          }
+        : {
+            title: `Add ${desc.trim()} as a location?`,
+            description: `Once added, ${desc.trim()} can be picked when setting up holidays and devices.`,
+            confirmText: "Add location",
+          }
+    );
+    if (!ok) return;
     const onSuccess = () => { toast({ title: editing ? "Location updated." : "Location added." }); setShowForm(false); };
     const onError = (e: ApiError) => toast({ title: "Error.", description: e.message, variant: "destructive" });
     if (editing) {
@@ -294,6 +336,7 @@ export function PositionTab() {
   const update = useUpdatePosition();
   const del = useDeletePosition();
   const { toast } = useToast();
+  const confirm = useConfirm();
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<PositionDTO | null>(null);
@@ -305,8 +348,26 @@ export function PositionTab() {
   function openAdd() { setEditing(null); setId(""); setDesc(""); setStatus("1"); setShowForm(true); }
   function openEdit(p: PositionDTO) { setEditing(p); setId(p.pst_id); setDesc(p.pst_desc ?? ""); setStatus(String(p.pst_Status ?? 1)); setShowForm(true); }
 
-  function handleSave() {
+  async function handleSave() {
     if (!id.trim() || !desc.trim()) { toast({ title: "ID and description required.", variant: "destructive" }); return; }
+    const oldTitle = editing?.pst_desc ?? "";
+    const ok = await confirm(
+      editing
+        ? {
+            title: `Edit position ${editing.pst_id}?`,
+            description:
+              oldTitle && oldTitle !== desc.trim()
+                ? `Its title changes from ${oldTitle} to ${desc.trim()}.`
+                : `${desc.trim()} keeps its code; your edits replace its current details.`,
+            confirmText: "Apply changes",
+          }
+        : {
+            title: `Create the ${desc.trim()} position?`,
+            description: `${desc.trim()} gets position code ${id.trim()}${status === "0" ? ", set as inactive" : ""}.`,
+            confirmText: "Create position",
+          }
+    );
+    if (!ok) return;
     const onSuccess = () => { toast({ title: editing ? "Position updated." : "Position added." }); setShowForm(false); };
     const onError = (e: ApiError) => toast({ title: "Error.", description: e.message, variant: "destructive" });
     if (editing) {
@@ -378,6 +439,7 @@ export function LeaveTypeTab() {
   const update = useUpdateLeaveType();
   const del = useDeleteLeaveType();
   const { toast } = useToast();
+  const confirm = useConfirm();
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<LeaveTypeDTO | null>(null);
@@ -397,8 +459,30 @@ export function LeaveTypeTab() {
     setStatus(String(l.lev_status ?? 1)); setShowForm(true);
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!id.trim() || !desc.trim()) { toast({ title: "ID and description required.", variant: "destructive" }); return; }
+    const oldLabel = editing?.lev_desc ?? "";
+    const oldDays = editing?.lev_days ?? 0;
+    const daysChanged = editing && oldDays !== Number(days);
+    const ok = await confirm(
+      editing
+        ? {
+            title: `Change the ${oldLabel || editing.lev_id} leave type?`,
+            description: [
+              oldLabel && oldLabel !== desc.trim() ? `It will be called ${desc.trim()}.` : "",
+              daysChanged
+                ? `Entitlement goes from ${oldDays} to ${Number(days)} day(s).`
+                : `Entitlement stays at ${oldDays} day(s); your other edits are saved.`,
+            ].filter(Boolean).join(" "),
+            confirmText: "Save leave type",
+          }
+        : {
+            title: `Add ${desc.trim()} as a leave type?`,
+            description: `Code ${id.trim()}, with an entitlement of ${Number(days)} day(s).`,
+            confirmText: "Add leave type",
+          }
+    );
+    if (!ok) return;
     const payload: LeaveTypeDTO = {
       lev_id: id.trim(), lev_desc: desc.trim(), lev_days: Number(days),
       lev_status: Number(status), lev_before: Number(before), lev_lead: Number(lead), lev_after: Number(after),

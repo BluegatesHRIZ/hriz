@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   Select,
   SelectContent,
@@ -45,6 +46,13 @@ const STATUS_OPTIONS = [
   { value: "0", label: "Inactive" },
 ];
 
+function prettyDate(ymd: string) {
+  const d = new Date(`${ymd}T00:00:00`);
+  return Number.isNaN(d.getTime())
+    ? ymd
+    : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
 function toDateInput(val: string | null | undefined) {
   if (!val) return "";
   return val.slice(0, 10);
@@ -58,6 +66,7 @@ interface Props {
 
 export function AnnouncementFormDialog({ open, onClose, existing }: Props) {
   const { toast } = useToast();
+  const confirm = useConfirm();
   const create = useCreateAnnouncement();
   const update = useUpdateAnnouncement();
 
@@ -91,7 +100,7 @@ export function AnnouncementFormDialog({ open, onClose, existing }: Props) {
 
   const isPending = create.isPending || update.isPending;
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!headline.trim() || !message.trim() || !startDate || !endDate) {
       toast({ title: "Please fill in all required fields.", variant: "destructive" });
       return;
@@ -110,6 +119,31 @@ export function AnnouncementFormDialog({ open, onClose, existing }: Props) {
       an_repeat: Number(repeat),
       an_status: Number(status),
     };
+
+    const shortHeadline =
+      payload.an_headline.length > 40 ? `${payload.an_headline.slice(0, 40)}...` : payload.an_headline;
+    const showWindow = `${prettyDate(startDate)} to ${prettyDate(endDate)}`;
+    const visibility =
+      payload.an_status === 1
+        ? `It appears in News on the home page from ${showWindow}.`
+        : `It is saved as inactive, so it stays out of News until you turn it on.`;
+    const ok = await confirm(
+      existing
+        ? {
+            title: "Update this announcement?",
+            description:
+              existing.an_headline && existing.an_headline !== payload.an_headline
+                ? `"${existing.an_headline}" will now read "${payload.an_headline}". ${visibility}`
+                : `Your edits to "${payload.an_headline}" replace what people see now. ${visibility}`,
+            confirmText: "Save announcement",
+          }
+        : {
+            title: `Post "${shortHeadline}"?`,
+            description: `${payload.an_type === "urgent" ? "This is marked urgent. " : ""}${visibility}`,
+            confirmText: "Post announcement",
+          }
+    );
+    if (!ok) return;
 
     if (existing) {
       update.mutate(

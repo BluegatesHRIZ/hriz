@@ -25,6 +25,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
 import { PayslipDetailDialog } from "./PayslipDetailDialog";
 import {
@@ -158,8 +159,17 @@ function Amount({ value }: { value: number }) {
   );
 }
 
+const fmtDay = (d: string | null | undefined) => {
+  if (!d) return "";
+  const t = new Date(d.length === 10 ? `${d}T00:00:00` : d);
+  return Number.isNaN(t.getTime())
+    ? d
+    : t.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+};
+
 export function PayrollRegister({ code }: { code: string }) {
   const { toast } = useToast();
+  const askConfirm = useConfirm();
   const detail = usePayrollRun(code);
   const computeRun = useComputeRun();
   const postRun = usePostRun();
@@ -191,6 +201,13 @@ export function PayrollRegister({ code }: { code: string }) {
     });
 
   const handleGenerate = async () => {
+    const range = run?.from && run?.to ? ` for ${fmtDay(run.from)} to ${fmtDay(run.to)}` : "";
+    const ok = await askConfirm({
+      title: `Recompute run ${code}?`,
+      description: `All ${slips.length} payslip${slips.length === 1 ? "" : "s"}${range} are computed again, so any change to salaries or adjustments shows up.`,
+      confirmText: "Regenerate payslips",
+    });
+    if (!ok) return;
     try {
       // No employee list — reuse whoever this run already covers.
       const res = await computeRun.mutateAsync({ code });

@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { MoneyInput } from "@/components/ui/money-input";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 const loanSchema = z.object({
   LoaAmt: z.coerce.number().positive("Loan amount must be greater than zero"),
@@ -44,6 +45,7 @@ function toDateInput(value?: Date | string | null): string {
 
 export function LoanRequestForm({ loanId, onSuccess }: LoanRequestFormProps) {
   const { toast } = useToast();
+  const confirm = useConfirm();
   const { data: existing } = useLoanById(loanId || "");
   const createMutation = useCreateLoan();
   const updateMutation = useUpdateLoan(loanId || "");
@@ -72,6 +74,26 @@ export function LoanRequestForm({ loanId, onSuccess }: LoanRequestFormProps) {
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
   async function onSubmit(values: LoanFormValues) {
+    const loanAmount = `PHP ${Number(values.LoaAmt).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const loanType = values.LoaType?.trim();
+    const loanRelease = values.LoaExprelease
+      ? new Date(`${values.LoaExprelease}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+      : "";
+    const ok = await confirm(
+      loanId
+        ? {
+            title: "Update your loan request?",
+            description: `The request will now ask for ${loanAmount}${loanType ? ` as a ${loanType}` : ""}${loanRelease ? `, with release expected on ${loanRelease}` : ""}.`,
+            confirmText: "Save loan",
+          }
+        : {
+            title: `Request a ${loanAmount} loan?`,
+            description: `${loanType || "Loan"}${loanRelease ? `, needed by ${loanRelease}` : ""}. The request starts as pending and needs approval.`,
+            confirmText: "Request loan",
+          },
+    );
+    if (!ok) return;
+
     const payload: LoanDTO = {
       LoaAmt: values.LoaAmt,
       LoaReason: values.LoaReason.trim(),

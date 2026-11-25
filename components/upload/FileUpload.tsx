@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useUploadFile, useDeleteFile } from "@/lib/hooks/useUpload"
 import { useToast } from "@/lib/hooks/use-toast"
+import { useConfirm } from "@/components/ui/confirm-dialog"
 import { X, File, Eye } from "lucide-react"
 import Image from "next/image"
 import {
@@ -35,6 +36,7 @@ export function FileUpload({
   multiple = true,
 }: FileUploadProps) {
   const { toast } = useToast()
+  const confirm = useConfirm()
   const uploadMutation = useUploadFile()
   const deleteMutation = useDeleteFile()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -92,6 +94,15 @@ export function FileUpload({
   }
 
   const handleDeleteFile = async (fileId: string) => {
+    const target = files.find((f) => f.fil_id === fileId)
+    const name = target?.fil_name || target?.name
+    const ok = await confirm({
+      title: name ? `Remove ${name}?` : "Remove this attachment?",
+      description: "The attachment is deleted from this record and cannot be recovered.",
+      confirmText: "Delete file",
+      destructive: true,
+    })
+    if (!ok) return
     try {
       await deleteMutation.mutateAsync(fileId)
       const updatedFiles = files.filter((f) => f.fil_id !== fileId)

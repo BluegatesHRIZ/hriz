@@ -34,6 +34,7 @@ import { format } from "date-fns";
 import { CalendarIcon, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   Table,
   TableBody,
@@ -77,6 +78,7 @@ export function AttendanceChangeRequestForm({
   initialSched,
 }: AttendanceChangeRequestFormProps) {
   const { toast } = useToast();
+  const confirm = useConfirm();
   const [mounted, setMounted] = useState(false);
   const [coaDetails, setCoaDetails] = useState<CoaDetailDTO[]>([]);
   const [selectedCoaType, setSelectedCoaType] = useState<string>("");
@@ -454,6 +456,32 @@ export function AttendanceChangeRequestForm({
       });
       return;
     }
+
+    const coaTypeName = isOthers
+      ? customTypeDetail.trim()
+      : coaTypes?.find((t) => t.coa_tid === selectedCoaType)?.coa_tdesc || "attendance change";
+    const coaDates = [
+      ...new Set(
+        coaDetails
+          .filter((d) => d.CoaDdate)
+          .map((d) => format(new Date(d.CoaDdate as Date | string), "MMM d")),
+      ),
+    ].join(", ");
+    const entryWord = coaDetails.length === 1 ? "entry" : "entries";
+    const ok = await confirm(
+      coaId
+        ? {
+            title: "Save changes to this correction?",
+            description: `The request will now hold ${coaDetails.length} log ${entryWord}${coaDates ? ` on ${coaDates}` : ""}, filed as ${coaTypeName}.`,
+            confirmText: "Save correction",
+          }
+        : {
+            title: "File this attendance correction?",
+            description: `${coaDetails.length} log ${entryWord}${coaDates ? ` for ${coaDates}` : ""} will be filed as ${coaTypeName} and sent for approval.`,
+            confirmText: "File correction",
+          },
+    );
+    if (!ok) return;
 
     try {
       const selectedType = coaTypes?.find((t) => t.coa_tid === selectedCoaType);

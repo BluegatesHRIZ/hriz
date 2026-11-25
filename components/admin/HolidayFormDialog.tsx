@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   Select,
   SelectContent,
@@ -38,6 +39,13 @@ const STATUS_OPTIONS = [
   { value: "0", label: "Inactive" },
 ];
 
+function prettyDate(ymd: string) {
+  const d = new Date(`${ymd}T00:00:00`);
+  return Number.isNaN(d.getTime())
+    ? ymd
+    : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
 function toDateInput(val: string | null | undefined) {
   if (!val) return "";
   return val.slice(0, 10);
@@ -51,6 +59,7 @@ interface Props {
 
 export function HolidayFormDialog({ open, onClose, existing }: Props) {
   const { toast } = useToast();
+  const confirm = useConfirm();
   const create = useCreateHoliday();
   const update = useUpdateHoliday();
   const { data: types = [] } = useHolidayTypes();
@@ -83,7 +92,7 @@ export function HolidayFormDialog({ open, onClose, existing }: Props) {
 
   const isPending = create.isPending || update.isPending;
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!date || !name.trim() || !type) {
       toast({ title: "Please fill in all required fields.", variant: "destructive" });
       return;
@@ -97,6 +106,31 @@ export function HolidayFormDialog({ open, onClose, existing }: Props) {
       hol_repeat: repeat,
       hol_status: Number(status),
     };
+
+    const typeName = types.find((t) => t.htp_id === type)?.htp_desc ?? type;
+    const where =
+      location === "__all__"
+        ? "all locations"
+        : locations.find((l) => l.loc_id === location)?.loc_desc ?? location;
+    const when = prettyDate(date);
+    const oldDate = existing ? toDateInput(existing.hol_date) : "";
+    const ok = await confirm(
+      existing
+        ? {
+            title: `Update ${existing.hol_name ?? payload.hol_name}?`,
+            description:
+              oldDate && oldDate !== date
+                ? `It moves from ${prettyDate(oldDate)} to ${when}, as a ${typeName} for ${where}. Attendance on the new date is computed as a holiday.`
+                : `${payload.hol_name} on ${when} is saved as a ${typeName} for ${where}.`,
+            confirmText: "Update holiday",
+          }
+        : {
+            title: `Add ${payload.hol_name} to the calendar?`,
+            description: `${when} becomes a ${typeName} for ${where}${repeat === "Yearly" ? ", every year" : ", this year only"}. Attendance on that day is computed as a holiday.`,
+            confirmText: "Add holiday",
+          }
+    );
+    if (!ok) return;
 
     if (existing) {
       update.mutate(

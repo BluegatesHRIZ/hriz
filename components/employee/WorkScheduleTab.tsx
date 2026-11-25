@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Copy, Clipboard, Save } from "lucide-react"
 import { useToast } from "@/lib/hooks/use-toast"
+import { useConfirm } from "@/components/ui/confirm-dialog"
 import { useSaveEmployeeSchedule } from "@/lib/hooks/useEmployeeDetail"
 import {
   Popover,
@@ -50,6 +51,7 @@ interface WorkScheduleTabProps {
 
 export function WorkScheduleTab({ employee, employeeList }: WorkScheduleTabProps) {
   const { toast } = useToast()
+  const confirm = useConfirm()
   const saveMutation = useSaveEmployeeSchedule(employee.Account.EmpId)
   const [schedules, setSchedules] = useState<ScheduleDay[]>([])
   const [copyFromEmp, setCopyFromEmp] = useState<string>("")
@@ -282,6 +284,12 @@ export function WorkScheduleTab({ employee, employeeList }: WorkScheduleTabProps
   }
 
   const handleSave = async () => {
+    const ok = await confirm({
+      title: "Overwrite the weekly schedule?",
+      description: `${employee.Account.EmpFirst} ${employee.Account.EmpLast}'s current schedule is cleared and replaced with the days set here.`,
+      confirmText: "Save schedule",
+    })
+    if (!ok) return
     try {
       // Transform schedules to match API format
       // Times come from HTML time inputs as "HH:mm", stored procedure expects "HH:mm:00"

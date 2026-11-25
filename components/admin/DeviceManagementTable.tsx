@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   Table,
   TableBody,
@@ -51,6 +52,7 @@ export function DeviceManagementTable() {
   const updateDevice = useUpdateDevice();
   const deleteDevice = useDeleteDevice();
   const { toast } = useToast();
+  const confirm = useConfirm();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<DeviceDTO | null>(null);
@@ -59,6 +61,13 @@ export function DeviceManagementTable() {
   const [syncingCode, setSyncingCode] = useState<string | null>(null);
 
   async function handleSync(d: DeviceDTO) {
+    const ok = await confirm({
+      title: `Pull logs from ${d.ter_id ?? d.ter_code}?`,
+      description: `Attendance records stored on ${d.ter_code} are copied in. Records already imported are skipped.`,
+      confirmText: "Pull logs",
+    });
+    if (!ok) return;
+
     setSyncingCode(d.ter_code);
     try {
       const token = localStorage.getItem("auth_token") ?? "";
@@ -86,6 +95,13 @@ export function DeviceManagementTable() {
   }
 
   async function handleAuthorize(d: DeviceDTO) {
+    const ok = await confirm({
+      title: `Authorize ${d.ter_id ?? d.ter_code}?`,
+      description: `Face scans sent by ${d.ter_code} will be accepted as attendance punches.`,
+      confirmText: "Authorize device",
+    });
+    if (!ok) return;
+
     setActionError(null);
     try {
       await updateDevice.mutateAsync({ ter_code: d.ter_code, ter_status: 1 });
@@ -95,6 +111,14 @@ export function DeviceManagementTable() {
   }
 
   async function handleUnauthorize(d: DeviceDTO) {
+    const ok = await confirm({
+      title: `Stop accepting scans from ${d.ter_id ?? d.ter_code}?`,
+      description: `Punches from ${d.ter_code} will be refused until you authorize it again.`,
+      confirmText: "Unauthorize device",
+      destructive: true,
+    });
+    if (!ok) return;
+
     setActionError(null);
     try {
       await updateDevice.mutateAsync({ ter_code: d.ter_code, ter_status: 0 });

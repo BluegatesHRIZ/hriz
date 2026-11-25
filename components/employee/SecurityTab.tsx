@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Save, Eye, EyeOff } from "lucide-react"
 import { useToast } from "@/lib/hooks/use-toast"
+import { useConfirm } from "@/components/ui/confirm-dialog"
 import {
   Select,
   SelectContent,
@@ -27,6 +28,7 @@ interface SecurityTabProps {
 
 export function SecurityTab({ employee }: SecurityTabProps) {
   const { toast } = useToast()
+  const confirm = useConfirm()
   const passwordMutation = useChangePassword(employee.Account.EmpId)
   const updateAccountMutation = useUpdateEmployeeAccount(employee.Account.EmpId)
   const canAssignRoles = useCanAssignRoles()
@@ -71,6 +73,13 @@ export function SecurityTab({ employee }: SecurityTabProps) {
       return
     }
 
+    const ok = await confirm({
+      title: `Change ${employee.Account.EmpFirst}'s password?`,
+      description: `${employee.Account.EmpFirst} ${employee.Account.EmpLast} will have to sign in with the new password from now on.`,
+      confirmText: "Change password",
+    })
+    if (!ok) return
+
     try {
       await passwordMutation.mutateAsync({
         oldPassword,
@@ -95,6 +104,14 @@ export function SecurityTab({ employee }: SecurityTabProps) {
   }
 
   const handleSaveRole = async () => {
+    const roleName =
+      roles?.find((r) => r.rol_id === selectedRole)?.rol_name || selectedRole
+    const ok = await confirm({
+      title: `Change role to ${roleName}?`,
+      description: `${employee.Account.EmpFirst} ${employee.Account.EmpLast}'s access will follow the permissions set on the ${roleName} role.`,
+      confirmText: "Change role",
+    })
+    if (!ok) return
     try {
       await updateAccountMutation.mutateAsync({
         Account: {

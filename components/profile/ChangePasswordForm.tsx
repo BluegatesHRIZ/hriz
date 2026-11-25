@@ -9,6 +9,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/lib/auth/context";
 import { useChangePassword } from "@/lib/hooks/useEmployeeDetail";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 interface FieldProps {
   label: string;
@@ -47,6 +48,7 @@ function PasswordField({ label, value, onChange, show, onToggle }: FieldProps) {
 export function ChangePasswordForm() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const confirm = useConfirm();
   const changePassword = useChangePassword(user?.name ?? "");
 
   const [oldPswd, setOldPswd] = useState("");
@@ -77,6 +79,13 @@ export function ChangePasswordForm() {
       setError("New password and confirmation do not match.");
       return;
     }
+
+    const ok = await confirm({
+      title: "Change your password?",
+      description: "Your old password stops working right away. Use the new one the next time you sign in.",
+      confirmText: "Change password",
+    });
+    if (!ok) return;
 
     try {
       await changePassword.mutateAsync({
