@@ -6,7 +6,7 @@
  * break window, rest-day / exempt handling). This module holds those pure rules
  * plus the canonical day value shape so both surfaces stay consistent.
  *
- * `ScheduleDayValue` matches the API's `ScheduleDayForm` / template `TemplateDay`
+ * `ScheduleDayValue` matches the weekly schedule API / template `TemplateDay`
  * (the `sch_*` fields minus `sch_emp`), so values round-trip without mapping.
  */
 
@@ -39,7 +39,7 @@ export interface ScheduleDayValue {
   have_break: boolean;
 }
 
-const DEFAULT_DAY: Omit<ScheduleDayValue, "sch_day"> = {
+export const DEFAULT_DAY: Omit<ScheduleDayValue, "sch_day"> = {
   sch_in: "09:00",
   sch_out: "18:00",
   sch_bin: "13:00",
@@ -114,11 +114,11 @@ export function calculateHours(sched: ScheduleDayValue): number {
  * window when time-in changes (break in = in + 4h, break out = break in + 1h).
  * Returns a new object; does not mutate the input.
  */
-export function applyDayUpdate(
-  day: ScheduleDayValue,
-  updates: Partial<ScheduleDayValue>
-): ScheduleDayValue {
-  const next: ScheduleDayValue = { ...day, ...updates };
+export function applyDayUpdate<T extends ScheduleDayValue>(
+  day: T,
+  updates: Partial<T>
+): T {
+  const next: T = { ...day, ...updates };
 
   if (updates.sch_in) {
     const [hours, minutes] = updates.sch_in.split(":").map(Number);

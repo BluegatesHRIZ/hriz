@@ -36,16 +36,29 @@ import {
   EMPTY_FILTERS,
   type ScheduleFilters,
 } from "./ScheduleFilterBar";
-import { ScheduleDayEditor } from "./ScheduleDayEditor";
+import { DatedScheduleEditor } from "./DatedScheduleEditor";
 import { SaveTemplateDialog } from "./SaveTemplateDialog";
+import {
+  DateRangeFields,
+  rangeError,
+  weekRange,
+  type DateRange,
+} from "./DateRangeFields";
 import {
   emptyWeek,
   toFullWeek,
-  toScheduleForm,
-  summariseWeek,
   applyDayUpdate,
   type ScheduleDayValue,
 } from "./scheduleDays";
+import {
+  fillRange,
+  reconcileRange,
+  summariseDates,
+  toDatedPayload,
+  weekFromDates,
+  type DatedDayValue,
+} from "./scheduleDates";
+import { formatLongDate, listDates } from "@/lib/utils/scheduleDates";
 
 const NONE = "__none__";
 
@@ -116,9 +129,27 @@ export function BulkApplyPanel() {
     });
   };
 
-  // Step 2 — schedule builder
-  const [days, setDays] = useState<ScheduleDayValue[]>(presetOfficeWeek);
+  // Step 2: schedule builder. `pattern` is the weekly pattern new dates are
+  // filled from when the range grows.
+  const [range, setRange] = useState<DateRange>(() => weekRange(1));
+  const rangeInvalid = rangeError(range);
+  const [pattern, setPattern] = useState<ScheduleDayValue[]>(presetOfficeWeek);
+  const [days, setDays] = useState<DatedDayValue[]>(() =>
+    fillRange(listDates(range.from, range.to), presetOfficeWeek())
+  );
   const [templateId, setTemplateId] = useState<string>(NONE);
+
+  const changeRange = (next: DateRange) => {
+    setRange(next);
+    if (!rangeError(next)) {
+      setDays((prev) => reconcileRange(prev, listDates(next.from, next.to), pattern));
+    }
+  };
+
+  const applyPattern = (week: ScheduleDayValue[]) => {
+    setPattern(week);
+    if (!rangeInvalid) setDays(fillRange(listDates(range.from, range.to), week));
+  };
   const [saveOpen, setSaveOpen] = useState(false);
   const templatesQuery = useScheduleTemplates();
   const templateDetail = useScheduleTemplate(
@@ -127,10 +158,10 @@ export function BulkApplyPanel() {
 
   useEffect(() => {
     if (templateId !== NONE && templateDetail.data) {
-      setDays(toFullWeek(templateDetail.data.days));
+      applyPattern(toFullWeek(templateDetail.data.days));
       toast({
         title: "Template loaded",
-        description: `"${templateDetail.data.name}" — review then apply.`,
+        description: `"${templateDetail.data.name}" filled the dates by weekday. Review, then apply.`,
       });
     }
     // Only react to a newly-fetched template.
@@ -142,13 +173,18 @@ export function BulkApplyPanel() {
   const bulkApply = useBulkApplySchedule();
 
   const selectedCount = selected.size;
-  const weekSummary = useMemo(() => summariseWeek(days), [days]);
+  const payload = useMemo(() => toDatedPayload(days), [days]);
+  const datesSummary = useMemo(() => summariseDates(days), [days]);
+  const templateWeek = useMemo(() => weekFromDates(days), [days]);
+  const rangeLabel = rangeInvalid
+    ? ""
+    : `${formatLongDate(range.from)} to ${formatLongDate(range.to)}`;
 
   const handleApply = async () => {
     try {
       const res = await bulkApply.mutateAsync({
         empIds: Array.from(selected),
-        days: toScheduleForm(days),
+        days: payload,
       });
       toast({ title: "Schedule applied", description: res.message });
       setSelected(new Set());
@@ -260,9 +296,11 @@ export function BulkApplyPanel() {
             2
           </span>
           <h3 className="font-semibold flex items-center gap-1.5">
-            <CalendarClock className="h-4 w-4" /> Set the weekly schedule
+            <CalendarClock className="h-4 w-4" /> Set the schedule by date
           </h3>
         </div>
+
+        <DateRangeFields value={range} onChange={changeRange} />
 
         <div className="flex flex-wrap items-center gap-2">
           <Select value={templateId} onValueChange={setTemplateId}>
@@ -281,24 +319,34 @@ export function BulkApplyPanel() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setDays(presetOfficeWeek())}
+            onClick={() => applyPattern(presetOfficeWeek())}
           >
             Office 8–5, Mon–Fri
           </Button>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setDays(presetAllRest())}
+            onClick={() => applyPattern(presetAllRest())}
           >
             All rest days
           </Button>
         </div>
 
-        <ScheduleDayEditor days={days} onChange={setDays} />
+        <DatedScheduleEditor days={rangeInvalid ? [] : days} onChange={setDays} />
 
         <div className="flex items-center justify-between gap-2">
-          <p className="text-xs text-muted-foreground">{weekSummary}</p>
-          <Button variant="outline" size="sm" onClick={() => setSaveOpen(true)}>
+          <p className="text-xs text-muted-foreground">{datesSummary}</p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSaveOpen(true)}
+            disabled={!templateWeek}
+            title={
+              templateWeek
+                ? "Save the first Monday to Sunday in this range as a weekly template"
+                : "The range must cover all seven weekdays to save a template"
+            }
+          >
             <Save className="mr-2 h-4 w-4" /> Save as template
           </Button>
         </div>
@@ -312,15 +360,25 @@ export function BulkApplyPanel() {
             <h3 className="font-semibold">Review &amp; apply</h3>
           </div>
           <p className="mt-2 text-sm text-muted-foreground">
-            This will replace the weekly schedule for{" "}
+            This will set{" "}
+            <span className="font-semibold text-foreground">
+              {payload.length} date{payload.length === 1 ? "" : "s"}
+            </span>
+            {rangeLabel ? ` (${rangeLabel})` : ""} for{" "}
             <span className="font-semibold text-foreground">
               {selectedCount} employee{selectedCount === 1 ? "" : "s"}
             </span>
-            .
+            . Dates that already have an approved schedule change request from
+            the employee are left as they are.
           </p>
           <Button
             className="mt-3 w-full"
-            disabled={selectedCount === 0 || bulkApply.isPending}
+            disabled={
+              selectedCount === 0 ||
+              payload.length === 0 ||
+              !!rangeInvalid ||
+              bulkApply.isPending
+            }
             onClick={() => setConfirmOpen(true)}
           >
             <CheckCircle2 className="mr-2 h-4 w-4" />
@@ -329,21 +387,26 @@ export function BulkApplyPanel() {
         </div>
       </section>
 
-      <SaveTemplateDialog open={saveOpen} onOpenChange={setSaveOpen} days={days} />
+      <SaveTemplateDialog
+        open={saveOpen}
+        onOpenChange={setSaveOpen}
+        days={templateWeek ?? []}
+      />
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Apply this schedule?</DialogTitle>
             <DialogDescription>
-              You&apos;re about to replace the weekly schedule for{" "}
+              You&apos;re about to set the schedule for{" "}
               <span className="font-semibold text-foreground">
                 {selectedCount} employee{selectedCount === 1 ? "" : "s"}
-              </span>
-              . Their current weekly schedule will be overwritten with:
+              </span>{" "}
+              from {rangeLabel}. Any schedule set here before for these dates
+              is replaced.
               <br />
               <span className="mt-1 block font-medium text-foreground">
-                {weekSummary}
+                {datesSummary}
               </span>
             </DialogDescription>
           </DialogHeader>

@@ -8,9 +8,9 @@ import { ScheduleGridPanel } from "./ScheduleGridPanel";
 
 /**
  * Schedule Management module. Two modes:
- *  - Bulk Apply: build one weekly schedule and apply it to many employees.
- *  - Grid: review/fine-tune individual employees' weekly schedules.
- * Both edit the recurring weekly template (the `schedule` table).
+ *  - Bulk Apply: set a schedule for a range of dates for many employees.
+ *  - Grid: review and fine-tune one employee's dates.
+ * Both write dated entries (see lib/services/dated-schedule.service.ts).
  */
 export function ScheduleManager() {
   return (
@@ -20,8 +20,8 @@ export function ScheduleManager() {
           Manage Schedules
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Set employees&apos; weekly work schedules in bulk, or fine-tune them
-          one at a time.
+          Set employees&apos; work schedules date by date, in bulk or one at a
+          time.
         </p>
       </div>
 
