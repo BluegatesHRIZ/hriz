@@ -6,7 +6,7 @@ import {
   TERMINAL_PRIVATE_COLUMNS,
   TERMINAL_STATUS,
   deviceLookups,
-  isTerminalLimitReached,
+  getTerminalLimits,
   toDeviceDTO,
 } from "@/lib/services/device.service";
 import type { DeviceListFilter, DeviceListResponse } from "@/lib/types/devices";
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       requested === "pending" || requested === "authorized" ? requested : "all";
     const where = LIST_WHERE[filter];
 
-    const [devices, pending, authorized, all] = await Promise.all([
+    const [devices, pending, authorized, all, limits] = await Promise.all([
       prisma.terminal.findMany({
         where,
         omit: TERMINAL_PRIVATE_COLUMNS,
@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
       prisma.terminal.count({ where: LIST_WHERE.pending }),
       prisma.terminal.count({ where: LIST_WHERE.authorized }),
       prisma.terminal.count({ where: LIST_WHERE.all }),
+      getTerminalLimits(),
     ]);
     const counts = { pending, authorized, all };
 
@@ -56,6 +57,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json<DeviceListResponse>({
       ...paginate(enriched, counts[filter], page, limit),
       counts,
+      limits,
     });
   } catch (error) {
     console.error("Admin devices GET error:", error);
@@ -87,14 +89,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Device code and name are required." }, { status: 400 });
     }
 
-    // Enforce terminal/device limits from settings
-    if (await isTerminalLimitReached(body.ter_type)) {
-      return NextResponse.json(
-        { message: body.ter_type === 0 ? "Terminal limit reached." : "Device limit reached." },
-        { status: 400 }
-      );
-    }
-
+    // No limit check here: a new device waits for approval, and the limit in
+    // Settings is enforced when it is authorized (PUT /api/admin/devices/[id]).
     const created = await prisma.terminal.create({
       data: {
         ter_code: body.ter_code.trim(),

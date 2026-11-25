@@ -41,7 +41,7 @@ import {
   useDeleteDevice,
   useUpdateDevice,
 } from "@/lib/hooks/useAdminDevices";
-import type { DeviceListFilter } from "@/lib/types/devices";
+import type { DeviceLimitUsage, DeviceListFilter } from "@/lib/types/devices";
 import { cn } from "@/lib/utils";
 import { describeUserAgent } from "@/lib/utils/user-agent";
 import { DeviceFormDialog } from "./DeviceFormDialog";
@@ -89,6 +89,18 @@ function CountPill({ value, highlight }: { value: number | undefined; highlight?
   );
 }
 
+/** "Terminals 3 of 5" or "Terminals 20 · no limit". */
+function LimitText({ label, usage }: { label: string; usage: DeviceLimitUsage }) {
+  return (
+    <span className={cn("whitespace-nowrap", usage.full && "font-medium text-amber-600 dark:text-amber-400")}>
+      {label}{" "}
+      <span className="tabular-nums">
+        {usage.limit === null ? `${usage.authorized} · no limit` : `${usage.authorized} of ${usage.limit}`}
+      </span>
+    </span>
+  );
+}
+
 const EMPTY_TEXT: Record<DeviceListFilter, string> = {
   all: "No devices yet.",
   pending: "Nothing is waiting for approval.",
@@ -101,6 +113,7 @@ export function DeviceManagementTable() {
   const { data: devicesPage, isLoading } = useAdminDevices(filter, page);
   const devices = devicesPage?.data ?? [];
   const counts = devicesPage?.counts;
+  const limits = devicesPage?.limits;
   const updateDevice = useUpdateDevice();
   const deleteDevice = useDeleteDevice();
   const { toast } = useToast();
@@ -110,6 +123,22 @@ export function DeviceManagementTable() {
   const [editTarget, setEditTarget] = useState<DeviceDTO | null>(null);
   const [syncingCode, setSyncingCode] = useState<string | null>(null);
   const busy = updateDevice.isPending || deleteDevice.isPending;
+
+  /** Why this device can't be authorized now, or null when it can. The server checks again. */
+  function limitBlock(d: DeviceDTO): string | null {
+    if (!limits || d.ter_status === 1) return null;
+    if (d.ter_type === 1) {
+      return limits.device.full
+        ? `Device limit reached (${limits.device.authorized} of ${limits.device.limit}). Unauthorize or remove a biometric device, or raise Number of Devices in Settings.`
+        : null;
+    }
+    if (d.ter_type === 0) {
+      return limits.terminal.full
+        ? `Terminal limit reached (${limits.terminal.authorized} of ${limits.terminal.limit}). Unauthorize or remove a device, or raise Number of Terminals in Settings.`
+        : null;
+    }
+    return null;
+  }
 
   function changeFilter(value: string) {
     setFilter(value as DeviceListFilter);
@@ -239,10 +268,21 @@ export function DeviceManagementTable() {
               </TabsTrigger>
             </TabsList>
           </Tabs>
-          <Button size="sm" onClick={openAdd}>
-            <PlusCircle className="mr-1 h-4 w-4" />
-            Add device
-          </Button>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            {limits && (
+              <div
+                className="flex gap-3 text-xs text-muted-foreground"
+                title="Authorized now, out of the limits set in Settings"
+              >
+                <LimitText label="Terminals" usage={limits.terminal} />
+                <LimitText label="Biometric" usage={limits.device} />
+              </div>
+            )}
+            <Button size="sm" onClick={openAdd}>
+              <PlusCircle className="mr-1 h-4 w-4" />
+              Add device
+            </Button>
+          </div>
         </div>
 
         <CardContent className="p-0">
@@ -279,6 +319,7 @@ export function DeviceManagementTable() {
                   ].filter(Boolean);
                   const location = d.ter_loc_desc ?? d.ter_loc;
                   const ip = displayIp(d.ter_ip);
+                  const blocked = limitBlock(d);
 
                   return (
                     <TableRow key={d.ter_code} className={cn(pending && "bg-amber-500/[0.04]")}>
@@ -316,15 +357,18 @@ export function DeviceManagementTable() {
                         <div className="flex items-center justify-end gap-1.5">
                           {pending && (
                             <>
-                              <Button
-                                size="sm"
-                                className="bg-green-600 text-white hover:bg-green-700"
-                                onClick={() => handleAuthorize(d)}
-                                disabled={busy}
-                              >
-                                <Check className="mr-1 h-4 w-4" />
-                                Approve
-                              </Button>
+                              {/* A disabled button gets no hover, so the reason sits on a wrapper. */}
+                              <span title={blocked ?? undefined}>
+                                <Button
+                                  size="sm"
+                                  className="bg-green-600 text-white hover:bg-green-700"
+                                  onClick={() => handleAuthorize(d)}
+                                  disabled={busy || !!blocked}
+                                >
+                                  <Check className="mr-1 h-4 w-4" />
+                                  Approve
+                                </Button>
+                              </span>
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -359,9 +403,13 @@ export function DeviceManagementTable() {
                                   Unauthorize
                                 </DropdownMenuItem>
                               ) : (
-                                <DropdownMenuItem onSelect={() => handleAuthorize(d)} disabled={busy}>
+                                <DropdownMenuItem
+                                  onSelect={() => handleAuthorize(d)}
+                                  disabled={busy || !!blocked}
+                                  title={blocked ?? undefined}
+                                >
                                   <CheckCircle className="mr-2 h-4 w-4" />
-                                  Authorize
+                                  {blocked ? "Authorize (limit reached)" : "Authorize"}
                                 </DropdownMenuItem>
                               )}
                               {d.ter_type === 1 && d.ter_status === 1 && (

@@ -15,6 +15,8 @@ import type { DeviceClaims } from "@/lib/types/auth";
 import type {
   DeviceDTO,
   DeviceErrorCode,
+  DeviceLimitUsage,
+  DeviceLimits,
   DeviceProof,
   DeviceStatus,
   DeviceStatusResponse,
@@ -79,22 +81,36 @@ const PROOF_INVALID: DeviceFailure = {
 };
 
 /**
- * Whether one more authorized terminal of this type would go over the limit in
- * Settings. A negative limit means no limit (live data has set_terminal = -1
- * alongside 20 authorized terminals).
+ * How many authorized terminals of each type Settings allows, and how many are
+ * authorized now. ter_type 0 (browsers and standard terminals) counts toward
+ * "Number of Terminals"; ter_type 1 (biometric) toward "Number of Devices".
+ * A negative limit means no limit (live data has set_terminal = -1 alongside
+ * 20 authorized terminals); `limit` is then null.
  */
+export async function getTerminalLimits(): Promise<DeviceLimits> {
+  const [settings, standard, biometric] = await Promise.all([
+    prisma.settings_tab.findFirst({ select: { set_terminal: true, set_device: true } }),
+    prisma.terminal.count({ where: { ter_type: 0, ter_status: TERMINAL_STATUS.approved } }),
+    prisma.terminal.count({ where: { ter_type: 1, ter_status: TERMINAL_STATUS.approved } }),
+  ]);
+  const usage = (setting: number | null | undefined, authorized: number): DeviceLimitUsage => {
+    // No settings row: nothing to enforce.
+    if (!settings) return { limit: null, authorized, full: false };
+    const limit = setting ?? 0;
+    if (limit < 0) return { limit: null, authorized, full: false };
+    return { limit, authorized, full: authorized >= limit };
+  };
+  return {
+    terminal: usage(settings?.set_terminal, standard),
+    device: usage(settings?.set_device, biometric),
+  };
+}
+
+/** Whether authorizing one more terminal of this type would go over the limit in Settings. */
 export async function isTerminalLimitReached(terType: number | null | undefined): Promise<boolean> {
   if (terType !== 0 && terType !== 1) return false;
-  const settings = await prisma.settings_tab.findFirst({
-    select: { set_terminal: true, set_device: true },
-  });
-  if (!settings) return false;
-  const limit = (terType === 0 ? settings.set_terminal : settings.set_device) ?? 0;
-  if (limit < 0) return false;
-  const count = await prisma.terminal.count({
-    where: { ter_type: terType, ter_status: TERMINAL_STATUS.approved },
-  });
-  return count >= limit;
+  const limits = await getTerminalLimits();
+  return (terType === 0 ? limits.terminal : limits.device).full;
 }
 
 export async function isDeviceRegistrationRequired(): Promise<boolean> {
@@ -272,7 +288,9 @@ export async function registerDevice(input: {
     typeof input.name === "string" && input.name.trim()
       ? input.name.trim().slice(0, 100)
       : describeUserAgent(input.userAgent);
-  const autoApprove = isDevAutoApproveName(name);
+  // The limit still applies: when it is reached the device waits like any other.
+  const autoApprove =
+    isDevAutoApproveName(name) && !(await isTerminalLimitReached(BROWSER_TERMINAL_TYPE));
 
   const waiting = autoApprove ? 0 : await prisma.terminal.count({
     where: { ter_reqemp: input.employeeId, ter_status: TERMINAL_STATUS.pending },
