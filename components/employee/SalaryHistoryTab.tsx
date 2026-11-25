@@ -7,6 +7,7 @@ import {
   useSaveSalaryHistory,
 } from "@/lib/hooks/useEmployeeDetail";
 import { Input } from "@/components/ui/input";
+import { MoneyInput } from "@/components/ui/money-input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -425,19 +426,10 @@ export function SalaryHistoryTab({
 
           <div>
             <Label htmlFor="sal_amount">Salary Amount</Label>
-            <Input
+            <MoneyInput
               id="sal_amount"
-              type="number"
-              step="0.01"
-              min="0"
               value={formData.SalAmount}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  SalAmount: parseFloat(e.target.value) || 0,
-                })
-              }
-              className="text-right"
+              onValueChange={(n) => setFormData({ ...formData, SalAmount: n })}
             />
           </div>
 

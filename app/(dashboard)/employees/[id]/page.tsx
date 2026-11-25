@@ -236,7 +236,16 @@ export default function EmployeeDetailPage() {
         </TabsContent>
 
         <TabsContent value="approvals" className="mt-0">
-          {!isNewEmployee && <ApprovalLevelsTab empId={empId} />}
+          {!isNewEmployee && (
+            <ApprovalLevelsTab
+              empId={empId}
+              employeeName={
+                displayEmployee.Account.EmpLast
+                  ? `${displayEmployee.Account.EmpLast}, ${displayEmployee.Account.EmpFirst}`
+                  : empId
+              }
+            />
+          )}
         </TabsContent>
       </Tabs>
     </div>

@@ -341,7 +341,10 @@ export async function loadPayableEmployees(): Promise<
   Array<{ id: string; name: string }>
 > {
   const rows = await prisma.employee.findMany({
-    where: { emp_status: 1 },
+    where: {
+      emp_status: 1,
+      OR: [{ emp_role: null }, { emp_role: { not: "SUPERADMIN" } }],
+    },
     select: { emp_id: true, emp_last: true, emp_first: true, emp_mid: true },
     orderBy: [{ emp_last: "asc" }, { emp_first: "asc" }],
   });

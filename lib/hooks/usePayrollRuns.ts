@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import type { Paginated } from "@/lib/pagination";
+import { queryKeys } from "@/lib/hooks/queries";
 
 /** Data hooks for the Run Payroll module (`/payroll`). */
 
@@ -205,6 +206,8 @@ function employeeQuery(f: PayrollEmployeeFilters): string {
   if (f.dept) params.set("dept", f.dept);
   if (f.loc?.length) params.set("loc", f.loc.join(","));
   if (f.pos) params.set("pos", f.pos);
+  // The admin login is a system account, never someone to pay.
+  params.set("excludeSuperadmin", "1");
   return params.toString();
 }
 
@@ -304,6 +307,8 @@ function useRunAction(action: "post" | "unpost") {
     onSuccess: (_data, code) => {
       qc.invalidateQueries({ queryKey: ["payroll", "runs"] });
       qc.invalidateQueries({ queryKey: payrollKeys.run(code) });
+      // The Payroll Report lists posted runs only, so posting or unposting changes it.
+      qc.invalidateQueries({ queryKey: [...queryKeys.reports.all, "payroll"] });
     },
   });
 }

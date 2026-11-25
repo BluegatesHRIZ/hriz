@@ -3,8 +3,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -16,6 +14,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -30,13 +29,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle, XCircle, Banknote } from "lucide-react";
 import {
@@ -46,6 +38,12 @@ import {
   useManageLoan,
 } from "@/lib/hooks/useRequestManagement";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useAuth } from "@/lib/auth/context";
+import { useAuthorizationMap } from "@/lib/hooks/useAuthorization";
+import { hasAnyPermission, parsePermissionMask } from "@/lib/auth/permissions";
+import { LoanTermsFields } from "@/components/loans/LoanTermsFields";
+import type { LoanTerms } from "@/lib/types";
+import { emptyLoanTerms, validateLoanTerms } from "@/lib/utils/loanTerms";
 
 const STATUS_MAP: Record<number, { label: string; variant: string; className?: string }> = {
   0: { label: "Pending", variant: "outline" },
@@ -75,47 +73,37 @@ function fmtAmt(n?: number | null) {
   return n.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-interface ReleaseForm {
-  releaseDate: string;
-  loanType: string;
-  loanAmt: number;
-  interestAmt: number;
-  payPerMonth: string;
-  payCutoff: string;
-  amtPerPay: number;
-}
-
-function calcTotalAmt(form: ReleaseForm) {
-  return form.loanAmt + form.interestAmt;
-}
-
 export function LoanManagementTable() {
   const { data: loans = [], isLoading } = useLoanManagementList();
   const manageLoan = useManageLoan();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const { data: authMap } = useAuthorizationMap();
+  const userMask = parsePermissionMask(user?.permissions ?? "0");
+  const allows = (routeKey: string) =>
+    hasAnyPermission(userMask, parsePermissionMask(authMap?.routePermissions?.[routeKey] ?? "0"));
+  // The API enforces the same rules; this only hides buttons that would be refused.
+  const canApprove = allows("apiLoanApprove");
+  const canRelease = allows("apiLoanRelease");
 
   const [rejectTarget, setRejectTarget] = useState<LoanGridManagement | null>(null);
   const [releaseTarget, setReleaseTarget] = useState<LoanGridManagement | null>(null);
-  const [releaseForm, setReleaseForm] = useState<ReleaseForm>({
-    releaseDate: "",
-    loanType: "",
-    loanAmt: 0,
-    interestAmt: 0,
-    payPerMonth: "1",
-    payCutoff: "1",
-    amtPerPay: 0,
-  });
+  const [releaseTerms, setReleaseTerms] = useState<LoanTerms>(() => emptyLoanTerms());
 
   function openRelease(loan: LoanGridManagement) {
-    setReleaseForm({
-      releaseDate: new Date().toISOString().split("T")[0],
-      loanType: loan.LoaType ?? "",
-      loanAmt: loan.LoaAmt ?? 0,
-      interestAmt: 0,
-      payPerMonth: "1",
-      payCutoff: "1",
-      amtPerPay: 0,
-    });
+    setReleaseTerms(
+      emptyLoanTerms({
+        loanType: loan.LoaType || "Company Loan",
+        loanAmount: loan.LoaAmt ?? 0,
+        addedAmount: loan.EmpAdaddedamt ?? 0,
+        installmentAmount: loan.EmpAdamtperpay ?? 0,
+        payPerMonth: loan.EmpAdpaypermonth === 1 ? "1" : "2",
+        payCutoff:
+          loan.EmpAdpaypermonth === 1 && (loan.EmpAdpaycutoff === 1 || loan.EmpAdpaycutoff === 2)
+            ? (String(loan.EmpAdpaycutoff) as "1" | "2")
+            : "",
+      }),
+    );
     setReleaseTarget(loan);
   }
 
@@ -144,26 +132,28 @@ export function LoanManagementTable() {
 
   async function confirmRelease() {
     if (!releaseTarget?.LoaId || !releaseTarget.LoaEmp) return;
-    if (!releaseForm.releaseDate) {
-      toast({ title: "Release date is required", variant: "destructive" });
+    const problem = validateLoanTerms(releaseTerms);
+    if (problem) {
+      toast({ title: "Check the loan terms", description: problem, variant: "destructive" });
       return;
     }
     try {
+      const once = releaseTerms.payPerMonth === "1";
       const dto: LoanManagementDTO = {
         LoaId: releaseTarget.LoaId,
         Status: "release" as any,
         LoaEmp: releaseTarget.LoaEmp,
-        EmpAdtype: releaseForm.loanType,
-        EmpAddate: releaseTarget.LoaApplieddate ? new Date(releaseTarget.LoaApplieddate) : new Date(),
-        EmpAdamt: releaseForm.loanAmt,
-        EmpAdaddedamt: releaseForm.interestAmt,
-        EmpAdpaypermonth: parseInt(releaseForm.payPerMonth),
-        EmpAdpaycutoff: releaseForm.payPerMonth === "1" ? parseInt(releaseForm.payCutoff) : null,
-        EmpAdstart: new Date(releaseForm.releaseDate),
-        EmpAdamtperpay: releaseForm.amtPerPay,
+        EmpAdtype: releaseTerms.loanType,
+        EmpAddate: releaseTerms.dateIssued,
+        EmpAdamt: releaseTerms.loanAmount,
+        EmpAdaddedamt: releaseTerms.addedAmount,
+        EmpAdpaypermonth: Number(releaseTerms.payPerMonth),
+        EmpAdpaycutoff: once && releaseTerms.payCutoff ? Number(releaseTerms.payCutoff) : null,
+        EmpAdstart: releaseTerms.dateStart,
+        EmpAdamtperpay: releaseTerms.installmentAmount,
       };
       await manageLoan.mutateAsync(dto);
-      toast({ title: "Loan released" });
+      toast({ title: "Loan released", description: "It is now in the employee's advances." });
       setReleaseTarget(null);
     } catch (err) {
       toast({ title: "Failed to release", description: err instanceof Error ? err.message : "Error", variant: "destructive" });
@@ -193,8 +183,6 @@ export function LoanManagementTable() {
       toast({ title: "Failed to reject", description: err instanceof Error ? err.message : "Error", variant: "destructive" });
     }
   }
-
-  const totalAmt = calcTotalAmt(releaseForm);
 
   return (
     <>
@@ -245,7 +233,7 @@ export function LoanManagementTable() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
-                        {(loan.LoaStatus === 0 || loan.LoaStatus === 4) && (
+                        {canApprove && (loan.LoaStatus === 0 || loan.LoaStatus === 4) && (
                           <>
                             <Button
                               size="sm"
@@ -269,29 +257,29 @@ export function LoanManagementTable() {
                             </Button>
                           </>
                         )}
-                        {loan.LoaStatus === 1 && (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-green-600 hover:text-green-700 h-7 px-2"
-                              onClick={() => openRelease(loan)}
-                              disabled={manageLoan.isPending}
-                            >
-                              <Banknote className="h-4 w-4 mr-1" />
-                              Release
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-destructive hover:text-destructive/80 h-7 px-2"
-                              onClick={() => setRejectTarget(loan)}
-                              disabled={manageLoan.isPending}
-                            >
-                              <XCircle className="h-4 w-4 mr-1" />
-                              Reject
-                            </Button>
-                          </>
+                        {loan.LoaStatus === 1 && canRelease && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-green-600 hover:text-green-700 h-7 px-2"
+                            onClick={() => openRelease(loan)}
+                            disabled={manageLoan.isPending}
+                          >
+                            <Banknote className="h-4 w-4 mr-1" />
+                            Release
+                          </Button>
+                        )}
+                        {loan.LoaStatus === 1 && canApprove && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-destructive hover:text-destructive/80 h-7 px-2"
+                            onClick={() => setRejectTarget(loan)}
+                            disabled={manageLoan.isPending}
+                          >
+                            <XCircle className="h-4 w-4 mr-1" />
+                            Reject
+                          </Button>
                         )}
                       </div>
                     </TableCell>
@@ -303,103 +291,30 @@ export function LoanManagementTable() {
         </CardContent>
       </Card>
 
-      {/* Release Dialog */}
+      {/* Release Dialog: review and edit the repayment terms before the loan is posted */}
       <Dialog open={!!releaseTarget} onOpenChange={(v) => { if (!v) setReleaseTarget(null); }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Release Loan — {releaseTarget?.EmpName ?? releaseTarget?.LoaEmp}</DialogTitle>
+            <DialogTitle>Release Loan: {releaseTarget?.EmpName ?? releaseTarget?.LoaEmp}</DialogTitle>
+            <DialogDescription>
+              Review the repayment terms. Releasing adds the loan to the employee&apos;s advances and
+              payroll starts collecting it from the date start.
+            </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>Release Date *</Label>
-                <Input
-                  type="date"
-                  value={releaseForm.releaseDate}
-                  onChange={(e) => setReleaseForm((f) => ({ ...f, releaseDate: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>Loan Type</Label>
-                <Input
-                  value={releaseForm.loanType}
-                  onChange={(e) => setReleaseForm((f) => ({ ...f, loanType: e.target.value }))}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>Loan Amount</Label>
-                <Input value={fmtAmt(releaseForm.loanAmt)} readOnly className="bg-muted" />
-              </div>
-              <div className="space-y-1">
-                <Label>Interest Amount</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={releaseForm.interestAmt}
-                  onChange={(e) =>
-                    setReleaseForm((f) => ({ ...f, interestAmt: parseFloat(e.target.value) || 0 }))
-                  }
-                />
-              </div>
-            </div>
-            <div className="space-y-1">
-              <Label>Total Amount</Label>
-              <Input value={fmtAmt(totalAmt)} readOnly className="bg-muted" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>Monthly Instalment</Label>
-                <Select
-                  value={releaseForm.payPerMonth}
-                  onValueChange={(v) => setReleaseForm((f) => ({ ...f, payPerMonth: v }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">Once a Month</SelectItem>
-                    <SelectItem value="2">Twice a Month</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {releaseForm.payPerMonth === "1" && (
-                <div className="space-y-1">
-                  <Label>Pay Cutoff</Label>
-                  <Select
-                    value={releaseForm.payCutoff}
-                    onValueChange={(v) => setReleaseForm((f) => ({ ...f, payCutoff: v }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">1st Cutoff</SelectItem>
-                      <SelectItem value="2">2nd Cutoff</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </div>
-            <div className="space-y-1">
-              <Label>Instalment Amount</Label>
-              <Input
-                type="number"
-                min={0}
-                value={releaseForm.amtPerPay}
-                onChange={(e) =>
-                  setReleaseForm((f) => ({ ...f, amtPerPay: parseFloat(e.target.value) || 0 }))
-                }
-              />
-            </div>
+          <div className="py-2">
+            <LoanTermsFields
+              value={releaseTerms}
+              onChange={setReleaseTerms}
+              loanAmountReadOnly
+              idPrefix="release"
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setReleaseTarget(null)}>
               Cancel
             </Button>
             <Button onClick={confirmRelease} disabled={manageLoan.isPending}>
-              {manageLoan.isPending ? "Releasing…" : "Confirm Release"}
+              {manageLoan.isPending ? "Releasing..." : "Confirm Release"}
             </Button>
           </DialogFooter>
         </DialogContent>

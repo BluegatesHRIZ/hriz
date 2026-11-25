@@ -735,6 +735,9 @@ export async function loanManageRequest(
       });
       break;
     case "approve":
+      // Approval only approves the request. The loan is not added to the
+      // employee's advances (so payroll does not collect it) until it is
+      // released with its repayment terms reviewed.
       await prisma.loan.update({
         where: { loa_id: LoaId },
         data: {
@@ -742,23 +745,6 @@ export async function loanManageRequest(
           loa_approveddate: now,
           loa_status: 1,
         },
-      });
-      await prisma.empadvance.upsert({
-        where: { emp_adid: LoaId },
-        create: {
-          emp_id: LoaEmp,
-          emp_adid: LoaId,
-          emp_adtype: EmpAdtype,
-          emp_addate: EmpAddate,
-          emp_adamt: EmpAdamt,
-          emp_adaddedamt: EmpAdaddedamt,
-          emp_adpaypermonth: EmpAdpaypermonth,
-          emp_adpaycutoff: EmpAdpaypermonth === 2 ? null : EmpAdpaycutoff,
-          emp_adstart: EmpAdstart,
-          emp_adamtperpay: EmpAdamtperpay,
-          emp_adstatus: 1,
-        },
-        update: {},
       });
       break;
     case "reject":
@@ -774,16 +760,34 @@ export async function loanManageRequest(
         where: { emp_adid: LoaId },
       });
       break;
-    case "release":
-      await prisma.loan.update({
-        where: { loa_id: LoaId },
-        data: { loa_approvedby: approver, loa_status: 5 },
-      });
-      await prisma.empadvance.updateMany({
-        where: { emp_adid: LoaId },
-        data: { emp_adstatus: 1 },
-      });
+    case "release": {
+      // Release posts the loan to the employee's advances with the terms the
+      // approver reviewed, and payroll starts collecting it from Date start.
+      // Upsert: loans approved through the approvals page never had a row.
+      const terms = {
+        emp_adtype: EmpAdtype,
+        emp_addate: EmpAddate,
+        emp_adamt: EmpAdamt,
+        emp_adaddedamt: EmpAdaddedamt,
+        emp_adpaypermonth: EmpAdpaypermonth,
+        emp_adpaycutoff: EmpAdpaypermonth === 2 ? null : EmpAdpaycutoff,
+        emp_adstart: EmpAdstart,
+        emp_adamtperpay: EmpAdamtperpay,
+        emp_adstatus: 1,
+      };
+      await prisma.$transaction([
+        prisma.loan.update({
+          where: { loa_id: LoaId },
+          data: { loa_approvedby: approver, loa_status: 5 },
+        }),
+        prisma.empadvance.upsert({
+          where: { emp_adid: LoaId },
+          create: { emp_id: LoaEmp, emp_adid: LoaId, ...terms },
+          update: terms,
+        }),
+      ]);
       break;
+    }
     default:
       break;
   }

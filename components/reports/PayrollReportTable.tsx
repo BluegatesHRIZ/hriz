@@ -33,7 +33,12 @@ export function PayrollReportTable() {
   const meta = payroll.data?.meta;
 
   const loadYear = () => {
-    setAppliedYear(yearInput || null);
+    const nextYear = yearInput || null;
+    // Same year and page: the query key does not change, so ask for fresh data explicitly.
+    if (nextYear === appliedYear && page === 1) {
+      void payroll.refetch();
+    }
+    setAppliedYear(nextYear);
     setPage(1);
   };
 

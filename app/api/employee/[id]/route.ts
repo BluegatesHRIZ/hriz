@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { storageService } from "@/lib/storage";
 import { formatTimeForInput } from "@/lib/utils/time";
 import { PROFILE_FILE_TYPES } from "@/lib/services/avatars.service";
+import type { EmployeeAdvance } from "@/lib/types";
 
 /**
  * GET /api/employee/{id}
@@ -236,12 +237,21 @@ export async function GET(
         SalRemarks: sal.emp_salnote,
         SalStatus: sal.emp_salstatus ?? 1,
       })),
-      EmpAdvance: empadvance.map((adv) => ({
+      EmpAdvance: empadvance.map((adv): EmployeeAdvance => ({
         AdvId: parseInt(adv.emp_adid) || 0,
+        AdvCode: adv.emp_adid,
         AdvType: adv.emp_adtype,
         AdvAmount: adv.emp_adamt || 0,
         AdvDate: adv.emp_addate,
         AdvRemarks: null,
+        AdvDateIssued: adv.emp_addate ? adv.emp_addate.toISOString().slice(0, 10) : null,
+        AdvDateStart: adv.emp_adstart ? adv.emp_adstart.toISOString().slice(0, 10) : null,
+        AdvAddedAmount: adv.emp_adaddedamt ?? 0,
+        AdvAmountPerPay: adv.emp_adamtperpay ?? 0,
+        AdvPayPerMonth: adv.emp_adpaypermonth ?? null,
+        AdvPayCutoff: adv.emp_adpaycutoff ?? null,
+        AdvPaid: adv.emp_adpaid ?? 0,
+        AdvStatus: adv.emp_adstatus ?? null,
       })),
       Schedule: empschedule.map((sched) => ({
         SchedId: parseInt(sched.sch_id) || 0,

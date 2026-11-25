@@ -1,27 +1,17 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { EmployeeDetail, useSaveAdvances } from "@/lib/hooks/useEmployeeDetail";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { useState } from "react";
+import { HandCoins, Plus, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Save, Plus, Trash2 } from "lucide-react";
-import { useToast } from "@/lib/hooks/use-toast";
-import { Calendar } from "@/components/ui/calendar";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -30,461 +20,335 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-
-const ADVANCE_TYPES = [
-  { value: "Company Loan", label: "Company Loan" },
-  { value: "Salary Advance", label: "Salary Advance" },
-] as const;
-
-const MONTHLY_PAYMENTS = [
-  { value: 1, label: "Once" },
-  { value: 2, label: "Twice" },
-] as const;
-
-const CUTOFF_PAYMENTS = [
-  { value: 1, label: "1st Cutoff" },
-  { value: 2, label: "2nd Cutoff" },
-] as const;
-
-interface AdvanceForm {
-  AdvId: number;
-  AdvType: string;
-  AdvDate: Date | null;
-  AdvAmount: number;
-  AddedAmount: number;
-  PayPerMonth: number;
-  StartDate: Date | null;
-  EndDate: Date | null;
-  AmountPerPay: number;
-  PayCutoff: number | null;
-}
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { LoanTermsFields } from "@/components/loans/LoanTermsFields";
+import {
+  EmployeeDetail,
+  useAddAdvance,
+  useDeleteAdvance,
+} from "@/lib/hooks/useEmployeeDetail";
+import { useToast } from "@/lib/hooks/use-toast";
+import type { EmployeeAdvance, LoanTerms } from "@/lib/types";
+import {
+  emptyLoanTerms,
+  estimatedEndDate,
+  formatInputDate,
+  formatMoney,
+  PAY_CUTOFF_LABEL,
+  validateLoanTerms,
+} from "@/lib/utils/loanTerms";
 
 interface AdvancesAndLoansTabProps {
   employee: EmployeeDetail;
 }
 
+function totalOf(a: EmployeeAdvance): number {
+  return (a.AdvAmount ?? 0) + (a.AdvAddedAmount ?? 0);
+}
+
+function endOf(a: EmployeeAdvance): string | null {
+  if (!a.AdvDateStart || !a.AdvPayPerMonth) return null;
+  return estimatedEndDate({
+    loanType: a.AdvType ?? "",
+    loanAmount: a.AdvAmount ?? 0,
+    addedAmount: a.AdvAddedAmount,
+    installmentAmount: a.AdvAmountPerPay,
+    dateIssued: a.AdvDateIssued ?? "",
+    dateStart: a.AdvDateStart,
+    payPerMonth: a.AdvPayPerMonth === 1 ? "1" : "2",
+    payCutoff: "",
+  });
+}
+
+/** "Twice a month" or "Once a month, 1st cutoff". */
+function scheduleOf(a: EmployeeAdvance): string {
+  if (a.AdvPayPerMonth === 2) return "Twice a month";
+  if (a.AdvPayPerMonth === 1) {
+    const cutoff = a.AdvPayCutoff != null ? PAY_CUTOFF_LABEL[String(a.AdvPayCutoff)] : null;
+    return cutoff ? `Once a month, ${cutoff.toLowerCase()}` : "Once a month";
+  }
+  return "-";
+}
+
+function StatusBadge({ advance, remaining }: { advance: EmployeeAdvance; remaining: number }) {
+  if (advance.AdvStatus !== 1) return <Badge variant="warning">Awaiting release</Badge>;
+  if (remaining > 0) return <Badge variant="info">Active</Badge>;
+  return <Badge variant="success">Paid</Badge>;
+}
+
+function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <div className="rounded-xl border border-border/60 bg-card px-4 py-3">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="tabular mt-1 text-lg font-semibold text-foreground">{value}</p>
+      {hint && <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>}
+    </div>
+  );
+}
+
 export function AdvancesAndLoansTab({ employee }: AdvancesAndLoansTabProps) {
   const { toast } = useToast();
-  const saveMutation = useSaveAdvances(employee.Account.EmpId);
+  const empId = employee.Account.EmpId;
+  const addAdvance = useAddAdvance(empId);
+  const deleteAdvance = useDeleteAdvance(empId);
 
-  // Initialize advances from employee data
-  const initialAdvances: AdvanceForm[] = useMemo(() => {
-    if (employee.EmpAdvance && employee.EmpAdvance.length > 0) {
-      return employee.EmpAdvance.map((adv) => ({
-        AdvId: adv.AdvId,
-        AdvType: adv.AdvType || "",
-        AdvDate: adv.AdvDate || new Date(),
-        AdvAmount: adv.AdvAmount || 0,
-        AddedAmount: 0, // Not in current DTO
-        PayPerMonth: 2, // Default to twice
-        StartDate: adv.AdvDate || new Date(),
-        EndDate: null, // Not in current DTO
-        AmountPerPay: 0, // Would need to calculate
-        PayCutoff: null,
-      }));
-    }
-    return [];
-  }, [employee]);
+  const [addOpen, setAddOpen] = useState(false);
+  const [terms, setTerms] = useState<LoanTerms>(() => emptyLoanTerms());
+  const [deleteTarget, setDeleteTarget] = useState<EmployeeAdvance | null>(null);
 
-  const [advances, setAdvances] = useState<AdvanceForm[]>(initialAdvances);
-  const [formData, setFormData] = useState<AdvanceForm>({
-    AdvId: 0,
-    AdvType: "",
-    AdvDate: new Date(),
-    AdvAmount: 0,
-    AddedAmount: 0,
-    PayPerMonth: 2,
-    StartDate: new Date(),
-    EndDate: null,
-    AmountPerPay: 0,
-    PayCutoff: null,
-  });
+  const advances = employee.EmpAdvance ?? [];
+  const activeSalary =
+    employee.EmpSalary.find((s) => (s.SalStatus ?? 1) === 1) ?? employee.EmpSalary[0];
+  const totalLoan = advances.reduce((sum, a) => sum + totalOf(a), 0);
+  const totalPaid = advances.reduce((sum, a) => sum + (a.AdvPaid ?? 0), 0);
+  const activeCount = advances.filter(
+    (a) => a.AdvStatus === 1 && totalOf(a) - (a.AdvPaid ?? 0) > 0,
+  ).length;
 
-  // Sync state when employee data changes
-  useEffect(() => {
-    setAdvances(initialAdvances);
-  }, [initialAdvances]);
+  function openAdd() {
+    setTerms(emptyLoanTerms());
+    setAddOpen(true);
+  }
 
-  // Calculate amount per pay when amount or pay per month changes
-  useEffect(() => {
-    if (formData.AdvAmount > 0 && formData.PayPerMonth > 0) {
-      const amountPerPay =
-        (formData.AdvAmount + formData.AddedAmount) / formData.PayPerMonth;
-      setFormData({
-        ...formData,
-        AmountPerPay: Math.round(amountPerPay * 100) / 100,
-      });
-    }
-  }, [formData.AdvAmount, formData.AddedAmount, formData.PayPerMonth]);
-
-  const handleAddAdvance = () => {
-    if (
-      !formData.AdvType ||
-      formData.AdvAmount <= 0 ||
-      !formData.StartDate ||
-      formData.AmountPerPay <= 0
-    ) {
-      toast({
-        title: "Validation Error",
-        description:
-          "Please fill in Loan Type, Amount, Start Date, and ensure Amount Per Pay is calculated",
-        variant: "destructive",
-      });
+  async function handleAdd() {
+    const problem = validateLoanTerms(terms);
+    if (problem) {
+      toast({ title: "Check the loan details", description: problem, variant: "destructive" });
       return;
     }
-
-    const newAdvance: AdvanceForm = {
-      ...formData,
-      AdvId: Date.now(), // Temporary ID
-    };
-    setAdvances([...advances, newAdvance]);
-
-    // Reset form
-    setFormData({
-      AdvId: 0,
-      AdvType: "",
-      AdvDate: new Date(),
-      AdvAmount: 0,
-      AddedAmount: 0,
-      PayPerMonth: 2,
-      StartDate: new Date(),
-      EndDate: null,
-      AmountPerPay: 0,
-      PayCutoff: null,
-    });
-  };
-
-  const handleRemoveAdvance = (index: number) => {
-    const newAdvances = advances.filter((_, i) => i !== index);
-    setAdvances(newAdvances);
-  };
-
-  const handleSave = async () => {
     try {
-      // Serialize dates properly - handle both Date objects and strings
-      const advancesToSave = advances.map((adv) => {
-        const advDate = adv.AdvDate
-          ? adv.AdvDate instanceof Date
-            ? adv.AdvDate
-            : new Date(adv.AdvDate)
-          : null;
-        const startDate = adv.StartDate
-          ? adv.StartDate instanceof Date
-            ? adv.StartDate
-            : new Date(adv.StartDate)
-          : null;
-        const endDate = adv.EndDate
-          ? adv.EndDate instanceof Date
-            ? adv.EndDate
-            : new Date(adv.EndDate)
-          : null;
-
-        return {
-          ...adv,
-          AdvDate: advDate,
-          StartDate: startDate,
-          EndDate: endDate,
-        };
+      await addAdvance.mutateAsync({
+        AdvType: terms.loanType,
+        AdvDate: terms.dateIssued,
+        AdvAmount: terms.loanAmount,
+        AddedAmount: terms.addedAmount,
+        PayPerMonth: Number(terms.payPerMonth),
+        PayCutoff: terms.payPerMonth === "1" && terms.payCutoff ? Number(terms.payCutoff) : null,
+        StartDate: terms.dateStart,
+        AmountPerPay: terms.installmentAmount,
       });
-
-      await saveMutation.mutateAsync({ advances: advancesToSave });
-      toast({
-        title: "Success",
-        description: "Advances and loans saved successfully",
-      });
+      toast({ title: "Loan added" });
+      setAddOpen(false);
     } catch (error) {
-      console.error("Save advances error:", error);
       toast({
-        title: "Error",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Failed to save advances and loans",
+        title: "Could not add the loan",
+        description: error instanceof Error ? error.message : "Unknown error",
         variant: "destructive",
       });
     }
-  };
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    try {
+      await deleteAdvance.mutateAsync(deleteTarget.AdvCode);
+      toast({ title: "Loan deleted" });
+    } catch (error) {
+      toast({
+        title: "Could not delete the loan",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteTarget(null);
+    }
+  }
 
   return (
     <div className="space-y-4 p-4">
-      {/* Add Advance Form */}
-      <div className="bg-card rounded-xl border border-border/60 p-5">
-        <h4 className="text-base font-semibold text-foreground mb-4 pb-3 border-b border-border/60">Add Advance/Loan</h4>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <Label htmlFor="adv_type">Loan Type</Label>
-            <Select
-              value={formData.AdvType}
-              onValueChange={(value) =>
-                setFormData({ ...formData, AdvType: value })
-              }
-            >
-              <SelectTrigger id="adv_type">
-                <SelectValue placeholder="Select loan type" />
-              </SelectTrigger>
-              <SelectContent>
-                {ADVANCE_TYPES.map((type) => (
-                  <SelectItem key={type.value} value={type.value}>
-                    {type.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Label htmlFor="adv_date">Date Issued</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  id="adv_date"
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !formData.AdvDate && "text-muted-foreground"
-                  )}
-                >
-                  {formData.AdvDate
-                    ? format(formData.AdvDate, "PPP")
-                    : "Pick a date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={formData.AdvDate || undefined}
-                  onSelect={(date) =>
-                    setFormData({ ...formData, AdvDate: date || new Date() })
-                  }
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          <div>
-            <Label htmlFor="adv_amount">Loan Amount</Label>
-            <Input
-              id="adv_amount"
-              type="number"
-              step="0.01"
-              min="0"
-              value={formData.AdvAmount}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  AdvAmount: parseFloat(e.target.value) || 0,
-                })
-              }
-              className="text-right"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="adv_added_amount">Added Amount</Label>
-            <Input
-              id="adv_added_amount"
-              type="number"
-              step="0.01"
-              min="0"
-              value={formData.AddedAmount}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  AddedAmount: parseFloat(e.target.value) || 0,
-                })
-              }
-              className="text-right"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="adv_start_date">Date Start</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  id="adv_start_date"
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !formData.StartDate && "text-muted-foreground"
-                  )}
-                >
-                  {formData.StartDate
-                    ? format(formData.StartDate, "PPP")
-                    : "Pick a date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={formData.StartDate || undefined}
-                  onSelect={(date) =>
-                    setFormData({ ...formData, StartDate: date || new Date() })
-                  }
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          <div>
-            <Label htmlFor="adv_pay_per_month">Monthly Installment</Label>
-            <Select
-              value={formData.PayPerMonth.toString()}
-              onValueChange={(value) =>
-                setFormData({ ...formData, PayPerMonth: parseInt(value) })
-              }
-            >
-              <SelectTrigger id="adv_pay_per_month">
-                <SelectValue placeholder="Select payment frequency" />
-              </SelectTrigger>
-              <SelectContent>
-                {MONTHLY_PAYMENTS.map((pay) => (
-                  <SelectItem key={pay.value} value={pay.value.toString()}>
-                    {pay.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Label htmlFor="adv_amount_per_pay">Installment Amount</Label>
-            <Input
-              id="adv_amount_per_pay"
-              type="number"
-              step="0.01"
-              min="0"
-              value={formData.AmountPerPay}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  AmountPerPay: parseFloat(e.target.value) || 0,
-                })
-              }
-              className="text-right"
-              readOnly
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="adv_pay_cutoff">Pay Cutoff</Label>
-            <Select
-              value={formData.PayCutoff?.toString() || "none"}
-              onValueChange={(value) =>
-                setFormData({
-                  ...formData,
-                  PayCutoff: value === "none" ? null : parseInt(value),
-                })
-              }
-            >
-              <SelectTrigger id="adv_pay_cutoff">
-                <SelectValue placeholder="Select cutoff" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                {CUTOFF_PAYMENTS.map((cutoff) => (
-                  <SelectItem
-                    key={cutoff.value}
-                    value={cutoff.value.toString()}
-                  >
-                    {cutoff.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex items-end">
-            <Button type="button" onClick={handleAddAdvance} className="w-full">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Advance
-            </Button>
-          </div>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h4 className="text-base font-semibold text-foreground">Advances and loans</h4>
+          <p className="text-sm text-muted-foreground">
+            Payroll collects each installment from the loan&apos;s date start.
+          </p>
         </div>
+        <Button type="button" onClick={openAdd}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add loan
+        </Button>
       </div>
 
-      {/* Advances Table */}
-      <div className="bg-card rounded-xl border border-border/60 p-5">
-        <h4 className="text-base font-semibold text-foreground mb-4 pb-3 border-b border-border/60">Advances &amp; Loans History</h4>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat label="Base salary" value={`₱${formatMoney(activeSalary?.SalAmount ?? 0)}`} />
+        <Stat
+          label="Total loaned"
+          value={`₱${formatMoney(totalLoan)}`}
+          hint={`${advances.length} ${advances.length === 1 ? "loan" : "loans"}`}
+        />
+        <Stat label="Total paid" value={`₱${formatMoney(totalPaid)}`} />
+        <Stat
+          label="Outstanding"
+          value={`₱${formatMoney(Math.max(totalLoan - totalPaid, 0))}`}
+          hint={`${activeCount} active`}
+        />
+      </div>
+
+      <div className="rounded-xl border border-border/60 bg-card">
         {advances.length === 0 ? (
-          <div className="text-center py-8 border rounded-lg">
-            <p className="text-muted-foreground">No advances or loans found.</p>
+          <div className="flex flex-col items-center justify-center gap-3 px-6 py-14 text-center">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-muted">
+              <HandCoins className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="font-medium text-foreground">No advances or loans</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Loans added here or released from Manage Loans show up in this list.
+              </p>
+            </div>
+            <Button type="button" variant="outline" size="sm" onClick={openAdd}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add loan
+            </Button>
           </div>
         ) : (
-          <div className="border rounded-lg">
+          <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Loan Type</TableHead>
-                  <TableHead>Date Issued</TableHead>
-                  <TableHead className="text-right">Loan Amount</TableHead>
-                  <TableHead className="text-right">Added Amount</TableHead>
-                  <TableHead className="text-right">Total Amount</TableHead>
-                  <TableHead className="text-right">Installment</TableHead>
-                  <TableHead>Date Start</TableHead>
-                  <TableHead>Monthly Installment</TableHead>
-                  <TableHead></TableHead>
+                  <TableHead>Loan</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>Installment</TableHead>
+                  <TableHead>Schedule</TableHead>
+                  <TableHead className="min-w-44">Paid</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-12" />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {advances.map((advance, index) => (
-                  <TableRow key={advance.AdvId || index}>
-                    <TableCell>{advance.AdvType}</TableCell>
-                    <TableCell>
-                      {advance.AdvDate ? format(advance.AdvDate, "PPP") : "-"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {advance.AdvAmount.toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {advance.AddedAmount.toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {(advance.AdvAmount + advance.AddedAmount).toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {advance.AmountPerPay.toFixed(2)}
-                    </TableCell>
-                    <TableCell>
-                      {advance.StartDate
-                        ? format(advance.StartDate, "PPP")
-                        : "-"}
-                    </TableCell>
-                    <TableCell>
-                      {MONTHLY_PAYMENTS.find(
-                        (p) => p.value === advance.PayPerMonth
-                      )?.label || "-"}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleRemoveAdvance(index)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {advances.map((a) => {
+                  const total = totalOf(a);
+                  const paid = a.AdvPaid ?? 0;
+                  const remaining = Math.max(total - paid, 0);
+                  const pct = total > 0 ? Math.min((paid / total) * 100, 100) : 0;
+                  const collected = paid > 0;
+                  return (
+                    <TableRow key={a.AdvCode}>
+                      <TableCell>
+                        <p className="font-medium text-foreground">{a.AdvType ?? "-"}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Issued {formatInputDate(a.AdvDateIssued)}
+                        </p>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <p className="tabular font-medium text-foreground">₱{formatMoney(total)}</p>
+                        {(a.AdvAddedAmount ?? 0) > 0 && (
+                          <p className="tabular text-xs text-muted-foreground">
+                            {formatMoney(a.AdvAmount)} + {formatMoney(a.AdvAddedAmount)}
+                          </p>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <p className="tabular text-foreground">₱{formatMoney(a.AdvAmountPerPay)}</p>
+                        <p className="text-xs text-muted-foreground">{scheduleOf(a)}</p>
+                      </TableCell>
+                      <TableCell>
+                        <p className="tabular text-foreground">{formatInputDate(a.AdvDateStart)}</p>
+                        <p className="tabular text-xs text-muted-foreground">
+                          Ends about {formatInputDate(endOf(a))}
+                        </p>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-baseline justify-between gap-2 text-xs">
+                          <span className="tabular text-foreground">₱{formatMoney(paid)}</span>
+                          <span className="tabular text-muted-foreground">
+                            ₱{formatMoney(remaining)} left
+                          </span>
+                        </div>
+                        <div
+                          className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted"
+                          role="progressbar"
+                          aria-valuenow={Math.round(pct)}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-label="Paid so far"
+                        >
+                          <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge advance={a} remaining={remaining} />
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-destructive"
+                          aria-label={`Delete ${a.AdvType ?? "loan"}`}
+                          disabled={collected || deleteAdvance.isPending}
+                          title={collected ? "Payroll has collected from this loan" : "Delete"}
+                          onClick={() => setDeleteTarget(a)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
         )}
       </div>
 
-      <div className="flex justify-end gap-2 mt-6">
-        <Button
-          type="button"
-          onClick={handleSave}
-          disabled={saveMutation.isPending}
-        >
-          <Save className="mr-2 h-4 w-4" />
-          {saveMutation.isPending ? "Saving..." : "Save Changes"}
-        </Button>
-      </div>
+      <Dialog open={addOpen} onOpenChange={(open) => !addAdvance.isPending && setAddOpen(open)}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Add loan</DialogTitle>
+            <DialogDescription>
+              The loan goes straight to this employee&apos;s advances. Payroll starts collecting it
+              on the date start.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <LoanTermsFields value={terms} onChange={setTerms} idPrefix="adv" />
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setAddOpen(false)}
+              disabled={addAdvance.isPending}
+            >
+              Cancel
+            </Button>
+            <Button type="button" onClick={handleAdd} disabled={addAdvance.isPending}>
+              {addAdvance.isPending ? "Adding..." : "Add loan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this loan?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget?.AdvType ?? "Loan"} for ₱{formatMoney(deleteTarget ? totalOf(deleteTarget) : 0)} will
+              be removed and payroll will stop collecting it.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={confirmDelete}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyToken } from "@/lib/auth/jwt-edge";
 import { authorizeApiRequest } from "@/lib/auth/authorization";
 import * as requestProcedures from "@/lib/services/requests.service";
 
 export async function GET(request: NextRequest) {
   try {
-    const auth = await authorizeApiRequest(request, "apiLoan");
+    // Lists every employee's loans, so only Manage Loans users may read it.
+    const auth = await authorizeApiRequest(request, "adminManageLoans");
     if (!auth.ok) return auth.response;
 
     const rows = await requestProcedures.loanManagementList();
@@ -36,19 +36,14 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    // Read the action first so the right permission can be checked:
+    // Release needs Loan Release; Approve, Reject and Resubmit need Loan Approve.
+    const body = await request.clone().json();
+    const routeKey = body?.Status === "release" ? "apiLoanRelease" : "apiLoanApprove";
+    const auth = await authorizeApiRequest(request, routeKey);
+    if (!auth.ok) return auth.response;
+    const payload = auth.payload;
 
-    let payload;
-    try {
-      payload = await verifyToken(authHeader.substring(7));
-    } catch {
-      return NextResponse.json({ message: "Invalid token" }, { status: 401 });
-    }
-
-    const body = await request.json();
     const {
       LoaId,
       Status,
@@ -65,6 +60,19 @@ export async function PUT(request: NextRequest) {
     } = body;
 
     const approver = payload.name; // EmpId from JWT payload
+
+    if (Status === "release") {
+      const problem =
+        !EmpAdtype ? "Loan type is required"
+        : !(Number(EmpAdamt) > 0) ? "Loan amount must be greater than zero"
+        : !(Number(EmpAdamtperpay) > 0) ? "Installment amount must be greater than zero"
+        : EmpAdpaypermonth !== 1 && EmpAdpaypermonth !== 2 ? "Monthly installment must be once or twice"
+        : !EmpAddate || !EmpAdstart ? "Date issued and date start are required"
+        : null;
+      if (problem) {
+        return NextResponse.json({ message: problem }, { status: 400 });
+      }
+    }
 
     // Manage loan request
     await requestProcedures.loanManageRequest(

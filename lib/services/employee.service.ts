@@ -190,45 +190,80 @@ export async function upsertEmployeePersonal(
   }
 }
 
-export async function deleteEmployeeAdvances(empId: string) {
-  await prisma.empadvance.deleteMany({
-    where: { emp_id: empId },
-  });
+/** YYYY-MM-DD to a Date at UTC midnight, the way Prisma stores MySQL DATE. */
+function dateOnlyFromInput(value: string): Date {
+  const [y, m, d] = value.slice(0, 10).split("-").map(Number);
+  return new Date(Date.UTC(y, (m ?? 1) - 1, d ?? 1));
 }
 
+/**
+ * Add one advance or loan for an employee.
+ * Conversion of the employee_insert_advances stored procedure:
+ *   emp_adid = emp_id + year(date issued) + (advances that employee has in that year + 1)
+ *   emp_adpaycutoff is null when collected twice a month
+ *   emp_adend and emp_adpaid are left to their defaults (commented out in the SP)
+ */
 export async function insertEmployeeAdvance(
   empId: string,
-  AdvType: string,
-  AdvDate: Date,
-  AdvAmount: number,
-  AddedAmount: number,
-  PayPerMonth: number,
-  StartDate: Date,
-  AmountPerPay: number,
-  PayCutoff: number | null,
-) {
-  const count = await prisma.empadvance.count({ where: { emp_id: empId } });
-  // emp_adid is VarChar(20): use short format to fit (e.g. 000002-1)
-  const emp_adid = `${empId}-${count + 1}`;
-  const endDate = PayPerMonth > 0 ? new Date(StartDate) : null;
-  if (endDate && PayPerMonth > 0) {
-    endDate.setMonth(endDate.getMonth() + PayPerMonth);
-  }
+  advance: {
+    AdvType: string;
+    AdvDate: string;
+    AdvAmount: number;
+    AddedAmount: number;
+    PayPerMonth: number;
+    PayCutoff: number | null;
+    StartDate: string;
+    AmountPerPay: number;
+  },
+): Promise<string> {
+  const issued = dateOnlyFromInput(advance.AdvDate);
+  const year = issued.getUTCFullYear();
+  const sameYear = await prisma.empadvance.count({
+    where: {
+      emp_id: empId,
+      emp_addate: {
+        gte: new Date(Date.UTC(year, 0, 1)),
+        lt: new Date(Date.UTC(year + 1, 0, 1)),
+      },
+    },
+  });
+  const emp_adid = `${empId}${year}${sameYear + 1}`;
+
   await prisma.empadvance.create({
     data: {
       emp_id: empId,
       emp_adid,
-      emp_adtype: AdvType,
-      emp_addate: AdvDate,
-      emp_adamt: AdvAmount,
-      emp_adaddedamt: AddedAmount,
-      emp_adpaypermonth: PayPerMonth,
-      emp_adpaycutoff: PayCutoff ?? null,
-      emp_adstart: StartDate,
-      emp_adend: endDate ?? undefined,
-      emp_adamtperpay: AmountPerPay,
+      emp_adtype: advance.AdvType,
+      emp_addate: issued,
+      emp_adamt: advance.AdvAmount,
+      emp_adaddedamt: advance.AddedAmount,
+      emp_adpaypermonth: advance.PayPerMonth,
+      emp_adpaycutoff: advance.PayPerMonth === 2 ? null : advance.PayCutoff,
+      emp_adstart: dateOnlyFromInput(advance.StartDate),
+      emp_adamtperpay: advance.AmountPerPay,
     },
   });
+  return emp_adid;
+}
+
+export type DeleteAdvanceResult = "deleted" | "not_found" | "has_payments";
+
+/**
+ * Remove one advance. Refused once payroll has collected anything against it,
+ * because payslips (pay_loan) point at the row.
+ */
+export async function deleteEmployeeAdvance(
+  empId: string,
+  advCode: string,
+): Promise<DeleteAdvanceResult> {
+  const row = await prisma.empadvance.findFirst({
+    where: { emp_id: empId, emp_adid: advCode },
+  });
+  if (!row) return "not_found";
+  const collected = await prisma.pay_loan.count({ where: { pyl_lcode: advCode } });
+  if ((row.emp_adpaid ?? 0) > 0 || collected > 0) return "has_payments";
+  await prisma.empadvance.delete({ where: { emp_adid: advCode } });
+  return "deleted";
 }
 
 export async function insertEmployeeWork(
