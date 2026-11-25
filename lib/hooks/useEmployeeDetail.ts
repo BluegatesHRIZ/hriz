@@ -2,6 +2,17 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, ApiError } from "@/lib/api/client";
+import type {
+  AddApproverRequest,
+  AddApproverResponse,
+  ApprovalChain,
+  RemoveApproverResponse,
+  SetSelfApprovalResponse,
+  CreateAdvanceRequest,
+  CreateAdvanceResponse,
+  DeleteAdvanceResponse,
+  EmployeeAdvance,
+} from "@/lib/types";
 
 export interface EmpMedRec {
   emp_mrid: string;
@@ -156,13 +167,7 @@ export interface EmployeeDetail {
     SalRemarks: string | null;
     SalStatus?: number | null;
   }>;
-  EmpAdvance: Array<{
-    AdvId: number;
-    AdvType: string | null;
-    AdvAmount: number | null;
-    AdvDate: Date | null;
-    AdvRemarks: string | null;
-  }>;
+  EmpAdvance: EmployeeAdvance[];
   Schedule: Array<{
     SchedId: number;
     SchedDay: string | null;
@@ -701,43 +706,33 @@ export function useSaveSalaryHistory(empId: string) {
   });
 }
 
-export interface AdvanceData {
-  AdvId: number;
-  AdvType: string;
-  AdvDate: Date | null;
-  AdvAmount: number;
-  AddedAmount: number;
-  PayPerMonth: number;
-  StartDate: Date | null;
-  EndDate: Date | null;
-  AmountPerPay: number;
-  PayCutoff: number | null;
+/** Add one advance or loan for an employee. */
+export function useAddAdvance(empId: string) {
+  const queryClient = useQueryClient();
+  return useMutation<CreateAdvanceResponse, ApiError, CreateAdvanceRequest>({
+    mutationFn: (data) =>
+      apiFetch<CreateAdvanceResponse>(`/employee/${empId}/advances`, {
+        method: "POST",
+        headers: authHeader(),
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employee", "detail", empId] });
+    },
+  });
 }
 
-/**
- * Hook for saving employee advances and loans
- */
-export function useSaveAdvances(empId: string) {
+/** Delete one advance; the API refuses once payroll has collected from it. */
+export function useDeleteAdvance(empId: string) {
   const queryClient = useQueryClient();
-
-  return useMutation<void, ApiError, { advances: AdvanceData[] }>({
-    mutationFn: async (data) => {
-      const token = localStorage.getItem("auth_token");
-      if (!token) throw new ApiError("No token found", 401);
-
-      return apiFetch<void>(`/employee/${empId}/advances`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      });
-    },
+  return useMutation<DeleteAdvanceResponse, ApiError, string>({
+    mutationFn: (code) =>
+      apiFetch<DeleteAdvanceResponse>(
+        `/employee/${empId}/advances/${encodeURIComponent(code)}`,
+        { method: "DELETE", headers: authHeader() },
+      ),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["employee", "detail", empId],
-      });
+      queryClient.invalidateQueries({ queryKey: ["employee", "detail", empId] });
     },
   });
 }
@@ -884,35 +879,49 @@ export function useDeleteRequirement(empId: string) {
   });
 }
 
-export interface ApprovalLevelRecord {
-  al_id: string;
-  al_appvr: string | null;
-  al_emp: string | null;
-  al_menu: string | null;
-  al_level: number | null;
-  al_stat: number | null;
-}
-
-export function useApprovalLevels(empId: string) {
-  return useQuery<ApprovalLevelRecord[], ApiError>({
+export function useApprovalChain(empId: string) {
+  return useQuery<ApprovalChain, ApiError>({
     queryKey: ["employee", "approvals", empId],
-    queryFn: () => apiFetch<ApprovalLevelRecord[]>(`/employee/${empId}/approval-levels`, { headers: { Authorization: `Bearer ${localStorage.getItem("auth_token") ?? ""}` } }),
+    queryFn: () =>
+      apiFetch<ApprovalChain>(`/employee/${empId}/approval-levels`, { headers: authHeader() }),
     enabled: !!empId,
   });
 }
 
-export function useAddApprovalLevel(empId: string) {
+export function useAddApprover(empId: string) {
   const qc = useQueryClient();
-  return useMutation<ApprovalLevelRecord, ApiError, { al_appvr?: string; al_menu?: string; al_level?: number }>({
-    mutationFn: (data) => apiFetch<ApprovalLevelRecord>(`/employee/${empId}/approval-levels`, { method: "POST", headers: authHeader(), body: JSON.stringify(data) }),
+  return useMutation<AddApproverResponse, ApiError, AddApproverRequest>({
+    mutationFn: (data) =>
+      apiFetch<AddApproverResponse>(`/employee/${empId}/approval-levels`, {
+        method: "POST",
+        headers: authHeader(),
+        body: JSON.stringify(data),
+      }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["employee", "approvals", empId] }),
   });
 }
 
-export function useDeleteApprovalLevel(empId: string) {
+/** Mark the employee N/A: they approve their own requests. Replaces the chain. */
+export function useSetSelfApproval(empId: string) {
   const qc = useQueryClient();
-  return useMutation<void, ApiError, string>({
-    mutationFn: (alId) => apiFetch<void>(`/employee/${empId}/approval-levels?al_id=${alId}`, { method: "DELETE", headers: { Authorization: `Bearer ${localStorage.getItem("auth_token") ?? ""}` } }),
+  return useMutation<SetSelfApprovalResponse, ApiError, void>({
+    mutationFn: () =>
+      apiFetch<SetSelfApprovalResponse>(`/employee/${empId}/approval-levels/self`, {
+        method: "PUT",
+        headers: authHeader(),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["employee", "approvals", empId] }),
+  });
+}
+
+export function useRemoveApprover(empId: string) {
+  const qc = useQueryClient();
+  return useMutation<RemoveApproverResponse, ApiError, { approverId: string; level: number }>({
+    mutationFn: ({ approverId, level }) =>
+      apiFetch<RemoveApproverResponse>(
+        `/employee/${empId}/approval-levels?approver=${encodeURIComponent(approverId)}&level=${level}`,
+        { method: "DELETE", headers: authHeader() },
+      ),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["employee", "approvals", empId] }),
   });
 }

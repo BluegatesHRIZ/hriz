@@ -88,6 +88,8 @@ const ROUTE_TO_PERMISSION_NAMES: Record<string, PermissionName[]> = {
   apiContributionHdmf: ["HDMFContribution", "AllAccess"],
   apiContributionPhic: ["PHICContribution", "AllAccess"],
   adminManageLoans: ["LoanApprove", "LoanRelease", "AllAccess"],
+  apiLoanApprove: ["LoanApprove", "AllAccess"],
+  apiLoanRelease: ["LoanRelease", "AllAccess"],
   scheduleManagement: ["AccessEmployee", "AllAccess"],
   apiScheduleManagement: ["AccessEmployee", "AllAccess"],
 };

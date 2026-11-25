@@ -1,27 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { EmployeeDetail, useSaveAdvances } from "@/lib/hooks/useEmployeeDetail";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { useState } from "react";
+import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Save, Plus, Trash2 } from "lucide-react";
-import { useToast } from "@/lib/hooks/use-toast";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -30,461 +11,245 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-
-const ADVANCE_TYPES = [
-  { value: "Company Loan", label: "Company Loan" },
-  { value: "Salary Advance", label: "Salary Advance" },
-] as const;
-
-const MONTHLY_PAYMENTS = [
-  { value: 1, label: "Once" },
-  { value: 2, label: "Twice" },
-] as const;
-
-const CUTOFF_PAYMENTS = [
-  { value: 1, label: "1st Cutoff" },
-  { value: 2, label: "2nd Cutoff" },
-] as const;
-
-interface AdvanceForm {
-  AdvId: number;
-  AdvType: string;
-  AdvDate: Date | null;
-  AdvAmount: number;
-  AddedAmount: number;
-  PayPerMonth: number;
-  StartDate: Date | null;
-  EndDate: Date | null;
-  AmountPerPay: number;
-  PayCutoff: number | null;
-}
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { LoanTermsFields } from "@/components/loans/LoanTermsFields";
+import {
+  EmployeeDetail,
+  useAddAdvance,
+  useDeleteAdvance,
+} from "@/lib/hooks/useEmployeeDetail";
+import { useToast } from "@/lib/hooks/use-toast";
+import type { EmployeeAdvance, LoanTerms } from "@/lib/types";
+import {
+  emptyLoanTerms,
+  estimatedEndDate,
+  formatInputDate,
+  formatMoney,
+  PAY_CUTOFF_LABEL,
+  PAY_PER_MONTH_LABEL,
+  validateLoanTerms,
+} from "@/lib/utils/loanTerms";
 
 interface AdvancesAndLoansTabProps {
   employee: EmployeeDetail;
 }
 
+function totalOf(a: EmployeeAdvance): number {
+  return (a.AdvAmount ?? 0) + (a.AdvAddedAmount ?? 0);
+}
+
+function endOf(a: EmployeeAdvance): string | null {
+  if (!a.AdvDateStart || !a.AdvPayPerMonth) return null;
+  return estimatedEndDate({
+    loanType: a.AdvType ?? "",
+    loanAmount: a.AdvAmount ?? 0,
+    addedAmount: a.AdvAddedAmount,
+    installmentAmount: a.AdvAmountPerPay,
+    dateIssued: a.AdvDateIssued ?? "",
+    dateStart: a.AdvDateStart,
+    payPerMonth: a.AdvPayPerMonth === 1 ? "1" : "2",
+    payCutoff: "",
+  });
+}
+
 export function AdvancesAndLoansTab({ employee }: AdvancesAndLoansTabProps) {
   const { toast } = useToast();
-  const saveMutation = useSaveAdvances(employee.Account.EmpId);
+  const empId = employee.Account.EmpId;
+  const addAdvance = useAddAdvance(empId);
+  const deleteAdvance = useDeleteAdvance(empId);
 
-  // Initialize advances from employee data
-  const initialAdvances: AdvanceForm[] = useMemo(() => {
-    if (employee.EmpAdvance && employee.EmpAdvance.length > 0) {
-      return employee.EmpAdvance.map((adv) => ({
-        AdvId: adv.AdvId,
-        AdvType: adv.AdvType || "",
-        AdvDate: adv.AdvDate || new Date(),
-        AdvAmount: adv.AdvAmount || 0,
-        AddedAmount: 0, // Not in current DTO
-        PayPerMonth: 2, // Default to twice
-        StartDate: adv.AdvDate || new Date(),
-        EndDate: null, // Not in current DTO
-        AmountPerPay: 0, // Would need to calculate
-        PayCutoff: null,
-      }));
-    }
-    return [];
-  }, [employee]);
+  const [terms, setTerms] = useState<LoanTerms>(() => emptyLoanTerms());
+  const [deleteTarget, setDeleteTarget] = useState<EmployeeAdvance | null>(null);
 
-  const [advances, setAdvances] = useState<AdvanceForm[]>(initialAdvances);
-  const [formData, setFormData] = useState<AdvanceForm>({
-    AdvId: 0,
-    AdvType: "",
-    AdvDate: new Date(),
-    AdvAmount: 0,
-    AddedAmount: 0,
-    PayPerMonth: 2,
-    StartDate: new Date(),
-    EndDate: null,
-    AmountPerPay: 0,
-    PayCutoff: null,
-  });
+  const advances = employee.EmpAdvance ?? [];
+  const activeSalary =
+    employee.EmpSalary.find((s) => (s.SalStatus ?? 1) === 1) ?? employee.EmpSalary[0];
+  const totalLoan = advances.reduce((sum, a) => sum + totalOf(a), 0);
+  const totalPaid = advances.reduce((sum, a) => sum + (a.AdvPaid ?? 0), 0);
 
-  // Sync state when employee data changes
-  useEffect(() => {
-    setAdvances(initialAdvances);
-  }, [initialAdvances]);
-
-  // Calculate amount per pay when amount or pay per month changes
-  useEffect(() => {
-    if (formData.AdvAmount > 0 && formData.PayPerMonth > 0) {
-      const amountPerPay =
-        (formData.AdvAmount + formData.AddedAmount) / formData.PayPerMonth;
-      setFormData({
-        ...formData,
-        AmountPerPay: Math.round(amountPerPay * 100) / 100,
-      });
-    }
-  }, [formData.AdvAmount, formData.AddedAmount, formData.PayPerMonth]);
-
-  const handleAddAdvance = () => {
-    if (
-      !formData.AdvType ||
-      formData.AdvAmount <= 0 ||
-      !formData.StartDate ||
-      formData.AmountPerPay <= 0
-    ) {
-      toast({
-        title: "Validation Error",
-        description:
-          "Please fill in Loan Type, Amount, Start Date, and ensure Amount Per Pay is calculated",
-        variant: "destructive",
-      });
+  async function handleAdd() {
+    const problem = validateLoanTerms(terms);
+    if (problem) {
+      toast({ title: "Check the loan details", description: problem, variant: "destructive" });
       return;
     }
-
-    const newAdvance: AdvanceForm = {
-      ...formData,
-      AdvId: Date.now(), // Temporary ID
-    };
-    setAdvances([...advances, newAdvance]);
-
-    // Reset form
-    setFormData({
-      AdvId: 0,
-      AdvType: "",
-      AdvDate: new Date(),
-      AdvAmount: 0,
-      AddedAmount: 0,
-      PayPerMonth: 2,
-      StartDate: new Date(),
-      EndDate: null,
-      AmountPerPay: 0,
-      PayCutoff: null,
-    });
-  };
-
-  const handleRemoveAdvance = (index: number) => {
-    const newAdvances = advances.filter((_, i) => i !== index);
-    setAdvances(newAdvances);
-  };
-
-  const handleSave = async () => {
     try {
-      // Serialize dates properly - handle both Date objects and strings
-      const advancesToSave = advances.map((adv) => {
-        const advDate = adv.AdvDate
-          ? adv.AdvDate instanceof Date
-            ? adv.AdvDate
-            : new Date(adv.AdvDate)
-          : null;
-        const startDate = adv.StartDate
-          ? adv.StartDate instanceof Date
-            ? adv.StartDate
-            : new Date(adv.StartDate)
-          : null;
-        const endDate = adv.EndDate
-          ? adv.EndDate instanceof Date
-            ? adv.EndDate
-            : new Date(adv.EndDate)
-          : null;
-
-        return {
-          ...adv,
-          AdvDate: advDate,
-          StartDate: startDate,
-          EndDate: endDate,
-        };
+      await addAdvance.mutateAsync({
+        AdvType: terms.loanType,
+        AdvDate: terms.dateIssued,
+        AdvAmount: terms.loanAmount,
+        AddedAmount: terms.addedAmount,
+        PayPerMonth: Number(terms.payPerMonth),
+        PayCutoff: terms.payPerMonth === "1" && terms.payCutoff ? Number(terms.payCutoff) : null,
+        StartDate: terms.dateStart,
+        AmountPerPay: terms.installmentAmount,
       });
-
-      await saveMutation.mutateAsync({ advances: advancesToSave });
-      toast({
-        title: "Success",
-        description: "Advances and loans saved successfully",
-      });
+      toast({ title: "Loan added" });
+      setTerms(emptyLoanTerms());
     } catch (error) {
-      console.error("Save advances error:", error);
       toast({
-        title: "Error",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Failed to save advances and loans",
+        title: "Could not add the loan",
+        description: error instanceof Error ? error.message : "Unknown error",
         variant: "destructive",
       });
     }
-  };
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    try {
+      await deleteAdvance.mutateAsync(deleteTarget.AdvCode);
+      toast({ title: "Loan deleted" });
+    } catch (error) {
+      toast({
+        title: "Could not delete the loan",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteTarget(null);
+    }
+  }
 
   return (
     <div className="space-y-4 p-4">
-      {/* Add Advance Form */}
-      <div className="bg-card rounded-xl border border-border/60 p-5">
-        <h4 className="text-base font-semibold text-foreground mb-4 pb-3 border-b border-border/60">Add Advance/Loan</h4>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="rounded-xl border border-border/60 bg-card p-5">
+        <h4 className="text-base font-semibold text-foreground">Advances</h4>
+        <dl className="mt-2 space-y-0.5 text-sm text-muted-foreground">
           <div>
-            <Label htmlFor="adv_type">Loan Type</Label>
-            <Select
-              value={formData.AdvType}
-              onValueChange={(value) =>
-                setFormData({ ...formData, AdvType: value })
-              }
-            >
-              <SelectTrigger id="adv_type">
-                <SelectValue placeholder="Select loan type" />
-              </SelectTrigger>
-              <SelectContent>
-                {ADVANCE_TYPES.map((type) => (
-                  <SelectItem key={type.value} value={type.value}>
-                    {type.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <dt className="inline">Base Salary: </dt>
+            <dd className="inline font-mono">{formatMoney(activeSalary?.SalAmount ?? 0)}</dd>
           </div>
-
           <div>
-            <Label htmlFor="adv_date">Date Issued</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  id="adv_date"
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !formData.AdvDate && "text-muted-foreground"
-                  )}
-                >
-                  {formData.AdvDate
-                    ? format(formData.AdvDate, "PPP")
-                    : "Pick a date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={formData.AdvDate || undefined}
-                  onSelect={(date) =>
-                    setFormData({ ...formData, AdvDate: date || new Date() })
-                  }
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
+            <dt className="inline">Total loan amount: </dt>
+            <dd className="inline font-mono">{formatMoney(totalLoan)}</dd>
           </div>
-
           <div>
-            <Label htmlFor="adv_amount">Loan Amount</Label>
-            <Input
-              id="adv_amount"
-              type="number"
-              step="0.01"
-              min="0"
-              value={formData.AdvAmount}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  AdvAmount: parseFloat(e.target.value) || 0,
-                })
-              }
-              className="text-right"
-            />
+            <dt className="inline">Total paid amount: </dt>
+            <dd className="inline font-mono">{formatMoney(totalPaid)}</dd>
           </div>
+        </dl>
 
-          <div>
-            <Label htmlFor="adv_added_amount">Added Amount</Label>
-            <Input
-              id="adv_added_amount"
-              type="number"
-              step="0.01"
-              min="0"
-              value={formData.AddedAmount}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  AddedAmount: parseFloat(e.target.value) || 0,
-                })
-              }
-              className="text-right"
-            />
+        <div className="mt-5 flex flex-col gap-4 lg:flex-row lg:items-end">
+          <div className="flex-1">
+            <LoanTermsFields value={terms} onChange={setTerms} idPrefix="adv" />
           </div>
-
-          <div>
-            <Label htmlFor="adv_start_date">Date Start</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  id="adv_start_date"
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !formData.StartDate && "text-muted-foreground"
-                  )}
-                >
-                  {formData.StartDate
-                    ? format(formData.StartDate, "PPP")
-                    : "Pick a date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={formData.StartDate || undefined}
-                  onSelect={(date) =>
-                    setFormData({ ...formData, StartDate: date || new Date() })
-                  }
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          <div>
-            <Label htmlFor="adv_pay_per_month">Monthly Installment</Label>
-            <Select
-              value={formData.PayPerMonth.toString()}
-              onValueChange={(value) =>
-                setFormData({ ...formData, PayPerMonth: parseInt(value) })
-              }
-            >
-              <SelectTrigger id="adv_pay_per_month">
-                <SelectValue placeholder="Select payment frequency" />
-              </SelectTrigger>
-              <SelectContent>
-                {MONTHLY_PAYMENTS.map((pay) => (
-                  <SelectItem key={pay.value} value={pay.value.toString()}>
-                    {pay.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Label htmlFor="adv_amount_per_pay">Installment Amount</Label>
-            <Input
-              id="adv_amount_per_pay"
-              type="number"
-              step="0.01"
-              min="0"
-              value={formData.AmountPerPay}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  AmountPerPay: parseFloat(e.target.value) || 0,
-                })
-              }
-              className="text-right"
-              readOnly
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="adv_pay_cutoff">Pay Cutoff</Label>
-            <Select
-              value={formData.PayCutoff?.toString() || "none"}
-              onValueChange={(value) =>
-                setFormData({
-                  ...formData,
-                  PayCutoff: value === "none" ? null : parseInt(value),
-                })
-              }
-            >
-              <SelectTrigger id="adv_pay_cutoff">
-                <SelectValue placeholder="Select cutoff" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                {CUTOFF_PAYMENTS.map((cutoff) => (
-                  <SelectItem
-                    key={cutoff.value}
-                    value={cutoff.value.toString()}
-                  >
-                    {cutoff.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex items-end">
-            <Button type="button" onClick={handleAddAdvance} className="w-full">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Advance
-            </Button>
-          </div>
+          <Button
+            type="button"
+            onClick={handleAdd}
+            disabled={addAdvance.isPending}
+            className="lg:mb-0.5"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            {addAdvance.isPending ? "Adding..." : "Add"}
+          </Button>
         </div>
       </div>
 
-      {/* Advances Table */}
-      <div className="bg-card rounded-xl border border-border/60 p-5">
-        <h4 className="text-base font-semibold text-foreground mb-4 pb-3 border-b border-border/60">Advances &amp; Loans History</h4>
-        {advances.length === 0 ? (
-          <div className="text-center py-8 border rounded-lg">
-            <p className="text-muted-foreground">No advances or loans found.</p>
-          </div>
-        ) : (
-          <div className="border rounded-lg">
-            <Table>
-              <TableHeader>
+      <div className="rounded-xl border border-border/60 bg-card">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Loan type</TableHead>
+                <TableHead className="text-right">Loan amount</TableHead>
+                <TableHead className="text-right">Added amount</TableHead>
+                <TableHead className="text-right">Total amount</TableHead>
+                <TableHead className="text-right">Installment amount</TableHead>
+                <TableHead>Date issued</TableHead>
+                <TableHead>Date start</TableHead>
+                <TableHead>Monthly installment</TableHead>
+                <TableHead>Installment type</TableHead>
+                <TableHead>Est. date end</TableHead>
+                <TableHead className="text-right">Paid</TableHead>
+                <TableHead className="text-right">Remaining</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {advances.length === 0 ? (
                 <TableRow>
-                  <TableHead>Loan Type</TableHead>
-                  <TableHead>Date Issued</TableHead>
-                  <TableHead className="text-right">Loan Amount</TableHead>
-                  <TableHead className="text-right">Added Amount</TableHead>
-                  <TableHead className="text-right">Total Amount</TableHead>
-                  <TableHead className="text-right">Installment</TableHead>
-                  <TableHead>Date Start</TableHead>
-                  <TableHead>Monthly Installment</TableHead>
-                  <TableHead></TableHead>
+                  <TableCell colSpan={14} className="py-8 text-center text-muted-foreground">
+                    No data to display
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {advances.map((advance, index) => (
-                  <TableRow key={advance.AdvId || index}>
-                    <TableCell>{advance.AdvType}</TableCell>
-                    <TableCell>
-                      {advance.AdvDate ? format(advance.AdvDate, "PPP") : "-"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {advance.AdvAmount.toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {advance.AddedAmount.toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {(advance.AdvAmount + advance.AddedAmount).toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {advance.AmountPerPay.toFixed(2)}
-                    </TableCell>
-                    <TableCell>
-                      {advance.StartDate
-                        ? format(advance.StartDate, "PPP")
-                        : "-"}
-                    </TableCell>
-                    <TableCell>
-                      {MONTHLY_PAYMENTS.find(
-                        (p) => p.value === advance.PayPerMonth
-                      )?.label || "-"}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleRemoveAdvance(index)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
+              ) : (
+                advances.map((a) => {
+                  const total = totalOf(a);
+                  const remaining = Math.max(total - (a.AdvPaid ?? 0), 0);
+                  const perMonth = a.AdvPayPerMonth != null ? String(a.AdvPayPerMonth) : "";
+                  const cutoff = a.AdvPayCutoff != null ? String(a.AdvPayCutoff) : "";
+                  return (
+                    <TableRow key={a.AdvCode}>
+                      <TableCell>{a.AdvType ?? "-"}</TableCell>
+                      <TableCell className="text-right font-mono">{formatMoney(a.AdvAmount)}</TableCell>
+                      <TableCell className="text-right font-mono">{formatMoney(a.AdvAddedAmount)}</TableCell>
+                      <TableCell className="text-right font-mono">{formatMoney(total)}</TableCell>
+                      <TableCell className="text-right font-mono">{formatMoney(a.AdvAmountPerPay)}</TableCell>
+                      <TableCell>{formatInputDate(a.AdvDateIssued)}</TableCell>
+                      <TableCell>{formatInputDate(a.AdvDateStart)}</TableCell>
+                      <TableCell>{PAY_PER_MONTH_LABEL[perMonth] ?? "-"}</TableCell>
+                      <TableCell>
+                        {perMonth === "2" ? "Every cutoff" : PAY_CUTOFF_LABEL[cutoff] ?? "Any cutoff"}
+                      </TableCell>
+                      <TableCell>{formatInputDate(endOf(a))}</TableCell>
+                      <TableCell className="text-right font-mono">{formatMoney(a.AdvPaid)}</TableCell>
+                      <TableCell className="text-right font-mono">{formatMoney(remaining)}</TableCell>
+                      <TableCell>
+                        {a.AdvStatus === 1 ? (remaining > 0 ? "Active" : "Paid") : "Awaiting release"}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          aria-label={`Delete ${a.AdvType ?? "loan"}`}
+                          disabled={(a.AdvPaid ?? 0) > 0 || deleteAdvance.isPending}
+                          title={(a.AdvPaid ?? 0) > 0 ? "Payroll has collected from this loan" : "Delete"}
+                          onClick={() => setDeleteTarget(a)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
-      <div className="flex justify-end gap-2 mt-6">
-        <Button
-          type="button"
-          onClick={handleSave}
-          disabled={saveMutation.isPending}
-        >
-          <Save className="mr-2 h-4 w-4" />
-          {saveMutation.isPending ? "Saving..." : "Save Changes"}
-        </Button>
-      </div>
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this loan?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget?.AdvType ?? "Loan"} for {formatMoney(deleteTarget ? totalOf(deleteTarget) : 0)} will
+              be removed and payroll will stop collecting it.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={confirmDelete}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
