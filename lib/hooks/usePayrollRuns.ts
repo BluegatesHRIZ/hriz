@@ -206,6 +206,8 @@ function employeeQuery(f: PayrollEmployeeFilters): string {
   if (f.dept) params.set("dept", f.dept);
   if (f.loc?.length) params.set("loc", f.loc.join(","));
   if (f.pos) params.set("pos", f.pos);
+  // The admin login is a system account, never someone to pay.
+  params.set("excludeSuperadmin", "1");
   return params.toString();
 }
 

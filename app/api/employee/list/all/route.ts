@@ -15,6 +15,7 @@ import { getAvatarUrls } from "@/lib/services/avatars.service"
  *   search               free text over id / last / first / middle name
  *   dept, loc, pos       exact-match code filters; `loc` also takes a
  *                        comma-separated list (any of)
+ *   excludeSuperadmin=1  leave out the SUPERADMIN system account (Run Payroll)
  *   idsOnly=1            every matching id, unpaginated. Powers
  *                        "select all N matching" without walking each page.
  *
@@ -36,6 +37,11 @@ function buildWhere(searchParams: URLSearchParams) {
   if (locs.length === 1) where.emp_loc = locs[0]
   else if (locs.length > 1) where.emp_loc = { in: locs }
   if (pos) where.emp_pos = pos
+  if (searchParams.get("excludeSuperadmin") === "1") {
+    // The SUPERADMIN login (emp_id "admin") is a system account, not staff.
+    // Keep NULL roles: `not` alone would drop them in SQL.
+    where.AND = [{ OR: [{ emp_role: null }, { emp_role: { not: "SUPERADMIN" } }] }]
+  }
   if (search) {
     where.OR = [
       { emp_id: { contains: search } },
